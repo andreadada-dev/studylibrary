@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 1,
-  "courses": [
+  "schemaVersion": 2,
+  "catalogs": [
     {
-      "slug": "computer-vision-introduction",
-      "src": "/data/courses/computer-vision-introduction.json"
+      "slug": "computer-vision",
+      "src": "/data/catalogs/computer-vision.json"
     }
   ]
 }
