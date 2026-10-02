@@ -361,3 +361,27 @@ drop trigger if exists catalogs_cleanup_community_data on public.catalogs;
 create trigger catalogs_cleanup_community_data
 after delete on public.catalogs
 for each row execute function public.cleanup_catalog_community_data();
+
+
+-- Self-service account deletion. The SECURITY DEFINER function can delete only auth.uid().
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  current_user_id uuid;
+begin
+  current_user_id := auth.uid();
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  delete from auth.users where id = current_user_id;
+end;
+$$;
+
+revoke all on function public.delete_my_account() from public;
+revoke all on function public.delete_my_account() from anon;
+grant execute on function public.delete_my_account() to authenticated;
