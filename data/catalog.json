@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "courses": [
+    {
+      "slug": "computer-vision-introduction",
+      "src": "/data/courses/computer-vision-introduction.json"
+    }
+  ]
+}
