@@ -517,6 +517,24 @@ body.universe-mode #app {
   backdrop-filter: blur(15px);
   transition: .16s ease;
 }
+.universe-control-lines {
+  width: auto;
+  min-width: 112px;
+  grid-template-columns: auto auto;
+  gap: 7px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+.universe-control-lines-title {
+  color: rgba(255,255,255,.45);
+  font-size: 10px !important;
+  font-weight: 650 !important;
+}
+.universe-control-lines [data-line-label] {
+  color: rgba(255,255,255,.92);
+  font-size: 11px !important;
+  font-weight: 760 !important;
+}
 .universe-control:hover,
 .universe-control.active {
   color: white;
@@ -533,13 +551,23 @@ body.universe-mode #app {
   position: absolute;
   z-index: 8;
   left: 32px;
-  bottom: 25px;
+  bottom: 18px;
   display: flex;
   align-items: center;
   gap: 14px;
-  color: rgba(255,255,255,.48);
+  color: rgba(255,255,255,.58);
   font-size: 10px;
   pointer-events: none;
+}
+.universe-legend-bottom {
+  width: fit-content;
+  max-width: calc(100vw - 64px);
+  padding: 10px 13px;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px;
+  background: rgba(15,18,26,.72);
+  box-shadow: 0 10px 34px rgba(0,0,0,.18);
+  backdrop-filter: blur(14px);
 }
 .universe-legend span {
   display: inline-flex;
@@ -662,6 +690,13 @@ body.universe-mode #app {
     transform: none;
   }
   .universe-legend {
+    left: 18px;
+    right: 18px;
+    max-width: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .universe-legend::-webkit-scrollbar {
     display: none;
   }
 }
@@ -690,10 +725,25 @@ body.universe-mode #app {
     top: 18px;
     right: 16px;
     flex-direction: column;
+    align-items: flex-end;
   }
   .universe-control {
     width: 38px;
     height: 38px;
+  }
+  .universe-control-lines {
+    width: auto;
+    min-width: 104px;
+    padding: 0 10px;
+  }
+  .universe-legend-bottom {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    max-width: none;
+  }
+  .universe-legend-hint {
+    display: none;
   }
   .universe-search-wrap {
     left: 16px;
@@ -929,19 +979,19 @@ body.universe-mode #app {
   background: #8d82ff;
 }
 .universe-legend .legend-dot.library {
-  width: 8px;
-  height: 8px;
-  background: #79c9ff;
+  width: 9px;
+  height: 9px;
+  background: #4db8ff;
 }
 .universe-legend .legend-dot.lesson {
-  width: 7px;
-  height: 7px;
-  background: #ffb47d;
+  width: 8px;
+  height: 8px;
+  background: #ffb36b;
 }
 .universe-legend .legend-dot.topic {
-  width: 5px;
-  height: 5px;
-  background: #d6dae7;
+  width: 6px;
+  height: 6px;
+  background: #d7dbea;
 }
 
 @media (max-width: 850px) {
