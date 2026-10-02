@@ -199,8 +199,12 @@ async function renderMyCatalogs() {
     '</div>';
 }
 
-function renderCatalog(catalogSlug) {
-  const catalog = findCatalog(catalogSlug);
+async function renderCatalog(catalogSlug) {
+  let catalog = findCatalog(catalogSlug);
+  if (!catalog && state.user && state.supabase) {
+    await fetchMyCatalogs();
+    catalog = findCatalog(catalogSlug);
+  }
   if (!catalog) return renderNotFound('Catalogo non trovato');
 
   state.activeCatalog = catalog;
@@ -235,8 +239,12 @@ function renderCatalog(catalogSlug) {
   });
 }
 
-function renderLibrary(catalogSlug, librarySlug) {
-  const catalog = findCatalog(catalogSlug);
+async function renderLibrary(catalogSlug, librarySlug) {
+  let catalog = findCatalog(catalogSlug);
+  if (!catalog && state.user && state.supabase) {
+    await fetchMyCatalogs();
+    catalog = findCatalog(catalogSlug);
+  }
   const library = findLibrary(catalog, librarySlug);
   if (!catalog || !library) return renderNotFound('Libreria non trovata');
 
@@ -265,7 +273,11 @@ function renderLibrary(catalogSlug, librarySlug) {
 }
 
 async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null) {
-  const catalog = findCatalog(catalogSlug);
+  let catalog = findCatalog(catalogSlug);
+  if (!catalog && state.user && state.supabase) {
+    await fetchMyCatalogs();
+    catalog = findCatalog(catalogSlug);
+  }
   const library = findLibrary(catalog, librarySlug);
   const lesson = findLesson(library, lessonSlug);
   if (!catalog || !library || !lesson) return renderNotFound('Lezione non trovata');
