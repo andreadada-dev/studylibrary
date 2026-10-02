@@ -111,83 +111,208 @@ function setActiveNav(routeName, universeMode = false) {
 }
 
 function renderHome() {
-  const courses = allCourses();
-  app.innerHTML = `<div class="page">
-    <section class="hero">
-      <span class="eyebrow">Spazio Universo</span>
-      <h1 class="display">Capire prima.<br/>Memorizzare dopo.</h1>
-      <p class="lede">Trasforma slide sparse in percorsi leggibili, collegati e verificabili. Ogni concetto dice cosa richiede, cosa sblocca e dove viene usato.</p>
-      <div class="hero-actions">
-        <div class="searchbar"><input data-course-search type="search" placeholder="Cerca corso o argomento…" aria-label="Cerca"/><kbd>⌘K</kbd></div>
-        <a class="button secondary" href="#/universe">Apri l'universo</a>
-      </div>
-    </section>
+  const catalogs = allCatalogs().filter(catalog => catalog.visibility !== 'private');
 
-    <section>
-      <div class="section-head"><div><h2>Biblioteca pubblica</h2><p>Corsi completi e mappe di argomenti pubblicati dalla community.</p></div><span class="tag">${courses.length} corsi</span></div>
-      <div class="course-grid" data-course-grid>${courses.map(courseCard).join('')}</div>
-      <div class="empty-state" data-no-results hidden><h2>Nessun risultato</h2><p>Prova con un altro termine.</p></div>
-    </section>
+  app.innerHTML =
+    '<div class="page">' +
+      '<section class="hero">' +
+        '<span class="eyebrow">Cataloghi pubblici</span>' +
+        '<h1 class="display">Studia per lezioni.<br/>Collega tutto.</h1>' +
+        '<p class="lede">Ogni persona costruisce il proprio catalogo. Dentro ci sono librerie, lezioni e argomenti collegati. Quando vuoi puoi pubblicarlo e renderlo visibile qui.</p>' +
+        '<div class="hero-actions">' +
+          '<div class="searchbar"><input data-course-search type="search" placeholder="Cerca catalogo, libreria, lezione o argomento…" aria-label="Cerca"/><kbd>⌘K</kbd></div>' +
+          '<a class="button secondary" href="#/universe">Universo pubblico</a>' +
+          '<a class="button secondary" href="#/mine">Il mio catalogo</a>' +
+        '</div>' +
+      '</section>' +
 
-    <hr class="section-rule" />
-    <section class="micro-features">
-      <div class="micro-feature"><span class="index">01</span><h3>JSON-first</h3><p>Il contenuto resta portabile. Puoi scriverlo a mano, generarlo, versionarlo su Git e pubblicarlo dal browser.</p></div>
-      <div class="micro-feature"><span class="index">02</span><h3>Relazioni esplicite</h3><p>Prerequisiti, concetti collegati e applicazioni diventano archi dell'universo, non note perse tra pagine.</p></div>
-      <div class="micro-feature"><span class="index">03</span><h3>Leggibilità prima della UI</h3><p>Una sola colonna di lettura, gerarchia tipografica forte e contenitori solo quando hanno significato.</p></div>
-    </section>
-  </div>`;
+      '<section>' +
+        '<div class="section-head"><div><h2>Pubblicati dalla community</h2><p>Apri un catalogo per vedere le sue librerie e le lezioni che contiene.</p></div><span class="tag">' + catalogs.length + ' cataloghi</span></div>' +
+        '<div class="course-grid" data-course-grid>' + catalogs.map(catalogCard).join('') + '</div>' +
+        '<div class="empty-state" data-no-results hidden><h2>Nessun risultato</h2><p>Prova con un altro termine.</p></div>' +
+      '</section>' +
+
+      '<hr class="section-rule" />' +
+      '<section class="micro-features">' +
+        '<div class="micro-feature"><span class="index">01</span><h3>Catalogo personale</h3><p>È il tuo spazio. Può restare privato oppure essere pubblicato nella home.</p></div>' +
+        '<div class="micro-feature"><span class="index">02</span><h3>Librerie → lezioni</h3><p>Una libreria può contenere una o più lezioni, così il materiale segue davvero il corso del docente.</p></div>' +
+        '<div class="micro-feature"><span class="index">03</span><h3>Universo a più scale</h3><p>Puoi guardare una singola lezione, una libreria, un catalogo intero oppure tutto lo spazio pubblico.</p></div>' +
+      '</section>' +
+    '</div>';
 
   const input = app.querySelector('[data-course-search]');
   const grid = app.querySelector('[data-course-grid]');
   const empty = app.querySelector('[data-no-results]');
+
   input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    const filtered = courses.filter(c => {
-      const hay = [c.title, c.description, ...(c.tags || []), ...(c.topics || []).map(t => `${t.title} ${t.summary}`)].join(' ').toLowerCase();
-      return hay.includes(q);
-    });
-    grid.innerHTML = filtered.map(courseCard).join('');
+    const query = input.value.trim().toLowerCase();
+    const filtered = catalogs.filter(catalog => catalogSearchText(catalog).includes(query));
+    grid.innerHTML = filtered.map(catalogCard).join('');
     empty.hidden = filtered.length > 0;
   });
 }
 
-async function renderCourse(slug, topicId = null) {
-  const course = findCourse(slug);
-  if (!course) return renderNotFound('Corso non trovato');
-  const ordered = getOrderedTopics(course);
-  const topic = topicId ? findTopic(course, topicId) : ordered[0];
+function catalogSearchText(catalog) {
+  const parts = [catalog.title, catalog.description, ...(catalog.tags || [])];
+  for (const library of catalog.libraries || []) {
+    parts.push(library.title, library.description);
+    for (const lesson of library.lessons || []) {
+      parts.push(lesson.title, lesson.description);
+      for (const topic of lesson.topics || []) parts.push(topic.title, topic.summary);
+    }
+  }
+  return parts.filter(Boolean).join(' ').toLowerCase();
+}
+
+async function renderMyCatalogs() {
+  let catalogs = [];
+
+  if (state.user && state.supabase) {
+    try {
+      catalogs = await fetchMyCatalogs();
+    } catch (err) {
+      console.warn(err);
+      return renderNotFound('Impossibile caricare i tuoi cataloghi');
+    }
+  }
+
+  const demoCatalogs = state.staticCatalogs || [];
+  app.innerHTML =
+    '<div class="page">' +
+      '<section class="collection-hero">' +
+        '<div><span class="eyebrow">Spazio personale</span><h1>Il mio catalogo</h1><p class="lede">Organizza le tue librerie per corso e spezza il materiale in lezioni. La pubblicazione è una scelta del proprietario.</p></div>' +
+        '<div class="hero-actions"><a class="button accent" href="#/studio">Crea o modifica JSON</a><a class="button secondary" href="#/universe">Universo totale</a></div>' +
+      '</section>' +
+      (!state.supabase
+        ? '<aside class="catalog-notice"><strong>Modalità demo</strong><p>Il backend non è ancora configurato. Puoi usare il catalogo locale e preparare i JSON; login, salvataggio personale e pubblicazione si attiveranno con Supabase.</p></aside>'
+        : !state.user
+          ? '<aside class="catalog-notice"><strong>Accedi con Google</strong><p>Usa il pulsante in alto a destra per vedere e gestire i tuoi cataloghi privati.</p></aside>'
+          : '') +
+      (catalogs.length
+        ? '<div class="section-head"><div><h2>I tuoi cataloghi</h2><p>Privati e pubblicati.</p></div><span class="tag">' + catalogs.length + '</span></div><div class="course-grid">' + catalogs.map(catalogCard).join('') + '</div>'
+        : state.user
+          ? '<div class="empty-state"><h2>Nessun catalogo cloud</h2><p>Apri Studio JSON, crea il primo catalogo e salvalo come privato oppure pubblicalo.</p></div>'
+          : '') +
+      (demoCatalogs.length
+        ? '<hr class="section-rule"/><div class="section-head"><div><h2>Cataloghi locali</h2><p>Contenuti presenti nella repository.</p></div></div><div class="course-grid">' + demoCatalogs.map(catalogCard).join('') + '</div>'
+        : '') +
+    '</div>';
+}
+
+function renderCatalog(catalogSlug) {
+  const catalog = findCatalog(catalogSlug);
+  if (!catalog) return renderNotFound('Catalogo non trovato');
+
+  state.activeCatalog = catalog;
+  state.activeLibrary = null;
+  state.activeLesson = null;
+  state.activeTopic = null;
+
+  const stats = catalogStats(catalog);
+  const universe = '#/catalog/' + encodeURIComponent(catalog.slug) + '/universe';
+
+  app.innerHTML =
+    '<div class="page">' +
+      '<header class="collection-hero">' +
+        '<div><span class="eyebrow">Catalogo</span><h1>' + escapeHtml(catalog.title) + '</h1><p class="lede">' + escapeHtml(catalog.description || '') + '</p></div>' +
+        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a><button class="button secondary" type="button" data-edit-catalog>Modifica JSON</button></div>' +
+      '</header>' +
+      '<div class="catalog-stats">' +
+        '<div><strong>' + stats.libraries + '</strong><span>librerie</span></div>' +
+        '<div><strong>' + stats.lessons + '</strong><span>lezioni</span></div>' +
+        '<div><strong>' + stats.topics + '</strong><span>argomenti</span></div>' +
+        '<div><strong>' + (catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</strong><span>visibilità</span></div>' +
+      '</div>' +
+      '<section class="collection-list">' +
+        '<div class="section-head"><div><h2>Librerie</h2><p>Ogni libreria raccoglie le lezioni di un corso o di un'area di studio.</p></div></div>' +
+        (catalog.libraries || []).map(library => libraryCard(catalog, library)).join('') +
+      '</section>' +
+    '</div>';
+
+  app.querySelector('[data-edit-catalog]')?.addEventListener('click', () => {
+    state.activeCatalog = catalog;
+    location.hash = '#/studio';
+  });
+}
+
+function renderLibrary(catalogSlug, librarySlug) {
+  const catalog = findCatalog(catalogSlug);
+  const library = findLibrary(catalog, librarySlug);
+  if (!catalog || !library) return renderNotFound('Libreria non trovata');
+
+  state.activeCatalog = catalog;
+  state.activeLibrary = library;
+  state.activeLesson = null;
+  state.activeTopic = null;
+
+  const universe =
+    '#/catalog/' + encodeURIComponent(catalog.slug) +
+    '/library/' + encodeURIComponent(library.slug) +
+    '/universe';
+
+  app.innerHTML =
+    '<div class="page">' +
+      '<div class="breadcrumb"><a href="#/catalog/' + encodeURIComponent(catalog.slug) + '">' + escapeHtml(catalog.title) + '</a><span>→</span><strong>' + escapeHtml(library.title) + '</strong></div>' +
+      '<header class="collection-hero compact">' +
+        '<div><span class="eyebrow">Libreria</span><h1>' + escapeHtml(library.title) + '</h1><p class="lede">' + escapeHtml(library.description || '') + '</p></div>' +
+        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo libreria</a></div>' +
+      '</header>' +
+      '<section class="lesson-list">' +
+        '<div class="section-head"><div><h2>Lezioni</h2><p>Ordinate come il materiale del corso.</p></div><span class="tag">' + (library.lessons?.length || 0) + ' lezioni</span></div>' +
+        (library.lessons || []).map((lesson, index) => lessonCard(catalog, library, lesson, index)).join('') +
+      '</section>' +
+    '</div>';
+}
+
+async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null) {
+  const catalog = findCatalog(catalogSlug);
+  const library = findLibrary(catalog, librarySlug);
+  const lesson = findLesson(library, lessonSlug);
+  if (!catalog || !library || !lesson) return renderNotFound('Lezione non trovata');
+
+  const ordered = getOrderedTopics(lesson);
+  const topic = topicId ? findTopic(lesson, topicId) : ordered[0];
   if (!topic) return renderNotFound('Argomento non trovato');
-  state.activeCourse = course;
+
+  const context = { catalog, library, lesson };
+  state.activeCatalog = catalog;
+  state.activeLibrary = library;
+  state.activeLesson = lesson;
   state.activeTopic = topic;
 
-  const minutes = course.estimatedMinutes || ordered.reduce((a, t) => a + (t.estimatedMinutes || 0), 0);
-  const currentIndex = Math.max(0, ordered.findIndex(t => t.id === topic.id));
+  const minutes = lesson.estimatedMinutes || ordered.reduce((sum, item) => sum + (item.estimatedMinutes || 0), 0);
+  const currentIndex = Math.max(0, ordered.findIndex(item => item.id === topic.id));
   const progress = ordered.length ? Math.round(((currentIndex + 1) / ordered.length) * 100) : 0;
+  const universe = lessonHref(catalog.slug, library.slug, lesson.slug) + '/universe';
 
-  app.innerHTML = `<div class="page">
-    <header class="course-hero">
-      <div>
-        <span class="eyebrow">${escapeHtml(course.university || 'Corso')}</span>
-        <h1>${escapeHtml(course.title)}</h1>
-        <p class="summary">${escapeHtml(course.description || '')}</p>
-        <div class="progress-track" aria-label="Avanzamento nel corso"><span style="--progress:${progress}%"></span></div>
-      </div>
-      <div class="course-statline">
-        <div class="stat"><strong>${ordered.length}</strong><span>argomenti</span></div>
-        <div class="stat"><strong>${minutes || '—'}</strong><span>minuti stimati</span></div>
-        <div class="stat"><strong>${(course.modules || []).length}</strong><span>moduli</span></div>
-        <div class="stat"><strong>${escapeHtml(course.language?.toUpperCase() || 'IT')}</strong><span>lingua</span></div>
-      </div>
-    </header>
-
-    <div class="course-layout">
-      <aside class="topic-rail">${readerRail(course, topic.id)}</aside>
-      ${topicArticle(course, topic)}
-    </div>
-  </div>`;
+  app.innerHTML =
+    '<div class="page">' +
+      '<header class="course-hero lesson-hero">' +
+        '<div>' +
+          '<div class="breadcrumb"><a href="#/catalog/' + encodeURIComponent(catalog.slug) + '">' + escapeHtml(catalog.title) + '</a><span>→</span><a href="#/catalog/' + encodeURIComponent(catalog.slug) + '/library/' + encodeURIComponent(library.slug) + '">' + escapeHtml(library.title) + '</a></div>' +
+          '<span class="eyebrow">Lezione</span>' +
+          '<h1>' + escapeHtml(lesson.title) + '</h1>' +
+          '<p class="summary">' + escapeHtml(lesson.description || '') + '</p>' +
+          '<div class="progress-track" aria-label="Avanzamento nella lezione"><span style="--progress:' + progress + '%"></span></div>' +
+        '</div>' +
+        '<div class="course-statline">' +
+          '<div class="stat"><strong>' + ordered.length + '</strong><span>argomenti</span></div>' +
+          '<div class="stat"><strong>' + (minutes || '—') + '</strong><span>minuti stimati</span></div>' +
+          '<div class="stat"><strong>' + (lesson.modules?.length || 0) + '</strong><span>moduli</span></div>' +
+          '<div class="stat"><a class="button secondary" href="' + universe + '">Universo lezione</a></div>' +
+        '</div>' +
+      '</header>' +
+      '<div class="course-layout">' +
+        '<aside class="topic-rail">' + lessonReaderRail(context, topic.id) + '</aside>' +
+        lessonTopicArticle(context, topic) +
+      '</div>' +
+    '</div>';
 
   wireReaderInteractions();
-  await renderDiscussion('topic', `${course.slug}/${topic.id}`);
+  await renderDiscussion(
+    'topic',
+    catalog.slug + '/' + library.slug + '/' + lesson.slug + '/' + topic.id
+  );
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
