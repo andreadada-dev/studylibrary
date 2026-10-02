@@ -142,6 +142,17 @@ export function validateCatalog(catalog) {
     }
   });
 
+  if (String(catalog?.title || '').length > 160) errors.push('Catalogo: title supera 160 caratteri');
+  if (String(catalog?.description || '').length > 4000) errors.push('Catalogo: description supera 4000 caratteri');
+  if (Array.isArray(catalog?.tags) && catalog.tags.length > 20) errors.push('Catalogo: massimo 20 tag');
+
+  try {
+    const bytes = new TextEncoder().encode(JSON.stringify(catalog)).length;
+    if (bytes > 5 * 1024 * 1024) errors.push('Catalogo: il JSON supera il limite di 5 MB');
+  } catch {
+    errors.push('Catalogo: impossibile serializzare il JSON');
+  }
+
   if (!Array.isArray(catalog?.libraries) || !catalog.libraries.length) {
     errors.push('Il catalogo deve contenere almeno una libreria');
     return { ok: false, errors };
