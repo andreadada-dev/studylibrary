@@ -3,11 +3,13 @@ export const state = {
   supabase: null,
   user: null,
   profile: null,
-  staticCourses: [],
-  remoteCourses: [],
+  staticCatalogs: [],
+  remoteCatalogs: [],
   ratings: new Map(),
   comments: new Map(),
-  activeCourse: null,
+  activeCatalog: null,
+  activeLibrary: null,
+  activeLesson: null,
   activeTopic: null
 };
 
