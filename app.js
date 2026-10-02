@@ -316,59 +316,84 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-async function renderUniverse() {
-  let courses = allCourses();
-  let ownershipNote = 'Corsi pubblici e contenuti locali';
+async function renderUniverse(options = {}) {
+  let catalogs = allCatalogs();
+  let ownershipNote = 'Cataloghi pubblici e contenuti locali';
 
   if (state.user && state.supabase) {
     try {
-      const mine = await fetchMyCourses();
-      const map = new Map(courses.map(c => [c.slug, c]));
-      mine.forEach(c => map.set(c.slug, c));
-      courses = [...map.values()];
-      ownershipNote = 'Il tuo spazio personale + biblioteca pubblica';
-    } catch (err) { console.warn(err); }
+      const mine = await fetchMyCatalogs();
+      const map = new Map(catalogs.map(catalog => [catalog.slug, catalog]));
+      mine.forEach(catalog => map.set(catalog.slug, catalog));
+      catalogs = [...map.values()];
+      ownershipNote = 'Il tuo spazio personale + cataloghi pubblici';
+    } catch (err) {
+      console.warn(err);
+    }
   }
 
-  app.innerHTML = `<section class="universe-full">
-    <div class="universe-canvas" data-universe-graph aria-label="Mappa interattiva dei corsi e degli argomenti"></div>
+  let scopeTitle = 'Universo totale';
+  let scopeSubtitle = 'Cataloghi, librerie, lezioni e argomenti in un’unica mappa.';
 
-    <div class="universe-titlebar">
-      <span class="universe-overline">Spazio Universo</span>
-      <h1>Conoscenza, non cartelle.</h1>
-      <p>${escapeHtml(ownershipNote)}</p>
-      <span class="universe-stats" data-universe-stats></span>
-    </div>
+  if (options.catalogSlug) {
+    const catalog = catalogs.find(item => item.slug === options.catalogSlug);
+    if (!catalog) return renderNotFound('Catalogo non trovato');
+    scopeTitle = catalog.title;
+    scopeSubtitle = 'Universo del catalogo';
 
-    <div class="universe-search-wrap">
-      <div class="universe-searchbox">
-        <span aria-hidden="true">⌕</span>
-        <input data-universe-search type="search" placeholder="Cerca un corso o un argomento…" autocomplete="off" aria-label="Cerca nell'universo" />
-        <kbd>Esc</kbd>
-      </div>
-      <div class="universe-search-results" data-universe-results hidden></div>
-    </div>
+    if (options.librarySlug) {
+      const library = findLibrary(catalog, options.librarySlug);
+      if (!library) return renderNotFound('Libreria non trovata');
+      scopeTitle = library.title;
+      scopeSubtitle = 'Universo della libreria';
 
-    <div class="universe-actions" aria-label="Controlli mappa">
-      <button type="button" class="universe-control" data-universe-fit title="Mostra tutta la mappa" aria-label="Mostra tutta la mappa">
-        <span aria-hidden="true">⌗</span>
-      </button>
-      <button type="button" class="universe-control" data-universe-labels aria-pressed="true" title="Mostra o nascondi etichette" aria-label="Mostra o nascondi etichette">
-        <span aria-hidden="true">Aa</span>
-      </button>
-    </div>
+      if (options.lessonSlug) {
+        const lesson = findLesson(library, options.lessonSlug);
+        if (!lesson) return renderNotFound('Lezione non trovata');
+        scopeTitle = lesson.title;
+        scopeSubtitle = 'Universo della singola lezione';
+      }
+    }
+  }
 
-    <div class="universe-legend">
-      <span><i class="legend-dot"></i> Corso</span>
-      <span><i class="legend-dot topic"></i> Argomento</span>
-      <span class="universe-legend-hint">trascina · rotella per zoom · clicca per esplorare</span>
-    </div>
+  app.innerHTML =
+    '<section class="universe-full">' +
+      '<div class="universe-canvas" data-universe-graph aria-label="Mappa interattiva della conoscenza"></div>' +
 
-    <aside class="universe-inspector" data-universe-inspector hidden></aside>
-  </section>`;
+      '<div class="universe-titlebar">' +
+        '<span class="universe-overline">' + escapeHtml(scopeSubtitle) + '</span>' +
+        '<h1>' + escapeHtml(scopeTitle) + '</h1>' +
+        '<p>' + escapeHtml(ownershipNote) + '</p>' +
+        '<span class="universe-stats" data-universe-stats></span>' +
+      '</div>' +
+
+      '<div class="universe-search-wrap">' +
+        '<div class="universe-searchbox">' +
+          '<span aria-hidden="true">⌕</span>' +
+          '<input data-universe-search type="search" placeholder="Cerca catalogo, libreria, lezione o argomento…" autocomplete="off" aria-label="Cerca nell’universo" />' +
+          '<kbd>Esc</kbd>' +
+        '</div>' +
+        '<div class="universe-search-results" data-universe-results hidden></div>' +
+      '</div>' +
+
+      '<div class="universe-actions" aria-label="Controlli mappa">' +
+        '<button type="button" class="universe-control" data-universe-fit title="Mostra tutta la mappa" aria-label="Mostra tutta la mappa"><span aria-hidden="true">⌗</span></button>' +
+        '<button type="button" class="universe-control" data-universe-labels aria-pressed="true" title="Mostra o nascondi etichette" aria-label="Mostra o nascondi etichette"><span aria-hidden="true">Aa</span></button>' +
+      '</div>' +
+
+      '<div class="universe-legend">' +
+        '<span><i class="legend-dot catalog"></i> Catalogo</span>' +
+        '<span><i class="legend-dot library"></i> Libreria</span>' +
+        '<span><i class="legend-dot lesson"></i> Lezione</span>' +
+        '<span><i class="legend-dot topic"></i> Argomento</span>' +
+        '<span class="universe-legend-hint">trascina · rotella per zoom · clicca per esplorare</span>' +
+      '</div>' +
+
+      '<aside class="universe-inspector" data-universe-inspector hidden></aside>' +
+    '</section>';
 
   const graphHost = app.querySelector('[data-universe-graph]');
-  cleanupRoute = renderUniverseGraph(graphHost, courses) || null;
+  cleanupRoute = renderUniverseGraph(graphHost, catalogs, options) || null;
 
   requestAnimationFrame(() => {
     app.querySelector('[data-universe-search]')?.focus({ preventScroll: true });
