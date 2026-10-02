@@ -369,8 +369,8 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
     linesButton.dataset.mode = lineMode;
     linesButton.classList.toggle('active', always);
     linesButton.setAttribute('aria-pressed', String(always));
-    const label = linesButton.querySelector('[data-line-label]');
-    if (label) label.textContent = always ? 'Sempre' : 'Hover';
+    linesButton.title = always ? 'Linee sempre visibili' : 'Linee solo al passaggio sul nodo';
+    linesButton.setAttribute('aria-label', linesButton.title);
     refresh();
   });
 
