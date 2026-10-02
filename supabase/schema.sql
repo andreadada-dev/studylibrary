@@ -235,3 +235,101 @@ drop policy if exists "users delete own comments" on public.comments;
 create policy "users delete own comments"
 on public.comments for delete
 using (auth.uid() = user_id);
+
+
+-- Production hardening: reports, basic abuse throttling and stricter comments.
+alter table public.comments
+  drop constraint if exists comments_body_check;
+alter table public.comments
+  add constraint comments_body_check
+  check (char_length(trim(body)) between 1 and 1200);
+
+create table if not exists public.reports (
+  id bigint generated always as identity primary key,
+  reporter_id uuid not null references public.profiles(id) on delete cascade,
+  target_kind text not null check (target_kind in ('catalog', 'library', 'lesson', 'topic')),
+  target_key text not null,
+  comment_id bigint references public.comments(id) on delete cascade,
+  reason text not null check (char_length(trim(reason)) between 3 and 500),
+  status text not null default 'open' check (status in ('open', 'reviewed', 'dismissed', 'actioned')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reports_status_created_idx
+  on public.reports(status, created_at desc);
+create index if not exists reports_reporter_created_idx
+  on public.reports(reporter_id, created_at desc);
+create unique index if not exists reports_open_unique_idx
+  on public.reports(reporter_id, target_kind, target_key, coalesce(comment_id, 0))
+  where status = 'open';
+
+alter table public.reports enable row level security;
+
+drop policy if exists "users create own reports" on public.reports;
+create policy "users create own reports"
+on public.reports for insert
+with check (auth.uid() = reporter_id);
+
+drop policy if exists "users read own reports" on public.reports;
+create policy "users read own reports"
+on public.reports for select
+using (auth.uid() = reporter_id);
+
+create or replace function public.enforce_comment_rate_limit()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  last_comment timestamptz;
+  recent_count integer;
+begin
+  select max(created_at), count(*)
+  into last_comment, recent_count
+  from public.comments
+  where user_id = new.user_id
+    and created_at > now() - interval '5 minutes';
+
+  if last_comment is not null and last_comment > now() - interval '12 seconds' then
+    raise exception 'comment_rate_limit: wait before posting another comment';
+  end if;
+
+  if recent_count >= 12 then
+    raise exception 'comment_rate_limit: too many comments in five minutes';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists comments_rate_limit on public.comments;
+create trigger comments_rate_limit
+before insert on public.comments
+for each row execute function public.enforce_comment_rate_limit();
+
+create or replace function public.enforce_report_rate_limit()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  recent_count integer;
+begin
+  select count(*)
+  into recent_count
+  from public.reports
+  where reporter_id = new.reporter_id
+    and created_at > now() - interval '10 minutes';
+
+  if recent_count >= 8 then
+    raise exception 'report_rate_limit: too many reports in ten minutes';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists reports_rate_limit on public.reports;
+create trigger reports_rate_limit
+before insert on public.reports
+for each row execute function public.enforce_report_rate_limit();
