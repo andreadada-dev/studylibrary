@@ -28,6 +28,12 @@ async function bootstrap() {
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
+      const universeSearch = document.querySelector('[data-universe-search]');
+      if (universeSearch) {
+        universeSearch.focus();
+        universeSearch.select();
+        return;
+      }
       location.hash = '#/';
       requestAnimationFrame(() => document.querySelector('[data-course-search]')?.focus());
     }
