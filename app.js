@@ -424,12 +424,11 @@ async function renderUniverse(options = {}) {
         '<button type="button" class="universe-control universe-control-lines active" data-universe-lines data-mode="always" aria-pressed="true" title="Cambia visibilità delle linee"><span class="universe-control-lines-title">Linee</span><span data-line-label>Sempre</span></button>' +
       '</div>' +
 
-      '<div class="universe-legend universe-legend-bottom">' +
+      '<div class="universe-legend">' +
         '<span><i class="legend-dot catalog"></i> Catalogo</span>' +
         '<span><i class="legend-dot library"></i> Libreria</span>' +
         '<span><i class="legend-dot lesson"></i> Lezione</span>' +
         '<span><i class="legend-dot topic"></i> Argomento</span>' +
-        '<span class="universe-legend-hint">trascina · rotella per zoom · clicca per esplorare</span>' +
       '</div>' +
 
       '<aside class="universe-inspector" data-universe-inspector hidden></aside>' +
