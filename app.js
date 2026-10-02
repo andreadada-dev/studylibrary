@@ -417,7 +417,7 @@ async function renderStudio() {
   if (!initial) initial = emptyCatalogTemplate();
   app.innerHTML = `<div class="studio-layout">
     <section class="studio-editor">
-      <div class="studio-toolbar"><div><h1>Studio JSON</h1><p class="demo-note">Catalogo → Librerie → Lezioni → Argomenti</p></div><div class="toolbar-actions"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva</button><button class="button accent" data-publish>Pubblica</button></div></div>
+      <div class="studio-toolbar"><div><h1>Studio JSON</h1><p class="demo-note">Catalogo → Librerie → Lezioni → Argomenti</p></div><div class="toolbar-actions"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva privato</button><button class="button accent" data-publish>Pubblica in Home</button></div></div>
       <textarea class="json-editor" spellcheck="false" aria-label="Editor JSON"></textarea>
       <input data-file type="file" accept="application/json,.json" hidden />
     </section>
