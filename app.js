@@ -421,7 +421,7 @@ async function renderUniverse(options = {}) {
       '<div class="universe-actions" aria-label="Controlli mappa">' +
         '<button type="button" class="universe-control" data-universe-fit title="Mostra tutta la mappa" aria-label="Mostra tutta la mappa"><span aria-hidden="true">⌗</span></button>' +
         '<button type="button" class="universe-control" data-universe-labels aria-pressed="true" title="Mostra o nascondi etichette" aria-label="Mostra o nascondi etichette"><span aria-hidden="true">Aa</span></button>' +
-        '<button type="button" class="universe-control universe-control-lines active" data-universe-lines data-mode="always" aria-pressed="true" title="Cambia visibilità delle linee"><span class="universe-control-lines-title">Linee</span><span data-line-label>Sempre</span></button>' +
+        '<button type="button" class="universe-control active" data-universe-lines data-mode="always" aria-pressed="true" title="Linee sempre visibili" aria-label="Linee sempre visibili"><span aria-hidden="true">→</span></button>' +
       '</div>' +
 
       '<div class="universe-legend">' +
