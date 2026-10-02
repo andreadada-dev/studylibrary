@@ -42,7 +42,7 @@ export function renderUniverseGraph(container, courses) {
       data.links.length + ' collegamenti';
   }
 
-  const graph = window.ForceGraph(container)
+  const graph = new window.ForceGraph()(container)
     .graphData(data)
     .backgroundColor('#0b0d12')
     .nodeId('id')
