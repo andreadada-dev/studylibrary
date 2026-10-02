@@ -57,15 +57,30 @@ function normalizeLesson(lesson) {
   };
 }
 
+export function catalogRef(catalog) {
+  if (!catalog) return '';
+  return catalog._db?.id || catalog.slug || catalog.id;
+}
+
+function catalogMapKey(catalog) {
+  if (catalog?._db?.id) return 'db:' + catalog._db.id;
+  if (catalog?._static) return 'static:' + (catalog.slug || catalog.id);
+  return 'json:' + (catalog.id || catalog.slug);
+}
+
 export function allCatalogs() {
   const map = new Map();
-  for (const catalog of state.staticCatalogs) map.set(catalog.slug, catalog);
-  for (const catalog of state.remoteCatalogs) map.set(catalog.slug, catalog);
+  for (const catalog of state.staticCatalogs) map.set(catalogMapKey(catalog), catalog);
+  for (const catalog of state.remoteCatalogs) map.set(catalogMapKey(catalog), catalog);
   return [...map.values()];
 }
 
-export function findCatalog(slug) {
-  return allCatalogs().find(c => c.slug === slug) || null;
+export function findCatalog(identifier) {
+  return allCatalogs().find(catalog =>
+    catalogRef(catalog) === identifier ||
+    catalog.slug === identifier ||
+    catalog.id === identifier
+  ) || null;
 }
 
 export function findLibrary(catalog, librarySlug) {
@@ -219,35 +234,36 @@ export function catalogGraph(catalogs = allCatalogs(), options = {}) {
   const includeLibraryNode = !lessonSlug;
 
   for (const catalog of catalogs) {
-    if (catalogSlug && catalog.slug !== catalogSlug) continue;
+    if (catalogSlug && !catalogMatches(catalog, catalogSlug)) continue;
 
-    const catalogId = 'catalog:' + catalog.slug;
+    const catalogKey = catalogRef(catalog);
+    const catalogId = 'catalog:' + catalogKey;
     if (includeCatalogNode) {
       addNode({
         id: catalogId,
         type: 'catalog',
         title: catalog.title,
         description: catalog.description || '',
-        catalogSlug: catalog.slug,
-        group: catalog.slug,
-        href: '#/catalog/' + encodeURIComponent(catalog.slug)
+        catalogSlug: catalogKey,
+        group: catalogKey,
+        href: '#/catalog/' + encodeURIComponent(catalogKey)
       });
     }
 
     for (const library of catalog.libraries || []) {
       if (librarySlug && library.slug !== librarySlug) continue;
 
-      const libraryId = catalog.slug + '/' + library.slug;
+      const libraryId = catalogKey + '/' + library.slug;
       if (includeLibraryNode) {
         addNode({
           id: libraryId,
           type: 'library',
           title: library.title,
           description: library.description || '',
-          catalogSlug: catalog.slug,
+          catalogSlug: catalogKey,
           librarySlug: library.slug,
-          group: catalog.slug,
-          href: '#/catalog/' + encodeURIComponent(catalog.slug) + '/library/' + encodeURIComponent(library.slug)
+          group: catalogKey,
+          href: '#/catalog/' + encodeURIComponent(catalogKey) + '/library/' + encodeURIComponent(library.slug)
         });
         if (includeCatalogNode) links.push({ source: catalogId, target: libraryId, type: 'contains' });
       }
@@ -255,17 +271,17 @@ export function catalogGraph(catalogs = allCatalogs(), options = {}) {
       for (const lesson of library.lessons || []) {
         if (lessonSlug && lesson.slug !== lessonSlug) continue;
 
-        const lessonId = catalog.slug + '/' + library.slug + '/' + lesson.slug;
+        const lessonId = catalogKey + '/' + library.slug + '/' + lesson.slug;
         addNode({
           id: lessonId,
           type: 'lesson',
           title: lesson.title,
           description: lesson.description || '',
-          catalogSlug: catalog.slug,
+          catalogSlug: catalogKey,
           librarySlug: library.slug,
           lessonSlug: lesson.slug,
-          group: catalog.slug,
-          href: lessonHref(catalog.slug, library.slug, lesson.slug)
+          group: catalogKey,
+          href: lessonHref(catalog, library.slug, lesson.slug)
         });
 
         if (includeLibraryNode) links.push({ source: libraryId, target: lessonId, type: 'contains' });
@@ -278,12 +294,12 @@ export function catalogGraph(catalogs = allCatalogs(), options = {}) {
             title: topic.title,
             description: topic.summary || '',
             estimatedMinutes: topic.estimatedMinutes || null,
-            catalogSlug: catalog.slug,
+            catalogSlug: catalogKey,
             librarySlug: library.slug,
             lessonSlug: lesson.slug,
             topicId: topic.id,
-            group: catalog.slug,
-            href: lessonHref(catalog.slug, library.slug, lesson.slug) + '/topic/' + encodeURIComponent(topic.id)
+            group: catalogKey,
+            href: lessonHref(catalog, library.slug, lesson.slug) + '/topic/' + encodeURIComponent(topic.id)
           });
           links.push({ source: lessonId, target: topicId, type: 'contains' });
           topicContext.set(topicId, { catalog, library, lesson, topic });
@@ -296,12 +312,12 @@ export function catalogGraph(catalogs = allCatalogs(), options = {}) {
     const { catalog, library, lesson, topic } = context;
 
     for (const prerequisite of topic.prerequisites || []) {
-      const target = resolveTopicTarget(prerequisite, catalog, library, lesson);
+      const target = resolveTopicTarget(prerequisite, catalog, library, lesson, catalogs);
       if (known.has(target)) links.push({ source: target, target: sourceId, type: 'requires' });
     }
 
     for (const connection of topic.connections || []) {
-      const target = resolveTopicTarget(connection.target, catalog, library, lesson);
+      const target = resolveTopicTarget(connection.target, catalog, library, lesson, catalogs);
       if (known.has(target)) {
         links.push({
           source: sourceId,
@@ -322,22 +338,37 @@ export function catalogGraph(catalogs = allCatalogs(), options = {}) {
   }
 }
 
-function resolveTopicTarget(target, catalog, library, lesson) {
-  const parts = String(target || '').split('/').filter(Boolean);
-  if (parts.length === 1) {
-    return catalog.slug + '/' + library.slug + '/' + lesson.slug + '/' + parts[0];
-  }
-  if (parts.length === 2) {
-    return catalog.slug + '/' + library.slug + '/' + parts[0] + '/' + parts[1];
-  }
-  if (parts.length === 3) {
-    return catalog.slug + '/' + parts[0] + '/' + parts[1] + '/' + parts[2];
-  }
-  return parts.slice(0, 4).join('/');
+function catalogMatches(catalog, identifier) {
+  return catalogRef(catalog) === identifier ||
+    catalog.slug === identifier ||
+    catalog.id === identifier;
 }
 
-export function lessonHref(catalogSlug, librarySlug, lessonSlug) {
-  return '#/catalog/' + encodeURIComponent(catalogSlug) +
+function resolveTopicTarget(target, catalog, library, lesson, catalogs) {
+  const parts = String(target || '').split('/').filter(Boolean);
+  const currentCatalog = catalogRef(catalog);
+
+  if (parts.length === 1) {
+    return currentCatalog + '/' + library.slug + '/' + lesson.slug + '/' + parts[0];
+  }
+  if (parts.length === 2) {
+    return currentCatalog + '/' + library.slug + '/' + parts[0] + '/' + parts[1];
+  }
+  if (parts.length === 3) {
+    return currentCatalog + '/' + parts[0] + '/' + parts[1] + '/' + parts[2];
+  }
+  if (parts.length >= 4) {
+    const externalCatalog = (catalogs || []).find(item => catalogMatches(item, parts[0]));
+    const externalRef = externalCatalog ? catalogRef(externalCatalog) : parts[0];
+    return externalRef + '/' + parts[1] + '/' + parts[2] + '/' + parts[3];
+  }
+
+  return '';
+}
+
+export function lessonHref(catalogOrRef, librarySlug, lessonSlug) {
+  const ref = typeof catalogOrRef === 'object' ? catalogRef(catalogOrRef) : catalogOrRef;
+  return '#/catalog/' + encodeURIComponent(ref) +
     '/library/' + encodeURIComponent(librarySlug) +
     '/lesson/' + encodeURIComponent(lessonSlug);
 }
