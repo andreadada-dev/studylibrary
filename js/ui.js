@@ -124,8 +124,8 @@ export function wireReaderInteractions() {
   }
 }
 
-export async function renderDiscussion(targetKind, targetKey) {
-  const root = document.getElementById('discussion-root');
+export async function renderDiscussion(targetKind, targetKey, rootId = 'discussion-root') {
+  const root = document.getElementById(rootId);
   if (!root) return;
 
   if (!isBackendConfigured()) {
