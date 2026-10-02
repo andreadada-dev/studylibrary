@@ -1,5 +1,5 @@
 import { state, isBackendConfigured } from './state.js';
-import { signInWithGoogle, signOut, getDiscussion, addComment, updateComment, deleteComment, reportContent, setRating } from './api.js';
+import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, getDiscussion, addComment, updateComment, deleteComment, reportContent, setRating } from './api.js';
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 
 export const escapeHtml = value => String(value ?? '')
@@ -49,9 +49,58 @@ function showBackendHelp() {
 
 function showAccountModal(name) {
   showModal(escapeHtml(name), `<p>Sei autenticato. Il tuo catalogo può contenere librerie e lezioni private o pubblicate.</p>`, [
-    { label: 'Esci', className: 'button danger', action: async () => { await signOut(); closeModal(); } },
-    { label: 'Chiudi', className: 'button secondary', action: closeModal }
+    {
+      label: 'Esporta cataloghi',
+      className: 'button secondary',
+      action: async () => {
+        try {
+          const catalogs = await fetchMyCatalogs();
+          const clean = catalogs.map(stripRuntimeForExport);
+          const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), catalogs: clean }, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'studylibrary-export.json';
+          a.click();
+          URL.revokeObjectURL(a.href);
+          toast('Esportazione pronta');
+        } catch (err) { toast(err.message); }
+      }
+    },
+    {
+      label: 'Elimina i miei contenuti',
+      className: 'button danger',
+      action: () => {
+        showModal('Eliminare tutti i tuoi contenuti?', '<p>Verranno eliminati cataloghi cloud, commenti, valutazioni e segnalazioni creati da questo account. L’account Google/Supabase non viene eliminato.</p>', [
+          {
+            label: 'Elimina tutto',
+            className: 'button danger',
+            action: async () => {
+              try {
+                await deleteAllMyContent();
+                closeModal();
+                toast('Contenuti eliminati');
+                location.hash = '#/mine';
+              } catch (err) { toast(err.message); }
+            }
+          },
+          { label: 'Annulla', className: 'button secondary', action: closeModal }
+        ]);
+      }
+    },
+    { label: 'Esci', className: 'button secondary', action: async () => { await signOut(); closeModal(); } },
+    { label: 'Chiudi', className: 'button ghost', action: closeModal }
   ]);
+}
+
+function stripRuntimeForExport(value) {
+  if (Array.isArray(value)) return value.map(stripRuntimeForExport);
+  if (!value || typeof value !== 'object') return value;
+  const output = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key.startsWith('_')) continue;
+    output[key] = stripRuntimeForExport(item);
+  }
+  return output;
 }
 
 export function showModal(title, body, actions = [{ label: 'Chiudi', className: 'button', action: closeModal }]) {
