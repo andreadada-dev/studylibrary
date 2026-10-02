@@ -39,6 +39,8 @@ Configurare le credenziali OAuth nel progetto Google e nel provider Supabase. Il
 - Cataloghi privati/pubblici.
 - Eliminazione cataloghi.
 - Export dei cataloghi personali.
+- Eliminazione dei propri contenuti cloud.
+- Eliminazione self-service dell’account Auth tramite RPC protetta.
 - Modifica/eliminazione dei propri commenti.
 - Segnalazione di cataloghi/commenti.
 - Rate limit database per commenti e segnalazioni.
