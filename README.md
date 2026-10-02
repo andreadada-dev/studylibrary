@@ -91,3 +91,33 @@ data/
 ```
 
 Il database salva invece il catalogo espanso come JSONB, così può essere modificato e pubblicato direttamente dal browser.
+
+
+## Qualità e produzione
+
+Prima del lancio pubblico consulta `docs/PRODUCTION-CHECKLIST.md`.
+
+Controlli disponibili:
+
+```bash
+npm run check
+npm run validate
+npm test
+npm run ci
+```
+
+La repository include una GitHub Action che esegue automaticamente syntax check, validazione dei cataloghi JSON e test del modello Catalogo → Libreria → Lezione → Argomento.
+
+Sono inoltre inclusi:
+
+- modifica/eliminazione dei propri commenti;
+- segnalazione di cataloghi e commenti;
+- rate limit database per commenti/segnalazioni;
+- export dei cataloghi personali;
+- eliminazione dei propri contenuti cloud;
+- pagine Privacy e Termini;
+- header HTTP di sicurezza;
+- fallback di rete/immagini;
+- cleanup dei dati community alla cancellazione di un catalogo.
+
+Le configurazioni che restano manuali sono Supabase, Google OAuth, dominio/redirect e variabili Coolify.
