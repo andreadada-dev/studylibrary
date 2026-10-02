@@ -224,7 +224,7 @@ function renderCatalog(catalogSlug) {
         '<div><strong>' + (catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</strong><span>visibilità</span></div>' +
       '</div>' +
       '<section class="collection-list">' +
-        '<div class="section-head"><div><h2>Librerie</h2><p>Ogni libreria raccoglie le lezioni di un corso o di un'area di studio.</p></div></div>' +
+        '<div class="section-head"><div><h2>Librerie</h2><p>Ogni libreria raccoglie le lezioni di un corso o di un’area di studio.</p></div></div>' +
         (catalog.libraries || []).map(library => libraryCard(catalog, library)).join('') +
       '</section>' +
     '</div>';
