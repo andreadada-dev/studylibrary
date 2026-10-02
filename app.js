@@ -231,12 +231,15 @@ async function renderCatalog(catalogSlug) {
         '<div class="section-head"><div><h2>Librerie</h2><p>Ogni libreria raccoglie le lezioni di un corso o di un’area di studio.</p></div></div>' +
         (catalog.libraries || []).map(library => libraryCard(catalog, library)).join('') +
       '</section>' +
+      '<div id="discussion-root"></div>' +
     '</div>';
 
   app.querySelector('[data-edit-catalog]')?.addEventListener('click', () => {
     state.activeCatalog = catalog;
     location.hash = '#/studio';
   });
+
+  await renderDiscussion('catalog', catalog.slug);
 }
 
 async function renderLibrary(catalogSlug, librarySlug) {
@@ -269,7 +272,10 @@ async function renderLibrary(catalogSlug, librarySlug) {
         '<div class="section-head"><div><h2>Lezioni</h2><p>Ordinate come il materiale del corso.</p></div><span class="tag">' + (library.lessons?.length || 0) + ' lezioni</span></div>' +
         (library.lessons || []).map((lesson, index) => lessonCard(catalog, library, lesson, index)).join('') +
       '</section>' +
+      '<div id="discussion-root"></div>' +
     '</div>';
+
+  await renderDiscussion('library', catalog.slug + '/' + library.slug);
 }
 
 async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null) {
