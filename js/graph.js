@@ -43,7 +43,7 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
       data.nodes.filter(n => n.type === 'topic').length + ' argomenti';
   }
 
-  const graph = new window.ForceGraph()(container)
+  const graph = new window.ForceGraph(container)
     .graphData(data)
     .backgroundColor('#0b0d12')
     .nodeId('id')
