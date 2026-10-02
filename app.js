@@ -157,13 +157,13 @@ async function renderUniverse() {
     } catch (err) { console.warn(err); }
   }
 
-  app.innerHTML = \`<section class="universe-full">
+  app.innerHTML = `<section class="universe-full">
     <div class="universe-canvas" data-universe-graph aria-label="Mappa interattiva dei corsi e degli argomenti"></div>
 
     <div class="universe-titlebar">
       <span class="universe-overline">Spazio Universo</span>
       <h1>Conoscenza, non cartelle.</h1>
-      <p>\${escapeHtml(ownershipNote)}</p>
+      <p>${escapeHtml(ownershipNote)}</p>
       <span class="universe-stats" data-universe-stats></span>
     </div>
 
@@ -192,7 +192,7 @@ async function renderUniverse() {
     </div>
 
     <aside class="universe-inspector" data-universe-inspector hidden></aside>
-  </section>\`;
+  </section>`;
 
   const graphHost = app.querySelector('[data-universe-graph]');
   cleanupRoute = renderUniverseGraph(graphHost, courses) || null;
