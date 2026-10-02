@@ -12,6 +12,7 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
   const inspector = stage?.querySelector('[data-universe-inspector]');
   const fitButton = stage?.querySelector('[data-universe-fit]');
   const labelsButton = stage?.querySelector('[data-universe-labels]');
+  const linesButton = stage?.querySelector('[data-universe-lines]');
   const statsEl = stage?.querySelector('[data-universe-stats]');
 
   const courseColors = new Map(catalogs.map((catalog, index) => [
@@ -33,6 +34,7 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
   let query = '';
   let searchMatches = new Set();
   let labelsEnabled = true;
+  let lineMode = 'always';
   let destroyed = false;
 
   if (statsEl) {
@@ -117,7 +119,10 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
   }, 650);
 
   function nodeColor(node) {
-    return courseColors.get(node.group) || '#8d82ff';
+    if (node.type === 'catalog') return '#8d82ff';
+    if (node.type === 'library') return '#4db8ff';
+    if (node.type === 'lesson') return '#ffb36b';
+    return '#d7dbea';
   }
 
   function relatedTo(nodeId, otherId) {
@@ -140,24 +145,34 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
   function linkColor(link) {
     if (selected) {
       return linkTouches(link, selected)
-        ? 'rgba(173,166,255,.82)'
-        : 'rgba(255,255,255,.035)';
+        ? highlightedLinkColor(link)
+        : (lineMode === 'always' ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,0)');
     }
+
     if (hovered) {
       return linkTouches(link, hovered)
-        ? 'rgba(173,166,255,.72)'
-        : 'rgba(255,255,255,.045)';
+        ? highlightedLinkColor(link)
+        : (lineMode === 'always' ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,0)');
     }
+
     if (query) {
       const source = typeof link.source === 'object' ? link.source.id : link.source;
       const target = typeof link.target === 'object' ? link.target.id : link.target;
       return searchMatches.has(source) || searchMatches.has(target)
-        ? 'rgba(173,166,255,.55)'
-        : 'rgba(255,255,255,.035)';
+        ? highlightedLinkColor(link)
+        : (lineMode === 'always' ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,0)');
     }
+
+    if (lineMode === 'hover') return 'rgba(255,255,255,0)';
+    if (link.type === 'requires') return 'rgba(255,179,107,.42)';
     if (link.type === 'contains') return 'rgba(255,255,255,.105)';
-    if (link.type === 'requires') return 'rgba(141,130,255,.36)';
-    return 'rgba(255,255,255,.18)';
+    return 'rgba(111,175,255,.26)';
+  }
+
+  function highlightedLinkColor(link) {
+    if (link.type === 'requires') return 'rgba(255,179,107,.94)';
+    if (link.type === 'contains') return 'rgba(225,229,242,.76)';
+    return 'rgba(111,175,255,.88)';
   }
 
   function linkWidth(link) {
@@ -348,7 +363,19 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
     refresh();
   });
 
+  linesButton?.addEventListener('click', () => {
+    lineMode = lineMode === 'always' ? 'hover' : 'always';
+    const always = lineMode === 'always';
+    linesButton.dataset.mode = lineMode;
+    linesButton.classList.toggle('active', always);
+    linesButton.setAttribute('aria-pressed', String(always));
+    const label = linesButton.querySelector('[data-line-label]');
+    if (label) label.textContent = always ? 'Sempre' : 'Hover';
+    refresh();
+  });
+
   labelsButton?.classList.add('active');
+  linesButton?.classList.add('active');
 
   return () => {
     destroyed = true;
