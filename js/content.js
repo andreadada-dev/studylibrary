@@ -28,7 +28,7 @@ async function hydrateCatalog(catalog) {
         if (!r.ok) throw new Error('Impossibile caricare la lezione ' + lesson.src);
         return r.json();
       });
-      return normalizeLesson({
+      const hydrated = normalizeLesson({
         ...source,
         ...lesson,
         id: lesson.id || source.id,
@@ -38,6 +38,8 @@ async function hydrateCatalog(catalog) {
         accent: lesson.accent || source.accent,
         _lessonSrc: lesson.src
       });
+      delete hydrated.src;
+      return hydrated;
     }));
     return { ...library, lessons };
   }));
