@@ -1,7 +1,7 @@
 import { state, isBackendConfigured } from './js/state.js';
-import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog } from './js/api.js';
+import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, deleteCatalog, reportContent } from './js/api.js';
 import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref, catalogRef } from './js/content.js';
-import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml } from './js/ui.js';
+import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 
 const app = document.getElementById('app');
@@ -20,11 +20,13 @@ async function bootstrap() {
     return;
   }
   renderAccount();
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', safeRoute);
   window.addEventListener('studylibrary:auth-changed', async () => {
     renderAccount();
-    await route();
+    await safeRoute();
   });
+  window.addEventListener('offline', () => toast('Sei offline. I contenuti locali restano disponibili.'));
+  window.addEventListener('online', () => toast('Connessione ripristinata.'));
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
@@ -38,13 +40,22 @@ async function bootstrap() {
       requestAnimationFrame(() => document.querySelector('[data-course-search]')?.focus());
     }
   });
-  await route();
+  await safeRoute();
 }
 
 function parseRoute() {
   const raw = location.hash.replace(/^#\/?/, '').split('?')[0];
   const parts = raw.split('/').filter(Boolean).map(decodeURIComponent);
   return parts;
+}
+
+async function safeRoute() {
+  try {
+    await route();
+  } catch (err) {
+    console.error(err);
+    renderRouteError(err);
+  }
 }
 
 async function route() {
@@ -58,6 +69,8 @@ async function route() {
   if (parts[0] === 'universe') return renderUniverse({});
   if (parts[0] === 'mine') return renderMyCatalogs();
   if (parts[0] === 'studio') return renderStudio();
+  if (parts[0] === 'privacy') return renderLegalPage('privacy');
+  if (parts[0] === 'terms') return renderLegalPage('terms');
 
   if (parts[0] === 'catalog' && parts[1]) {
     const catalogSlug = parts[1];
@@ -110,7 +123,22 @@ function setActiveNav(routeName, universeMode = false) {
   });
 }
 
+function setPageMeta(title, description) {
+  const fullTitle = title ? title + ' · StudyLibrary' : 'StudyLibrary';
+  document.title = fullTitle;
+  const update = (selector, value) => {
+    const el = document.querySelector(selector);
+    if (el && value) el.setAttribute('content', value);
+  };
+  update('meta[name="description"]', description);
+  update('meta[property="og:title"]', fullTitle);
+  update('meta[property="og:description"]', description);
+  update('meta[name="twitter:title"]', fullTitle);
+  update('meta[name="twitter:description"]', description);
+}
+
 function renderHome() {
+  setPageMeta('Esplora', 'Cataloghi pubblici, librerie, lezioni e argomenti collegati.');
   const catalogs = allCatalogs().filter(catalog => catalog.visibility !== 'private');
 
   app.innerHTML =
@@ -165,6 +193,7 @@ function catalogSearchText(catalog) {
 }
 
 async function renderMyCatalogs() {
+  setPageMeta('Il mio catalogo', 'Gestisci i tuoi cataloghi privati e pubblici su StudyLibrary.');
   let catalogs = [];
 
   if (state.user && state.supabase) {
@@ -207,6 +236,7 @@ async function renderCatalog(catalogSlug) {
   }
   if (!catalog) return renderNotFound('Catalogo non trovato');
 
+  setPageMeta(catalog.title, catalog.description || 'Catalogo StudyLibrary');
   state.activeCatalog = catalog;
   state.activeLibrary = null;
   state.activeLesson = null;
@@ -225,12 +255,18 @@ async function renderCatalog(catalogSlug) {
         (catalog.visibility === 'private' ? 'Pubblica in Home' : 'Rendi privato') +
       '</button>'
     : '';
+  const deleteButton = ownsCloudCatalog
+    ? '<button class="button danger" type="button" data-delete-catalog>Elimina</button>'
+    : '';
+  const reportButton = catalog._db?.id && !ownsCloudCatalog
+    ? '<button class="button ghost" type="button" data-report-catalog>Segnala</button>'
+    : '';
 
   app.innerHTML =
     '<div class="page">' +
       '<header class="collection-hero">' +
         '<div><span class="eyebrow">Catalogo</span><h1>' + escapeHtml(catalog.title) + '</h1><p class="lede">' + escapeHtml(catalog.description || '') + '</p></div>' +
-        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a>' + publishButton + '<button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button></div>' +
+        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a>' + publishButton + reportButton + '<button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button>' + deleteButton + '</div>' +
       '</header>' +
       '<div class="catalog-stats">' +
         '<div><strong>' + stats.libraries + '</strong><span>librerie</span></div>' +
@@ -263,6 +299,46 @@ async function renderCatalog(catalogSlug) {
     }
   });
 
+  app.querySelector('[data-delete-catalog]')?.addEventListener('click', () => {
+    showModal('Eliminare il catalogo?', '<p>Verranno eliminati il catalogo cloud e i relativi contenuti salvati. Questa operazione non può essere annullata.</p>', [
+      {
+        label: 'Elimina catalogo',
+        className: 'button danger',
+        action: async () => {
+          try {
+            await deleteCatalog(catalog);
+            closeModal();
+            toast('Catalogo eliminato');
+            location.hash = '#/mine';
+          } catch (err) { toast(err.message); }
+        }
+      },
+      { label: 'Annulla', className: 'button secondary', action: closeModal }
+    ]);
+  });
+
+  app.querySelector('[data-report-catalog]')?.addEventListener('click', async () => {
+    if (!state.user) {
+      toast('Accedi con Google per inviare una segnalazione');
+      return;
+    }
+    showModal('Segnala catalogo', '<p>Indica brevemente il problema.</p><textarea class="modal-textarea" data-catalog-report maxlength="500" placeholder="Spam, contenuto offensivo, violazione della privacy…"></textarea>', [
+      {
+        label: 'Invia segnalazione',
+        className: 'button danger',
+        action: async () => {
+          const reason = document.querySelector('[data-catalog-report]')?.value || '';
+          try {
+            await reportContent('catalog', catalogRef(catalog), reason);
+            closeModal();
+            toast('Segnalazione inviata');
+          } catch (err) { toast(err.message); }
+        }
+      },
+      { label: 'Annulla', className: 'button secondary', action: closeModal }
+    ]);
+  });
+
   await renderDiscussion('catalog', catalogRef(catalog));
 }
 
@@ -275,6 +351,7 @@ async function renderLibrary(catalogSlug, librarySlug) {
   const library = findLibrary(catalog, librarySlug);
   if (!catalog || !library) return renderNotFound('Libreria non trovata');
 
+  setPageMeta(library.title, library.description || 'Libreria StudyLibrary');
   state.activeCatalog = catalog;
   state.activeLibrary = library;
   state.activeLesson = null;
@@ -312,6 +389,7 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
   const lesson = findLesson(library, lessonSlug);
   if (!catalog || !library || !lesson) return renderNotFound('Lezione non trovata');
 
+  setPageMeta(lesson.title, lesson.description || 'Lezione StudyLibrary');
   const ordered = getOrderedTopics(lesson);
   const topic = topicId ? findTopic(lesson, topicId) : ordered[0];
   if (!topic) return renderNotFound('Argomento non trovato');
@@ -359,6 +437,7 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
 }
 
 async function renderUniverse(options = {}) {
+  setPageMeta('Universo', 'Esplora visualmente cataloghi, librerie, lezioni e argomenti collegati.');
   let catalogs = allCatalogs();
   let ownershipNote = 'Cataloghi pubblici e contenuti locali';
 
@@ -443,6 +522,7 @@ async function renderUniverse(options = {}) {
 }
 
 async function renderStudio() {
+  setPageMeta('Studio JSON', 'Crea, valida, salva e pubblica cataloghi StudyLibrary in formato JSON.');
   let initial = state.activeCatalog || allCatalogs()[0];
   if (!initial) initial = emptyCatalogTemplate();
   app.innerHTML = `<div class="studio-layout">
@@ -605,8 +685,44 @@ function stripRuntimeForEditor(value) {
   return output;
 }
 
+function renderLegalPage(kind) {
+  const privacy = kind === 'privacy';
+  setPageMeta(
+    privacy ? 'Privacy' : 'Termini',
+    privacy ? 'Informativa privacy di StudyLibrary.' : 'Termini di utilizzo di StudyLibrary.'
+  );
+
+  const content = privacy
+    ? `<h1>Privacy</h1>
+       <p>StudyLibrary può usare Google tramite Supabase Auth per identificare l'account. L'applicazione salva il profilo pubblico minimo fornito dal provider, i cataloghi creati, valutazioni, commenti e segnalazioni.</p>
+       <h2>Contenuti pubblici e privati</h2>
+       <p>I cataloghi privati sono accessibili al proprietario secondo le policy Row Level Security. I cataloghi pubblicati, i commenti e le valutazioni sono visibili agli altri utenti.</p>
+       <h2>Dati tecnici</h2>
+       <p>Il provider di hosting, il browser e i servizi collegati possono generare log tecnici secondo la loro configurazione. StudyLibrary non inserisce tracker pubblicitari nel codice dell'applicazione.</p>
+       <h2>Controllo dei dati</h2>
+       <p>Puoi eliminare i tuoi cataloghi e i tuoi commenti dall'interfaccia. Per la rimozione dell'account di autenticazione, il gestore dell'istanza deve completare la procedura lato Supabase.</p>`
+    : `<h1>Termini di utilizzo</h1>
+       <p>StudyLibrary è uno strumento per creare e condividere materiale di studio. Chi pubblica un catalogo resta responsabile del contenuto che carica e delle fonti che utilizza.</p>
+       <h2>Contenuti</h2>
+       <p>Non pubblicare materiale illecito, dati personali di terzi senza autorizzazione, spam o contenuti per i quali non possiedi i necessari diritti di utilizzo.</p>
+       <h2>Community</h2>
+       <p>Commenti e cataloghi possono essere segnalati. I contenuti segnalati possono essere rimossi dal gestore dell'istanza.</p>
+       <h2>Disponibilità</h2>
+       <p>Il servizio può cambiare durante lo sviluppo e non garantisce disponibilità continua o conservazione indefinita dei contenuti. Mantieni una copia dei JSON importanti.</p>`;
+
+  app.innerHTML = '<div class="page page-narrow legal-page"><span class="eyebrow">StudyLibrary</span>' + content + '<p class="legal-updated">Versione: ottobre 2026</p></div>';
+}
+
+function renderRouteError(err) {
+  document.body.classList.remove('universe-mode');
+  setPageMeta('Errore', 'Si è verificato un errore durante il caricamento della pagina.');
+  app.innerHTML = `<div class="page empty-state route-error"><span class="eyebrow">Errore</span><h2>Qualcosa non ha funzionato</h2><p>${escapeHtml(err?.message || 'Errore imprevisto')}</p><div class="hero-actions" style="justify-content:center"><button class="button" type="button" data-route-retry>Riprova</button><a class="button secondary" href="#/">Torna alla Home</a></div></div>`;
+  app.querySelector('[data-route-retry]')?.addEventListener('click', safeRoute);
+}
+
 function renderNotFound(message = 'Pagina non trovata') {
-  app.innerHTML = `<div class="page empty-state"><span class="eyebrow">404</span><h2>${escapeHtml(message)}</h2><p><a class="button secondary" href="#/">Torna alla biblioteca</a></p></div>`;
+  setPageMeta('Pagina non trovata', message);
+  app.innerHTML = `<div class="page empty-state"><span class="eyebrow">404</span><h2>${escapeHtml(message)}</h2><p>Il contenuto potrebbe essere stato spostato, reso privato o eliminato.</p><div class="hero-actions" style="justify-content:center"><a class="button" href="#/">Esplora i cataloghi</a><a class="button secondary" href="#/mine">Il mio catalogo</a></div></div>`;
 }
 
 bootstrap();
