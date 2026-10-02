@@ -359,7 +359,7 @@ async function renderUniverse(options = {}) {
   let scopeSubtitle = 'Cataloghi, librerie, lezioni e argomenti in un’unica mappa.';
 
   if (options.catalogSlug) {
-    const catalog = catalogs.find(item => item.slug === options.catalogSlug);
+    const catalog = catalogs.find(item => catalogRef(item) === options.catalogSlug || item.slug === options.catalogSlug || item.id === options.catalogSlug);
     if (!catalog) return renderNotFound('Catalogo non trovato');
     scopeTitle = catalog.title;
     scopeSubtitle = 'Universo del catalogo';
