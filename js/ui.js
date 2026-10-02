@@ -74,36 +74,6 @@ export function showModal(title, body, actions = [{ label: 'Chiudi', className: 
 
 export function closeModal() { document.getElementById('modal-backdrop')?.remove(); }
 
-export function courseCard(course) {
-  const topics = course.topics?.length || 0;
-  const minutes = course.estimatedMinutes || (course.topics || []).reduce((a, t) => a + (t.estimatedMinutes || 0), 0);
-  const rating = course.rating?.average ? `${course.rating.average.toFixed(1)} · ${course.rating.count}` : 'Nuovo';
-  return `
-    <a class="course-card" href="#/course/${encodeURIComponent(course.slug)}" style="--card-accent:${escapeHtml(course.accent || '#6157e7')}">
-      <div class="course-meta"><strong>${escapeHtml(course.university || 'Community')}</strong><span>${topics} argomenti</span><span>${minutes || '—'} min</span></div>
-      <h3>${escapeHtml(course.title)}</h3>
-      <p>${escapeHtml(course.description || '')}</p>
-      <div class="course-footer">
-        <div class="tags">${(course.tags || []).slice(0,3).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
-        <span class="rating-inline"><span class="star">★</span> ${escapeHtml(rating)}</span>
-      </div>
-    </a>`;
-}
-
-export function readerRail(course, activeTopicId) {
-  let i = 0;
-  return (course.modules || []).map(module => `
-    <section class="module-group">
-      <p class="module-title">${escapeHtml(module.title)}</p>
-      ${(module.topicIds || []).map(id => {
-        const topic = findTopic(course, id);
-        if (!topic) return '';
-        i += 1;
-        return `<a class="topic-link ${id === activeTopicId ? 'active' : ''}" href="#/course/${encodeURIComponent(course.slug)}/topic/${encodeURIComponent(id)}"><span class="topic-num">${String(i).padStart(2,'0')}</span><span>${escapeHtml(topic.title)}</span></a>`;
-      }).join('')}
-    </section>`).join('');
-}
-
 function paragraphs(body) {
   if (Array.isArray(body)) return body.map(p => `<p>${escapeHtml(p)}</p>`).join('');
   return String(body || '').split(/\n\n+/).filter(Boolean).map(p => `<p>${escapeHtml(p)}</p>`).join('');
@@ -135,47 +105,6 @@ export function renderSection(section) {
     default:
       return `<section class="lesson-section">${title}${paragraphs(section.body || '')}</section>`;
   }
-}
-
-export function topicArticle(course, topic) {
-  const ordered = getOrderedTopics(course);
-  const index = ordered.findIndex(t => t.id === topic.id);
-  const prev = ordered[index - 1];
-  const next = ordered[index + 1];
-  const number = topicNumber(course, topic.id);
-
-  return `
-    <article class="reader">
-      <header class="reader-header">
-        <div class="reader-kicker"><span>${escapeHtml(course.title)}</span><span>·</span><span>${String(number || 1).padStart(2,'0')}</span><span>·</span><span>${topic.estimatedMinutes || '—'} min</span></div>
-        <h2 class="topic-title">${escapeHtml(topic.title)}</h2>
-        <p class="topic-summary">${escapeHtml(topic.summary || '')}</p>
-        ${(topic.learningGoals || []).length ? `<ul class="learning-goals">${topic.learningGoals.map(g => `<li>${escapeHtml(g)}</li>`).join('')}</ul>` : ''}
-      </header>
-      ${topic.why ? `<aside class="callout"><h4>Perché ti serve</h4>${paragraphs(topic.why)}</aside>` : ''}
-      ${(topic.sections || []).map(renderSection).join('')}
-      ${renderConnections(course, topic)}
-      <nav class="lesson-nav">
-        ${prev ? `<a href="#/course/${encodeURIComponent(course.slug)}/topic/${encodeURIComponent(prev.id)}">← Prima<strong>${escapeHtml(prev.title)}</strong></a>` : '<span></span>'}
-        ${next ? `<a href="#/course/${encodeURIComponent(course.slug)}/topic/${encodeURIComponent(next.id)}" style="text-align:right">Dopo →<strong>${escapeHtml(next.title)}</strong></a>` : '<span></span>'}
-      </nav>
-      <div id="discussion-root"></div>
-    </article>`;
-}
-
-function renderConnections(course, topic) {
-  const items = [];
-  for (const pre of topic.prerequisites || []) {
-    const t = findTopic(course, pre);
-    if (t) items.push({ type: 'richiede', label: t.title, target: t.id });
-  }
-  for (const c of topic.connections || []) {
-    if (c.target.includes('/')) continue;
-    const t = findTopic(course, c.target);
-    if (t) items.push({ type: c.type || 'collegato', label: c.label || t.title, target: t.id });
-  }
-  if (!items.length) return '';
-  return `<section class="topic-connections"><h3>Collegamenti nell'universo</h3><div class="connection-list">${items.map(item => `<a class="connection" href="#/course/${encodeURIComponent(course.slug)}/topic/${encodeURIComponent(item.target)}"><span class="connection-type">${escapeHtml(item.type)}</span><span class="connection-label">${escapeHtml(item.label)}</span><span class="connection-arrow">→</span></a>`).join('')}</div></section>`;
 }
 
 export function wireReaderInteractions() {
