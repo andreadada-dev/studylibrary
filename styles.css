@@ -1038,3 +1038,60 @@ body.universe-mode #app {
     gap: 12px;
   }
 }
+
+
+/* Universe legend: plain color key, no container */
+body.universe-mode .universe-legend {
+  position: absolute;
+  z-index: 12;
+  left: 30px;
+  right: auto;
+  bottom: 24px;
+  top: auto;
+  width: auto;
+  max-width: calc(100vw - 60px);
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  overflow: visible;
+  color: rgba(255,255,255,.62);
+  pointer-events: none;
+}
+
+body.universe-mode .universe-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+body.universe-mode .universe-legend-hint {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  body.universe-mode .universe-legend {
+    left: 16px;
+    right: 16px;
+    bottom: 14px;
+    width: auto;
+    max-width: none;
+    gap: 10px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  body.universe-mode .universe-legend::-webkit-scrollbar {
+    display: none;
+  }
+}
