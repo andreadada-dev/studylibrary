@@ -214,12 +214,17 @@ async function renderCatalog(catalogSlug) {
 
   const stats = catalogStats(catalog);
   const universe = '#/catalog/' + encodeURIComponent(catalog.slug) + '/universe';
+  const ownsCatalog = Boolean(
+    catalog._static ||
+    (state.user && catalog._db?.owner_id === state.user.id)
+  );
+  const editLabel = ownsCatalog ? 'Modifica JSON' : 'Apri copia in Studio';
 
   app.innerHTML =
     '<div class="page">' +
       '<header class="collection-hero">' +
         '<div><span class="eyebrow">Catalogo</span><h1>' + escapeHtml(catalog.title) + '</h1><p class="lede">' + escapeHtml(catalog.description || '') + '</p></div>' +
-        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a><button class="button secondary" type="button" data-edit-catalog>Modifica JSON</button></div>' +
+        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a><button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button></div>' +
       '</header>' +
       '<div class="catalog-stats">' +
         '<div><strong>' + stats.libraries + '</strong><span>librerie</span></div>' +
