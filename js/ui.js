@@ -1,6 +1,6 @@
 import { state, isBackendConfigured } from './state.js';
 import { signInWithGoogle, signOut, getDiscussion, addComment, setRating } from './api.js';
-import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref } from './content.js';
+import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 
 export const escapeHtml = value => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -200,7 +200,7 @@ export function libraryCard(catalog, library) {
 export function lessonCard(catalog, library, lesson, index) {
   const topics = lesson.topics?.length || 0;
   const minutes = lesson.estimatedMinutes || (lesson.topics || []).reduce((sum, topic) => sum + (topic.estimatedMinutes || 0), 0);
-  const href = lessonHref(catalog.slug, library.slug, lesson.slug);
+  const href = lessonHref(catalog, library.slug, lesson.slug);
   return '<article class="lesson-row">' +
     '<a class="lesson-row-main" href="' + href + '">' +
       '<span class="lesson-index">' + String(index + 1).padStart(2, '0') + '</span>' +
@@ -214,7 +214,7 @@ export function lessonCard(catalog, library, lesson, index) {
 export function lessonReaderRail(context, activeTopicId) {
   const lesson = context.lesson;
   let i = 0;
-  const base = lessonHref(context.catalog.slug, context.library.slug, lesson.slug);
+  const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
   return (lesson.modules || []).map(module =>
     '<section class="module-group">' +
       '<p class="module-title">' + escapeHtml(module.title) + '</p>' +
@@ -237,7 +237,7 @@ export function lessonTopicArticle(context, topic) {
   const prev = ordered[index - 1];
   const next = ordered[index + 1];
   const number = topicNumber(lesson, topic.id);
-  const base = lessonHref(context.catalog.slug, context.library.slug, lesson.slug);
+  const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
 
   return '<article class="reader">' +
     '<header class="reader-header">' +
@@ -283,7 +283,7 @@ function renderLessonConnections(context, topic) {
   }
 
   if (!items.length) return '';
-  const base = lessonHref(context.catalog.slug, context.library.slug, context.lesson.slug);
+  const base = lessonHref(context.catalog, context.library.slug, context.lesson.slug);
   return '<section class="topic-connections"><h3>Collegamenti nella lezione</h3><div class="connection-list">' +
     items.map(item =>
       '<a class="connection" href="' + base + '/topic/' + encodeURIComponent(item.target) + '">' +
