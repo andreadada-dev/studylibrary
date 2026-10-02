@@ -1,0 +1,581 @@
+{
+  "schemaVersion": 1,
+  "id": "cv-intro-unipv",
+  "slug": "computer-vision-introduction",
+  "title": "Computer Vision — Introduction",
+  "subtitle": "Dalle immagini ai modelli",
+  "description": "Una riscrittura didattica delle slide introduttive: cosa significa far vedere una macchina, come nasce un'immagine digitale e quali scelte di rappresentazione cambiano ciò che un algoritmo può capire.",
+  "language": "it",
+  "visibility": "public",
+  "status": "published",
+  "university": "UniPV",
+  "tags": ["computer vision", "immagini digitali", "percezione"],
+  "accent": "#6157e7",
+  "estimatedMinutes": 165,
+  "sourceNote": "Le slide CV01 vengono usate come indice degli argomenti; le spiegazioni sono ampliate per rendere espliciti i passaggi che nelle slide sono solo nominati o illustrati.",
+  "sources": [
+    {
+      "id": "cv01",
+      "type": "slides",
+      "label": "CV01 — Computer Vision: Introduction",
+      "detail": "PDF fornito dallo studente, 45 pagine"
+    },
+    {
+      "id": "szeliski",
+      "type": "book",
+      "label": "Richard Szeliski — Computer Vision: Algorithms and Applications",
+      "url": "https://szeliski.org/Book/"
+    },
+    {
+      "id": "opencv",
+      "type": "docs",
+      "label": "OpenCV documentation",
+      "url": "https://docs.opencv.org/4.x/"
+    },
+    {
+      "id": "netpbm",
+      "type": "spec",
+      "label": "Netpbm format documentation",
+      "url": "https://netpbm.sourceforge.net/doc/"
+    },
+    {
+      "id": "nasa-ems",
+      "type": "reference",
+      "label": "NASA — The Electromagnetic Spectrum",
+      "url": "https://science.nasa.gov/ems/"
+    }
+  ],
+  "modules": [
+    {
+      "id": "vision",
+      "title": "Che cos'è vedere",
+      "topicIds": ["what-is-computer-vision", "vision-vs-graphics", "applications-history"]
+    },
+    {
+      "id": "human-sensing",
+      "title": "Occhio, percezione e sensori",
+      "topicIds": ["human-vision", "electromagnetic-spectrum", "beyond-visible"]
+    },
+    {
+      "id": "digital-image",
+      "title": "L'immagine digitale",
+      "topicIds": ["spatial-resolution", "color-depth", "color-models", "palette-lut"]
+    },
+    {
+      "id": "formats",
+      "title": "Come salviamo le immagini",
+      "topicIds": ["raw-formats", "compression-formats"]
+    }
+  ],
+  "topics": [
+    {
+      "id": "what-is-computer-vision",
+      "title": "Computer Vision: da pixel a significato",
+      "summary": "La Computer Vision prova a ricostruire informazioni sul mondo partendo da misure visive: i pixel sono l'ingresso, non la risposta.",
+      "why": "Questa distinzione evita l'errore più comune del corso: pensare che una foto contenga già oggetti, profondità o movimento. Contiene numeri. Tutto il resto va inferito.",
+      "estimatedMinutes": 12,
+      "prerequisites": [],
+      "learningGoals": [
+        "Distinguere un'immagine dal modello del mondo che vogliamo stimare",
+        "Capire perché molti problemi di visione sono problemi inversi",
+        "Riconoscere il ruolo di Image Processing, Pattern Recognition e Machine Learning"
+      ],
+      "sections": [
+        {
+          "type": "lead",
+          "body": "Una camera non vede una 'macchina'. Registra una griglia di intensità o colori. Dire che in quella griglia c'è una macchina, dove si trova, quanto è lontana e come si muove è già inferenza. La Computer Vision è il ponte tra misura visiva e descrizione del mondo."
+        },
+        {
+          "type": "flow",
+          "title": "La pipeline mentale minima",
+          "nodes": ["Mondo fisico", "Luce + ottica", "Sensore", "Pixel", "Feature / rappresentazione", "Modello", "Decisione"],
+          "body": "Ogni blocco può perdere informazione. Per questo due immagini simili possono produrre conclusioni diverse e lo stesso oggetto può apparire molto diverso al cambiare di luce, punto di vista o sensore."
+        },
+        {
+          "type": "concept",
+          "title": "Il problema inverso",
+          "body": "Nel rendering conosci il modello della scena — geometria, materiali, luci e camera — e generi un'immagine. In Computer Vision fai il contrario: osservi l'immagine e provi a risalire a una parte del modello che l'ha prodotta. Il problema è difficile perché più mondi diversi possono produrre immagini compatibili con gli stessi pixel."
+        },
+        {
+          "type": "comparison",
+          "title": "Analisi e sintesi",
+          "left": {
+            "title": "Computer Vision · analisi",
+            "body": "Immagine → stima di forma, oggetti, movimento, profondità, materiali o semantica."
+          },
+          "right": {
+            "title": "Computer Graphics · sintesi",
+            "body": "Modello di forma, camera, materiali e luce → immagine renderizzata."
+          }
+        },
+        {
+          "type": "example",
+          "title": "Esempio: una targa",
+          "body": "La camera produce pixel. Il preprocessing può correggere contrasto e prospettiva. La segmentazione individua la targa. Un riconoscitore trasforma regioni di pixel in caratteri. Il risultato 'AB123CD' non è mai stato nel sensore come testo: è una descrizione inferita."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Perché riconoscere un oggetto non è la stessa cosa che acquisire una buona immagine?",
+          "answer": "Perché l'acquisizione produce misure visive, mentre il riconoscimento attribuisce significato a quelle misure. Una buona acquisizione riduce ambiguità e rumore, ma non sostituisce il modello che deve inferire l'oggetto."
+        }
+      ],
+      "connections": [
+        { "target": "vision-vs-graphics", "type": "contrasts", "label": "Vision e Graphics sono problemi inversi" },
+        { "target": "spatial-resolution", "type": "requires-data", "label": "la qualità dell'inferenza dipende da ciò che il sensore conserva" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "3–5", "note": "Connessioni con altre discipline; Vision and Graphics; analysis/synthesis." },
+        { "ref": "szeliski", "pages": "Ch. 1", "note": "Inquadramento generale dei problemi di Computer Vision." }
+      ]
+    },
+    {
+      "id": "vision-vs-graphics",
+      "title": "Vision e Graphics: due frecce opposte",
+      "summary": "Graphics costruisce immagini a partire da modelli; Vision stima modelli a partire da immagini.",
+      "why": "Questa coppia torna continuamente: calibrazione, stima di posa, 3D reconstruction e inverse rendering si capiscono meglio se sai in quale verso stai andando.",
+      "estimatedMinutes": 10,
+      "prerequisites": ["what-is-computer-vision"],
+      "learningGoals": ["Leggere un task come analisi o sintesi", "Capire perché la Vision è spesso ambigua"],
+      "sections": [
+        {
+          "type": "lead",
+          "body": "Pensa a una scena 3D e a una fotografia della scena come a due estremi. Graphics percorre il tragitto dal 3D alla foto. Vision prova a tornare indietro."
+        },
+        {
+          "type": "concept",
+          "title": "Cosa condivide la zona centrale",
+          "body": "Modelli di camera, luce, ottica, immagini e geometria appartengono a entrambi i mondi. In Graphics li usi per prevedere come apparirà una scena; in Vision li usi come vincoli per spiegare ciò che osservi."
+        },
+        {
+          "type": "callout",
+          "tone": "warning",
+          "title": "L'ambiguità è strutturale",
+          "body": "Da una singola immagine 2D puoi perdere profondità, scala reale e porzioni occluse. Non è solo 'rumore': alcune informazioni non sono osservabili senza altre assunzioni o altre viste."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Se conosci geometria, materiali, luci e camera e vuoi produrre un'immagine, stai facendo Vision o Graphics?",
+          "answer": "Graphics: conosci il modello e sintetizzi l'immagine. Vision parte dall'immagine e stima proprietà del modello."
+        }
+      ],
+      "connections": [
+        { "target": "applications-history", "type": "enables", "label": "molte applicazioni sono casi concreti di analisi" },
+        { "target": "electromagnetic-spectrum", "type": "related", "label": "l'immagine dipende da come il sensore misura energia" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "4–5", "note": "Diagrammi Vision and Graphics e dual aspect analysis/synthesis." }
+      ]
+    },
+    {
+      "id": "applications-history",
+      "title": "Dalla camera obscura ai sistemi autonomi",
+      "summary": "La storia della visione artificiale è anche la storia di acquisizione, calcolo e rappresentazioni che diventano progressivamente più potenti.",
+      "why": "Serve a capire perché il corso mescola ottica, sensori, elaborazione classica e machine learning: sono strati diversi dello stesso sistema, non capitoli indipendenti.",
+      "estimatedMinutes": 13,
+      "prerequisites": ["what-is-computer-vision"],
+      "learningGoals": ["Collocare acquisizione, preprocessing e learning in una pipeline", "Riconoscere categorie di applicazioni"],
+      "sections": [
+        {
+          "type": "concept",
+          "title": "Tre salti tecnologici",
+          "items": [
+            "Acquisizione: ottica, fotografia e sensori trasformano fenomeni fisici in immagini.",
+            "Elaborazione: il calcolo digitale rende pratici filtri, segmentazione, feature e ricostruzione.",
+            "Apprendimento: modelli statistici e reti neurali imparano rappresentazioni e decisioni dai dati."
+          ]
+        },
+        {
+          "type": "example",
+          "title": "Le applicazioni nelle slide",
+          "body": "Ispezione industriale, lettura targhe, sorveglianza, guida autonoma, assistenza alla guida, tecnologie assistive, effetti speciali, autofocus e visual search sembrano sistemi diversi. Hanno però la stessa struttura: acquisiscono una misura, estraggono informazione utile e la trasformano in un'azione o descrizione."
+        },
+        {
+          "type": "flow",
+          "title": "Da sistema classico a sistema moderno",
+          "nodes": ["Acquisition", "Pre-processing", "Features", "Model / ML", "Decision / Control"]
+        },
+        {
+          "type": "checkpoint",
+          "question": "Perché 'Machine Learning' non sostituisce automaticamente acquisizione e preprocessing?",
+          "answer": "Perché il modello può imparare solo dall'informazione presente nei dati. Sensore, ottica, risoluzione e preprocessing influenzano ciò che viene misurato e quindi ciò che il modello può inferire."
+        }
+      ],
+      "connections": [
+        { "target": "human-vision", "type": "motivates", "label": "la percezione biologica ispira domande e vincoli" },
+        { "target": "raw-formats", "type": "related", "label": "la pipeline dipende anche da come memorizzi i dati" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "2, 6–9", "note": "Contesto storico, applicazioni e machine vision phylogenesis." }
+      ]
+    },
+    {
+      "id": "human-vision",
+      "title": "Occhio umano: fovea, retina e percezione",
+      "summary": "La nostra percezione non ha la stessa risoluzione ovunque: l'occhio campiona e interpreta il mondo in modo fortemente non uniforme.",
+      "why": "Capire la visione umana aiuta a interpretare immagini, compressione, attenzione visiva e perché 'sembra uguale a me' non equivale a 'contiene gli stessi dati'.",
+      "estimatedMinutes": 16,
+      "prerequisites": [],
+      "learningGoals": ["Distinguere fovea, parafovea e periferia", "Separare misura sensoriale e percezione", "Capire il concetto di campo visivo funzionale"],
+      "sections": [
+        {
+          "type": "lead",
+          "body": "Hai l'impressione di vedere tutto nitido contemporaneamente, ma non è così. La massima acuità è concentrata in una piccola regione centrale. Movimenti oculari rapidi spostano continuamente quella regione sui dettagli importanti."
+        },
+        {
+          "type": "concept",
+          "title": "Fovea e periferia",
+          "body": "La fovea è specializzata per alta acuità e dettaglio. Allontanandosi dal centro, la risoluzione spaziale cala mentre cresce l'importanza di segnali come movimento e cambiamenti improvvisi. Il cervello integra nel tempo informazioni raccolte con fissazioni successive."
+        },
+        {
+          "type": "comparison",
+          "title": "Coni e bastoncelli",
+          "left": { "title": "Coni", "body": "Densità elevata in zona foveale; visione dettagliata e cromatica in condizioni luminose." },
+          "right": { "title": "Bastoncelli", "body": "Più rilevanti fuori dalla fovea e in bassa illuminazione; molto sensibili ma senza la stessa discriminazione cromatica." }
+        },
+        {
+          "type": "callout",
+          "tone": "warning",
+          "title": "Percezione ≠ misura",
+          "body": "Le illusioni ottiche sono utili proprio perché mostrano che il sistema visivo interpreta contesto, bordi, prospettiva e contrasto. Il valore percepito non è una lettura passiva del pixel fisico."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Perché il campo visivo ampio non implica alta risoluzione uniforme su tutto il campo?",
+          "answer": "Perché la densità recettoriale e l'acuità sono massime vicino alla fovea e diminuiscono verso la periferia. L'impressione di dettaglio globale deriva anche da movimenti oculari e integrazione cerebrale."
+        }
+      ],
+      "connections": [
+        { "target": "color-depth", "type": "related", "label": "percezione e quantizzazione non coincidono" },
+        { "target": "compression-formats", "type": "motivates", "label": "la compressione sfrutta anche limiti percettivi" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "10–15", "note": "Anatomia dell'occhio, retina, functional field of view, human perception e optical illusions." }
+      ]
+    },
+    {
+      "id": "electromagnetic-spectrum",
+      "title": "Luce e spettro elettromagnetico",
+      "summary": "Un'immagine è una misura di energia elettromagnetica raccolta in certe bande: il visibile è solo una parte delle possibilità.",
+      "why": "In Vision la scelta del sensore decide che cosa può diventare osservabile. Termico, infrarosso, UV o X-ray possono rivelare strutture invisibili a una camera RGB.",
+      "estimatedMinutes": 14,
+      "prerequisites": ["what-is-computer-vision"],
+      "learningGoals": ["Collegare lunghezza d'onda, banda del sensore e immagine", "Capire perché una camera è uno strumento di misura"],
+      "sections": [
+        {
+          "type": "lead",
+          "body": "Quando diciamo 'immagine' immaginiamo spesso una fotografia RGB. In realtà un sensore può produrre una matrice anche misurando bande che l'occhio umano non vede."
+        },
+        {
+          "type": "formula",
+          "title": "Frequenza e lunghezza d'onda",
+          "latex": "c = \\lambda f",
+          "note": "A velocità della luce c, lunghezza d'onda λ e frequenza f sono inversamente proporzionali."
+        },
+        {
+          "type": "concept",
+          "title": "Il sensore sceglie il mondo osservabile",
+          "body": "Una camera RGB approssima tre bande del visibile. Una camera termica misura radiazione infrarossa legata alla temperatura; sistemi medicali e industriali usano anche altre porzioni dello spettro. Cambiando banda, cambiano contrasto e proprietà osservabili."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Due sensori con la stessa risoluzione spaziale ma bande spettrali diverse vedono 'la stessa immagine'?",
+          "answer": "No. Campionano le stesse direzioni spaziali ma misurano energia in bande diverse, quindi le intensità possono rappresentare proprietà fisiche differenti."
+        }
+      ],
+      "connections": [
+        { "target": "beyond-visible", "type": "enables", "label": "altre modalità di imaging" },
+        { "target": "color-models", "type": "related", "label": "RGB è una rappresentazione del visibile, non dello spettro intero" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "16–21", "note": "Sequenza sullo spettro elettromagnetico." },
+        { "ref": "nasa-ems", "pages": "web", "note": "Riferimento introduttivo sullo spettro." }
+      ]
+    },
+    {
+      "id": "beyond-visible",
+      "title": "Oltre il visibile: ultrasound e imaging multimodale",
+      "summary": "Non tutte le immagini derivano dalla luce visibile: l'idea di 'pixel' è più generale della fotografia.",
+      "why": "Questo allarga il concetto di Computer Vision a segnali visualizzabili che arrivano da sensori diversi: medicina, robotica e ispezione usano spesso più modalità insieme.",
+      "estimatedMinutes": 8,
+      "prerequisites": ["electromagnetic-spectrum"],
+      "learningGoals": ["Separare la nozione di immagine dalla sola fotografia RGB", "Capire il vantaggio della sensor fusion"],
+      "sections": [
+        {
+          "type": "concept",
+          "title": "Ultrasound non è elettromagnetismo",
+          "body": "L'ecografia usa onde meccaniche acustiche e ricostruisce una mappa a partire dagli echi. È comunque trattabile come immagine digitale perché il risultato viene campionato su celle con valori numerici."
+        },
+        {
+          "type": "example",
+          "title": "Sensor fusion",
+          "body": "Un robot può combinare RGB per il colore, profondità per la geometria, termico per temperatura e lidar per distanze. Ogni sensore riduce alcune ambiguità ma introduce rumore, risoluzione e geometria propri."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Perché un'immagine ultrasound può essere elaborata con strumenti di Image Processing pur non usando luce visibile?",
+          "answer": "Perché l'elaborazione lavora su una griglia di campioni numerici. La natura fisica del sensore cambia l'interpretazione dei valori, ma molti operatori matematici restano applicabili."
+        }
+      ],
+      "connections": [
+        { "target": "spatial-resolution", "type": "requires", "label": "ogni modalità ha una propria risoluzione" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "22", "note": "Ultrasound imaging." }
+      ]
+    },
+    {
+      "id": "spatial-resolution",
+      "title": "Risoluzione spaziale: quanto dettaglio esiste davvero",
+      "summary": "La risoluzione spaziale descrive la dimensione dei dettagli distinguibili; il pixel è la cella elementare della rappresentazione digitale.",
+      "why": "Se un dettaglio non viene campionato, nessun algoritmo può ricostruirlo in modo certo. Risoluzione, campo inquadrato e scala dell'oggetto determinano quali task sono possibili.",
+      "estimatedMinutes": 14,
+      "prerequisites": ["beyond-visible"],
+      "learningGoals": ["Distinguere numero di pixel e dettaglio fisicamente risolvibile", "Capire il ruolo della cella di risoluzione"],
+      "sections": [
+        {
+          "type": "lead",
+          "body": "Dire 'immagine 4K' dice quanti campioni sono memorizzati, non garantisce automaticamente quanto dettaglio reale della scena sia presente. Ottica, sensore, distanza e movimento possono limitare l'informazione prima ancora del file."
+        },
+        {
+          "type": "concept",
+          "title": "Pixel e resolution cell",
+          "body": "Nella rappresentazione digitale ogni cella ha un valore. Spesso la cella è quadrata e coincide concettualmente con un pixel. La risoluzione spaziale è invece legata alla più piccola struttura distinguibile nel sistema completo."
+        },
+        {
+          "type": "example",
+          "title": "Una targa lontana",
+          "body": "Se la targa occupa 18 pixel in altezza, ogni carattere può avere pochi pixel utili. Aumentare il contrasto rende l'immagine più leggibile, ma non inventa in modo affidabile tratti che non sono mai stati campionati."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Raddoppiare la dimensione di un'immagine con interpolazione raddoppia la sua risoluzione reale?",
+          "answer": "No. Raddoppia il numero di campioni memorizzati, ma i nuovi valori sono stimati dai campioni originali. Non equivale ad aver acquisito nuovi dettagli dalla scena."
+        }
+      ],
+      "connections": [
+        { "target": "color-depth", "type": "contrasts", "label": "spazio: quanti campioni; intensità: quanti livelli" },
+        { "target": "compression-formats", "type": "related", "label": "compressione e dettaglio visivo" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "23–24", "note": "Definizione di spatial resolution, resolution cell e pixel." }
+      ]
+    },
+    {
+      "id": "color-depth",
+      "title": "Profondità di colore e quantizzazione",
+      "summary": "Dopo aver scelto dove campionare, devi scegliere quanti valori possibili può assumere ogni campione.",
+      "why": "Bit depth influenza memoria, range numerico e precisione. È essenziale per capire immagini binarie, grayscale, sensori a 10/12/16 bit e artefatti di quantizzazione.",
+      "estimatedMinutes": 15,
+      "prerequisites": ["spatial-resolution"],
+      "learningGoals": ["Calcolare il numero di livelli da N bit", "Distinguere risoluzione spaziale e radiometrica", "Capire quantizzazione e saturazione"],
+      "sections": [
+        {
+          "type": "formula",
+          "title": "Numero di livelli",
+          "latex": "L = 2^N",
+          "note": "Con N bit per campione ottieni 2^N codici possibili. Con 8 bit: 256 livelli."
+        },
+        {
+          "type": "comparison",
+          "title": "Due risoluzioni diverse",
+          "left": { "title": "Spaziale", "body": "Quanti campioni nello spazio e quanto piccolo può essere un dettaglio distinguibile." },
+          "right": { "title": "Di intensità / bit depth", "body": "Quanti livelli numerici diversi può rappresentare ogni campione." }
+        },
+        {
+          "type": "concept",
+          "title": "Quantizzare significa arrotondare",
+          "body": "Il segnale fisico può variare in modo continuo, mentre il file usa un insieme finito di codici. Due intensità abbastanza vicine possono finire nello stesso codice. Se i livelli sono troppo pochi, compaiono gradini visibili e si perde informazione utile."
+        },
+        {
+          "type": "callout",
+          "tone": "warning",
+          "title": "La regola degli 8 bit nelle slide",
+          "body": "Le slide presentano 8 bit come valore pratico per la percezione umana. Usalo come riferimento introduttivo, non come limite fisiologico universale: la discriminabilità dipende da luminanza, adattamento, display, rumore e contesto."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Quanti livelli può rappresentare un'immagine grayscale a 10 bit?",
+          "answer": "2^10 = 1024 livelli, tipicamente codificati da 0 a 1023."
+        }
+      ],
+      "connections": [
+        { "target": "color-models", "type": "enables", "label": "più canali combinano più componenti per pixel" },
+        { "target": "palette-lut", "type": "related", "label": "la palette usa indici invece di memorizzare RGB completo" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "25–26", "note": "Color depth e gray scale resolution." }
+      ]
+    },
+    {
+      "id": "color-models",
+      "title": "RGB, CMYK e HSV: coordinate diverse dello stesso colore",
+      "summary": "Un colore può essere rappresentato in spazi diversi. La scelta dipende dal dispositivo e soprattutto dal task.",
+      "why": "Molti algoritmi diventano più semplici scegliendo coordinate adatte. Segmentare un oggetto per tonalità, per esempio, può essere più naturale in HSV che direttamente in RGB.",
+      "estimatedMinutes": 18,
+      "prerequisites": ["color-depth"],
+      "learningGoals": ["Interpretare un pixel RGB a 8 bit per canale", "Capire perché monitor e stampa hanno gamut diversi", "Leggere Hue, Saturation e Value"],
+      "sections": [
+        {
+          "type": "concept",
+          "title": "RGB è additivo",
+          "body": "Un'immagine RGB memorizza tipicamente tre componenti per pixel: rosso, verde e blu. Con 8 bit per canale ci sono 256 possibilità per canale e circa 16,7 milioni di combinazioni nominali."
+        },
+        {
+          "type": "concept",
+          "title": "CMYK è pensato per la stampa",
+          "body": "La stampa usa inchiostri che assorbono luce, non emettitori che la aggiungono. Per questo il modello e soprattutto il gamut riproducibile non coincidono con quelli di un monitor RGB. Una conversione di spazio colore può quindi richiedere approssimazioni."
+        },
+        {
+          "type": "concept",
+          "title": "HSV separa tonalità e intensità",
+          "body": "Hue descrive la tonalità come angolo, Saturation quanto il colore è puro, Value la luminosità relativa. Questa separazione non elimina tutti i problemi di illuminazione, ma rende alcune regole più interpretabili."
+        },
+        {
+          "type": "list",
+          "title": "Hue nelle slide",
+          "items": ["0° → rosso", "60° → giallo", "120° → verde", "180° → ciano", "240° → blu", "300° → magenta"]
+        },
+        {
+          "type": "checkpoint",
+          "question": "Perché lo stesso tripletto RGB non è automaticamente 'lo stesso colore' su qualunque dispositivo?",
+          "answer": "Perché i numeri sono coordinate in uno spazio legato a primarie, profilo e capacità fisiche del dispositivo. Display diversi possono produrre spettri e luminanze differenti; inoltre il gamut di stampa non coincide con quello del monitor."
+        }
+      ],
+      "connections": [
+        { "target": "palette-lut", "type": "enables", "label": "una LUT può mappare indici a triplette RGB" },
+        { "target": "compression-formats", "type": "related", "label": "i codec possono trasformare il colore prima della compressione" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "27–32", "note": "RGB channels, RGB/CMYK, gamut e modelli YIQ/HIS/HSV/HSB." },
+        { "ref": "opencv", "pages": "Color conversions", "note": "Riferimento operativo per conversioni di spazio colore." }
+      ]
+    },
+    {
+      "id": "palette-lut",
+      "title": "Palette e LUT: quando il pixel è un indice",
+      "summary": "Per risparmiare memoria un pixel può contenere l'indice di una tabella di colori invece della tripletta RGB completa.",
+      "why": "Questo schema compare in formati indicizzati e spiega bene la differenza tra valore memorizzato e valore visualizzato.",
+      "estimatedMinutes": 10,
+      "prerequisites": ["color-models"],
+      "learningGoals": ["Leggere una color LUT", "Capire vantaggi e limiti di una palette"],
+      "sections": [
+        {
+          "type": "flow",
+          "title": "Indirection",
+          "nodes": ["Pixel = 4", "LUT[4]", "(R4, G4, B4)", "Colore visualizzato"]
+        },
+        {
+          "type": "concept",
+          "title": "Perché funziona",
+          "body": "Se un'immagine usa pochi colori distinti, memorizzare un indice da 8 bit più una palette condivisa può essere molto più economico che usare 24 bit RGB per ogni pixel. Il limite è che la palette può contenere solo un numero finito di colori."
+        },
+        {
+          "type": "example",
+          "title": "256 colori",
+          "body": "Con un indice a 8 bit puoi scegliere una delle 256 righe della LUT. Ogni riga contiene il colore effettivo, spesso come R, G e B. Tutti i pixel con lo stesso indice condividono esattamente quel colore."
+        },
+        {
+          "type": "checkpoint",
+          "question": "In un'immagine indicizzata a 8 bit, il valore 42 significa intensità 42?",
+          "answer": "Non necessariamente. Significa 'usa l'elemento 42 della palette'. Il colore reale dipende dalla LUT associata all'immagine."
+        }
+      ],
+      "connections": [
+        { "target": "raw-formats", "type": "enables", "label": "BMP e GIF possono usare palette/LUT" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "33–35", "note": "Riduzione del numero di colori e schema Color LUT." }
+      ]
+    },
+    {
+      "id": "raw-formats",
+      "title": "BMP, PGM e PPM: capire il file senza magia",
+      "summary": "I formati semplici mostrano chiaramente che un file immagine è metadati + valori dei pixel, non una fotografia astratta.",
+      "why": "PGM e PPM sono ottimi per esercizi e debug: header leggibile, layout prevedibile e pochissima astrazione tra file e matrice in memoria.",
+      "estimatedMinutes": 16,
+      "prerequisites": ["palette-lut", "spatial-resolution", "color-depth"],
+      "learningGoals": ["Distinguere header e payload", "Riconoscere P2/P5 e P3/P6", "Collegare numero di canali e byte per pixel"],
+      "sections": [
+        {
+          "type": "concept",
+          "title": "BMP",
+          "body": "Un BMP contiene un header con dimensioni, bit depth, compressione e altre informazioni; può includere una LUT e infine i valori dei pixel. È utile per vedere quanto metadato serve a interpretare correttamente una sequenza di byte."
+        },
+        {
+          "type": "comparison",
+          "title": "PGM",
+          "left": { "title": "P5 · binario", "body": "Header testuale, poi 1 byte per pixel in un classico grayscale a max value 255." },
+          "right": { "title": "P2 · ASCII", "body": "Header testuale e valori dei pixel scritti come numeri leggibili, più voluminosi ma comodi da ispezionare." }
+        },
+        {
+          "type": "comparison",
+          "title": "PPM",
+          "left": { "title": "P6 · binario", "body": "Header testuale, poi tre componenti RGB per pixel." },
+          "right": { "title": "P3 · ASCII", "body": "Tre numeri leggibili per pixel; semplice da capire, inefficiente in spazio." }
+        },
+        {
+          "type": "checkpoint",
+          "question": "Perché un parser deve leggere l'header prima del payload dei pixel?",
+          "answer": "Perché senza dimensioni, profondità, numero di canali e convenzioni del formato non sai come raggruppare e interpretare i byte successivi."
+        }
+      ],
+      "connections": [
+        { "target": "compression-formats", "type": "contrasts", "label": "formati semplici vs formati compressi" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "36–40", "note": "BMP header e strutture PGM/PPM binarie e ASCII." },
+        { "ref": "netpbm", "pages": "PGM/PPM specs", "note": "Specifiche dei formati Netpbm." }
+      ]
+    },
+    {
+      "id": "compression-formats",
+      "title": "GIF, JPEG e alpha: comprimere senza perdere il senso",
+      "summary": "I formati compressi scelgono quali ridondanze rimuovere e, nel caso lossy, quale informazione sacrificare.",
+      "why": "Compressione e qualità non sono solo problemi di storage: cambiano i pixel che arrivano all'algoritmo e possono introdurre artefatti rilevanti per la Vision.",
+      "estimatedMinutes": 19,
+      "prerequisites": ["human-vision", "raw-formats", "color-models"],
+      "learningGoals": ["Distinguere lossless e lossy", "Capire l'idea qualitativa della compressione JPEG", "Capire il ruolo del canale alpha"],
+      "sections": [
+        {
+          "type": "comparison",
+          "title": "Lossless vs lossy",
+          "left": { "title": "Lossless", "body": "Dopo decompressione puoi ricostruire esattamente i dati originali codificati. GIF usa compressione lossless ma una palette limitata." },
+          "right": { "title": "Lossy", "body": "Accetti di non ricostruire esattamente i pixel originali in cambio di file più piccoli. JPEG è il caso classico per fotografie." }
+        },
+        {
+          "type": "concept",
+          "title": "L'idea di JPEG",
+          "body": "JPEG lavora a blocchi e trasforma l'informazione verso componenti di frequenza; poi quantizza più aggressivamente componenti considerate meno importanti per la percezione. Il punto concettuale è che la compressione elimina informazione in modo controllato, quindi il decoder produce un'approssimazione."
+        },
+        {
+          "type": "callout",
+          "tone": "warning",
+          "title": "Nota sui blocchi",
+          "body": "Le slide descrivono una suddivisione in blocchi 16×16. Nella codifica JPEG classica la trasformazione DCT opera su blocchi 8×8; macroblocchi o unità più grandi possono emergere in pipeline con sottocampionamento della crominanza. Per l'esame, conserva la formulazione richiesta dal docente; per capire il codec, separa questi due livelli."
+        },
+        {
+          "type": "concept",
+          "title": "Alpha channel",
+          "body": "Un quarto canale può rappresentare l'opacità. In una convenzione a 8 bit, 0 significa completamente trasparente e 255 completamente opaco. Alpha non è 'un altro colore': controlla come il pixel si combina con ciò che sta dietro."
+        },
+        {
+          "type": "example",
+          "title": "Perché interessa alla Vision",
+          "body": "Se salvi ripetutamente immagini JPEG, bordi e texture possono cambiare per gli artefatti di compressione. Un classificatore può imparare questi artefatti come scorciatoie indesiderate. Per dataset e misure quantitative devi quindi scegliere il formato in modo consapevole."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Se comprimi un'immagine JPEG e poi la decomprimi, ottieni gli stessi pixel di partenza?",
+          "answer": "No, in generale JPEG è lossy: la quantizzazione elimina informazione e il decoder ricostruisce un'approssimazione."
+        }
+      ],
+      "connections": [
+        { "target": "human-vision", "type": "uses", "label": "la compressione percettiva sfrutta sensibilità non uniforme" },
+        { "target": "spatial-resolution", "type": "related", "label": "artefatti e perdita di dettaglio influenzano i task" }
+      ],
+      "sources": [
+        { "ref": "cv01", "pages": "41–45", "note": "GIF, JPG e ARGB nelle slide." }
+      ]
+    }
+  ]
+}
