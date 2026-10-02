@@ -427,7 +427,7 @@ async function renderStudio() {
   const validationEl = app.querySelector('[data-validation]');
   const previewEl = app.querySelector('[data-preview]');
   const fileInput = app.querySelector('[data-file]');
-  editor.value = JSON.stringify(initial, null, 2);
+  editor.value = JSON.stringify(stripRuntimeForEditor(initial), null, 2);
 
   const updatePreview = () => {
     let parsed;
@@ -550,6 +550,17 @@ function emptyCatalogTemplate() {
       }
     ]
   };
+}
+
+function stripRuntimeForEditor(value) {
+  if (Array.isArray(value)) return value.map(stripRuntimeForEditor);
+  if (!value || typeof value !== 'object') return value;
+  const output = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key.startsWith('_')) continue;
+    output[key] = stripRuntimeForEditor(item);
+  }
+  return output;
 }
 
 function renderNotFound(message = 'Pagina non trovata') {
