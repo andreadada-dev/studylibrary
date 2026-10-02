@@ -63,6 +63,19 @@ create table if not exists public.comments (
 create index if not exists comments_target_created_idx
   on public.comments(target_kind, target_key, created_at desc);
 
+-- Keep reruns compatible with the previous course/topic-only schema.
+alter table public.ratings
+  drop constraint if exists ratings_target_kind_check;
+alter table public.ratings
+  add constraint ratings_target_kind_check
+  check (target_kind in ('catalog', 'library', 'lesson', 'topic'));
+
+alter table public.comments
+  drop constraint if exists comments_target_kind_check;
+alter table public.comments
+  add constraint comments_target_kind_check
+  check (target_kind in ('catalog', 'library', 'lesson', 'topic'));
+
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin
