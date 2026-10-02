@@ -1,6 +1,6 @@
 import { state, isBackendConfigured } from './js/state.js';
 import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog } from './js/api.js';
-import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref } from './js/content.js';
+import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref, catalogRef } from './js/content.js';
 import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 
@@ -213,7 +213,7 @@ async function renderCatalog(catalogSlug) {
   state.activeTopic = null;
 
   const stats = catalogStats(catalog);
-  const universe = '#/catalog/' + encodeURIComponent(catalog.slug) + '/universe';
+  const universe = '#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '/universe';
   const ownsCatalog = Boolean(
     catalog._static ||
     (state.user && catalog._db?.owner_id === state.user.id)
@@ -244,7 +244,7 @@ async function renderCatalog(catalogSlug) {
     location.hash = '#/studio';
   });
 
-  await renderDiscussion('catalog', catalog.slug);
+  await renderDiscussion('catalog', catalogRef(catalog));
 }
 
 async function renderLibrary(catalogSlug, librarySlug) {
@@ -262,13 +262,13 @@ async function renderLibrary(catalogSlug, librarySlug) {
   state.activeTopic = null;
 
   const universe =
-    '#/catalog/' + encodeURIComponent(catalog.slug) +
+    '#/catalog/' + encodeURIComponent(catalogRef(catalog)) +
     '/library/' + encodeURIComponent(library.slug) +
     '/universe';
 
   app.innerHTML =
     '<div class="page">' +
-      '<div class="breadcrumb"><a href="#/catalog/' + encodeURIComponent(catalog.slug) + '">' + escapeHtml(catalog.title) + '</a><span>→</span><strong>' + escapeHtml(library.title) + '</strong></div>' +
+      '<div class="breadcrumb"><a href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '">' + escapeHtml(catalog.title) + '</a><span>→</span><strong>' + escapeHtml(library.title) + '</strong></div>' +
       '<header class="collection-hero compact">' +
         '<div><span class="eyebrow">Libreria</span><h1>' + escapeHtml(library.title) + '</h1><p class="lede">' + escapeHtml(library.description || '') + '</p></div>' +
         '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo libreria</a></div>' +
@@ -280,7 +280,7 @@ async function renderLibrary(catalogSlug, librarySlug) {
       '<div id="discussion-root"></div>' +
     '</div>';
 
-  await renderDiscussion('library', catalog.slug + '/' + library.slug);
+  await renderDiscussion('library', catalogRef(catalog) + '/' + library.slug);
 }
 
 async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null) {
@@ -306,13 +306,13 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
   const minutes = lesson.estimatedMinutes || ordered.reduce((sum, item) => sum + (item.estimatedMinutes || 0), 0);
   const currentIndex = Math.max(0, ordered.findIndex(item => item.id === topic.id));
   const progress = ordered.length ? Math.round(((currentIndex + 1) / ordered.length) * 100) : 0;
-  const universe = lessonHref(catalog.slug, library.slug, lesson.slug) + '/universe';
+  const universe = lessonHref(catalog, library.slug, lesson.slug) + '/universe';
 
   app.innerHTML =
     '<div class="page">' +
       '<header class="course-hero lesson-hero">' +
         '<div>' +
-          '<div class="breadcrumb"><a href="#/catalog/' + encodeURIComponent(catalog.slug) + '">' + escapeHtml(catalog.title) + '</a><span>→</span><a href="#/catalog/' + encodeURIComponent(catalog.slug) + '/library/' + encodeURIComponent(library.slug) + '">' + escapeHtml(library.title) + '</a></div>' +
+          '<div class="breadcrumb"><a href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '">' + escapeHtml(catalog.title) + '</a><span>→</span><a href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '/library/' + encodeURIComponent(library.slug) + '">' + escapeHtml(library.title) + '</a></div>' +
           '<span class="eyebrow">Lezione</span>' +
           '<h1>' + escapeHtml(lesson.title) + '</h1>' +
           '<p class="summary">' + escapeHtml(lesson.description || '') + '</p>' +
@@ -334,7 +334,7 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
   wireReaderInteractions();
   await renderDiscussion(
     'topic',
-    catalog.slug + '/' + library.slug + '/' + lesson.slug + '/' + topic.id
+    catalogRef(catalog) + '/' + library.slug + '/' + lesson.slug + '/' + topic.id
   );
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -346,8 +346,8 @@ async function renderUniverse(options = {}) {
   if (state.user && state.supabase) {
     try {
       const mine = await fetchMyCatalogs();
-      const map = new Map(catalogs.map(catalog => [catalog.slug, catalog]));
-      mine.forEach(catalog => map.set(catalog.slug, catalog));
+      const map = new Map(catalogs.map(catalog => [catalogRef(catalog), catalog]));
+      mine.forEach(catalog => map.set(catalogRef(catalog), catalog));
       catalogs = [...map.values()];
       ownershipNote = 'Il tuo spazio personale + cataloghi pubblici';
     } catch (err) {
