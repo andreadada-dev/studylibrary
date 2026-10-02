@@ -1,5 +1,5 @@
 import { state, isBackendConfigured } from './state.js';
-import { signInWithGoogle, signOut, getDiscussion, addComment, setRating } from './api.js';
+import { signInWithGoogle, signOut, getDiscussion, addComment, updateComment, deleteComment, reportContent, setRating } from './api.js';
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 
 export const escapeHtml = value => String(value ?? '')
@@ -113,6 +113,16 @@ export function wireReaderInteractions() {
     box.classList.toggle('open');
     btn.textContent = box.classList.contains('open') ? 'Nascondi risposta' : 'Mostra risposta';
   }));
+
+  document.querySelectorAll('.lesson-image img').forEach(img => {
+    img.addEventListener('error', () => {
+      const figure = img.closest('.lesson-image');
+      if (!figure || figure.dataset.failed === 'true') return;
+      figure.dataset.failed = 'true';
+      figure.innerHTML = '<div class="image-fallback"><strong>Immagine non disponibile</strong><span>La fonte esterna non è raggiungibile in questo momento.</span></div>';
+    }, { once: true });
+  });
+
   if (window.renderMathInElement) {
     window.renderMathInElement(document.querySelector('.reader') || document.body, {
       delimiters: [
@@ -129,7 +139,7 @@ export async function renderDiscussion(targetKind, targetKey, rootId = 'discussi
   if (!root) return;
 
   if (!isBackendConfigured()) {
-    root.innerHTML = `<section class="discussion"><div class="discussion-head"><h3>Discussione</h3><span class="rating-inline"><span class="star">★</span> —</span></div><p class="demo-note">Commenti e stelline si attivano quando colleghi Supabase. Il corso e la navigazione JSON funzionano già in modalità demo.</p></section>`;
+    root.innerHTML = `<section class="discussion"><div class="discussion-head"><h3>Discussione</h3><span class="rating-inline"><span class="star">★</span> —</span></div><p class="demo-note">Commenti e stelline si attivano quando colleghi Supabase. Il contenuto e la navigazione JSON funzionano già in modalità demo.</p></section>`;
     return;
   }
 
@@ -140,38 +150,115 @@ export async function renderDiscussion(targetKind, targetKey, rootId = 'discussi
     root.innerHTML = `<section class="discussion">
       <div class="discussion-head"><div><h3>Discussione</h3><div class="demo-note">${data.count} valutazioni · media ${average}</div></div><div class="stars-input" aria-label="Valuta da 1 a 5">${[1,2,3,4,5].map(n => `<button class="star-button ${data.mine >= n ? 'on' : ''}" data-rate="${n}" aria-label="${n} stelle">★</button>`).join('')}</div></div>
       ${state.user ? `<form class="comment-form"><input name="comment" maxlength="1200" placeholder="Lascia un commento utile…" autocomplete="off" /><button class="button" type="submit">Pubblica</button></form>` : `<p class="demo-note">Accedi con Google per valutare e commentare.</p>`}
-      <div class="comments">${data.comments.length ? data.comments.map(renderComment).join('') : `<p class="demo-note">Nessun commento ancora.</p>`}</div>
+      <div class="comments">${data.comments.length ? data.comments.map(c => renderComment(c, targetKind, targetKey)).join('') : `<p class="demo-note">Nessun commento ancora.</p>`}</div>
     </section>`;
 
     root.querySelectorAll('[data-rate]').forEach(btn => btn.addEventListener('click', async () => {
       try {
         if (!state.user) return signInWithGoogle();
         await setRating(targetKind, targetKey, Number(btn.dataset.rate));
-        await renderDiscussion(targetKind, targetKey);
+        await renderDiscussion(targetKind, targetKey, rootId);
       } catch (err) { toast(err.message); }
     }));
 
     root.querySelector('.comment-form')?.addEventListener('submit', async e => {
       e.preventDefault();
       const input = e.currentTarget.elements.comment;
+      const submit = e.currentTarget.querySelector('button[type="submit"]');
       try {
+        submit.disabled = true;
         await addComment(targetKind, targetKey, input.value);
         input.value = '';
-        await renderDiscussion(targetKind, targetKey);
-      } catch (err) { toast(err.message); }
+        await renderDiscussion(targetKind, targetKey, rootId);
+      } catch (err) {
+        toast(err.message);
+        submit.disabled = false;
+      }
     });
+
+    root.querySelectorAll('[data-comment-edit]').forEach(btn => btn.addEventListener('click', () => {
+      const comment = data.comments.find(item => String(item.id) === btn.dataset.commentEdit);
+      if (!comment) return;
+      showModal('Modifica commento', `<textarea class="modal-textarea" data-edit-body maxlength="1200">${escapeHtml(comment.body)}</textarea>`, [
+        {
+          label: 'Salva',
+          className: 'button',
+          action: async () => {
+            const body = document.querySelector('[data-edit-body]')?.value || '';
+            try {
+              await updateComment(comment.id, body);
+              closeModal();
+              toast('Commento aggiornato');
+              await renderDiscussion(targetKind, targetKey, rootId);
+            } catch (err) { toast(err.message); }
+          }
+        },
+        { label: 'Annulla', className: 'button secondary', action: closeModal }
+      ]);
+    }));
+
+    root.querySelectorAll('[data-comment-delete]').forEach(btn => btn.addEventListener('click', () => {
+      const id = btn.dataset.commentDelete;
+      showModal('Eliminare il commento?', '<p>Questa operazione non può essere annullata.</p>', [
+        {
+          label: 'Elimina',
+          className: 'button danger',
+          action: async () => {
+            try {
+              await deleteComment(id);
+              closeModal();
+              toast('Commento eliminato');
+              await renderDiscussion(targetKind, targetKey, rootId);
+            } catch (err) { toast(err.message); }
+          }
+        },
+        { label: 'Annulla', className: 'button secondary', action: closeModal }
+      ]);
+    }));
+
+    root.querySelectorAll('[data-comment-report]').forEach(btn => btn.addEventListener('click', async () => {
+      if (!state.user) {
+        try { await signInWithGoogle(); } catch (err) { toast(err.message); }
+        return;
+      }
+      const id = btn.dataset.commentReport;
+      showReportModal(targetKind, targetKey, id);
+    }));
   } catch (err) {
-    root.innerHTML = `<section class="discussion"><p class="demo-note">Impossibile caricare la discussione: ${escapeHtml(err.message)}</p></section>`;
+    root.innerHTML = `<section class="discussion"><p class="demo-note">Impossibile caricare la discussione: ${escapeHtml(err.message)}</p><button class="button secondary" type="button" data-retry-discussion>Riprova</button></section>`;
+    root.querySelector('[data-retry-discussion]')?.addEventListener('click', () => renderDiscussion(targetKind, targetKey, rootId));
   }
 }
 
-function renderComment(c) {
+function renderComment(c, targetKind, targetKey) {
   const name = c.profiles?.display_name || 'Studente';
   const avatar = c.profiles?.avatar_url;
   const date = new Date(c.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-  return `<div class="comment">${avatar ? `<img class="avatar" src="${escapeHtml(avatar)}" alt="" />` : `<span class="avatar">${escapeHtml(name[0] || 'S')}</span>`}<div><div class="comment-author">${escapeHtml(name)} <span class="comment-time">${escapeHtml(date)}</span></div><div class="comment-body">${escapeHtml(c.body)}</div></div></div>`;
+  const mine = Boolean(state.user && c.user_id === state.user.id);
+  const actions = mine
+    ? `<div class="comment-actions"><button type="button" data-comment-edit="${c.id}">Modifica</button><button type="button" data-comment-delete="${c.id}">Elimina</button></div>`
+    : `<div class="comment-actions"><button type="button" data-comment-report="${c.id}">Segnala</button></div>`;
+
+  return `<div class="comment">${avatar ? `<img class="avatar" src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar">${escapeHtml(name[0] || 'S')}</span>`}<div><div class="comment-author">${escapeHtml(name)} <span class="comment-time">${escapeHtml(date)}</span></div><div class="comment-body">${escapeHtml(c.body)}</div>${actions}</div></div>`;
 }
 
+function showReportModal(targetKind, targetKey, commentId = null) {
+  showModal('Segnala contenuto', '<p class="modal-copy">Indica brevemente il problema. La segnalazione verrà registrata per la moderazione.</p><textarea class="modal-textarea" data-report-reason maxlength="500" placeholder="Spam, contenuto offensivo, informazioni personali…"></textarea>', [
+    {
+      label: 'Invia segnalazione',
+      className: 'button danger',
+      action: async () => {
+        const reason = document.querySelector('[data-report-reason]')?.value || '';
+        try {
+          await reportContent(targetKind, targetKey, reason, commentId);
+          closeModal();
+          toast('Segnalazione inviata');
+        } catch (err) { toast(err.message); }
+      }
+    },
+    { label: 'Annulla', className: 'button secondary', action: closeModal }
+  ]);
+}
 
 export function catalogCard(catalog) {
   const stats = catalogStats(catalog);
@@ -253,6 +340,7 @@ export function lessonTopicArticle(context, topic) {
     '</header>' +
     (topic.why ? '<aside class="callout"><h4>Perché ti serve</h4>' + paragraphs(topic.why) + '</aside>' : '') +
     (topic.sections || []).map(renderSection).join('') +
+    renderTopicSources(context, topic) +
     renderLessonConnections(context, topic) +
     '<nav class="lesson-nav">' +
       (prev ? '<a href="' + base + '/topic/' + encodeURIComponent(prev.id) + '">← Prima<strong>' + escapeHtml(prev.title) + '</strong></a>' : '<span></span>') +
@@ -260,6 +348,25 @@ export function lessonTopicArticle(context, topic) {
     '</nav>' +
     '<div id="discussion-root"></div>' +
   '</article>';
+}
+
+function renderTopicSources(context, topic) {
+  const lessonSources = new Map((context.lesson.sources || []).map(source => [source.id, source]));
+  const catalogSources = new Map((context.catalog.sources || []).map(source => [source.id, source]));
+  const refs = topic.sources || [];
+  if (!refs.length) return '';
+
+  const rows = refs.map(ref => {
+    const source = lessonSources.get(ref.ref) || catalogSources.get(ref.ref) || {};
+    const label = source.label || ref.ref || 'Fonte';
+    const link = source.url
+      ? '<a href="' + escapeHtml(source.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + ' ↗</a>'
+      : '<strong>' + escapeHtml(label) + '</strong>';
+    const meta = [ref.pages ? 'pp. ' + ref.pages : '', ref.note || ''].filter(Boolean).join(' · ');
+    return '<li><div>' + link + '</div>' + (meta ? '<span>' + escapeHtml(meta) + '</span>' : '') + '</li>';
+  }).join('');
+
+  return '<section class="topic-sources"><h3>Fonti</h3><ol>' + rows + '</ol></section>';
 }
 
 function renderLessonConnections(context, topic) {
