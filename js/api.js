@@ -159,6 +159,23 @@ export async function deleteCatalog(catalog) {
   state.remoteCatalogs = state.remoteCatalogs.filter(item => item?._db?.id !== id);
 }
 
+export async function deleteAllMyContent() {
+  if (!state.supabase || !state.user) throw new Error('Accedi per eliminare i tuoi contenuti');
+
+  const operations = [
+    state.supabase.from('reports').delete().eq('reporter_id', state.user.id),
+    state.supabase.from('comments').delete().eq('user_id', state.user.id),
+    state.supabase.from('ratings').delete().eq('user_id', state.user.id),
+    state.supabase.from('catalogs').delete().eq('owner_id', state.user.id)
+  ];
+
+  const results = await Promise.all(operations);
+  const failure = results.find(result => result.error);
+  if (failure?.error) throw failure.error;
+
+  state.remoteCatalogs = state.remoteCatalogs.filter(catalog => catalog?._db?.owner_id !== state.user.id);
+}
+
 function stripRuntimeFields(value) {
   if (Array.isArray(value)) return value.map(stripRuntimeFields);
   if (!value || typeof value !== 'object') return value;
