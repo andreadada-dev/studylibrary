@@ -144,6 +144,21 @@ export async function saveCatalog(catalog, publish = false) {
   return data;
 }
 
+export async function deleteCatalog(catalog) {
+  if (!state.supabase || !state.user) throw new Error('Accedi per eliminare un catalogo');
+  const id = catalog?._db?.id;
+  if (!id) throw new Error('Questo catalogo non è salvato nel cloud');
+
+  const { error } = await state.supabase
+    .from('catalogs')
+    .delete()
+    .eq('id', id)
+    .eq('owner_id', state.user.id);
+
+  if (error) throw error;
+  state.remoteCatalogs = state.remoteCatalogs.filter(item => item?._db?.id !== id);
+}
+
 function stripRuntimeFields(value) {
   if (Array.isArray(value)) return value.map(stripRuntimeFields);
   if (!value || typeof value !== 'object') return value;
@@ -206,7 +221,63 @@ export async function addComment(targetKind, targetKey, body) {
     body: clean
   });
 
+  if (error) throw normalizeCommunityError(error);
+}
+
+export async function updateComment(commentId, body) {
+  if (!state.supabase || !state.user) throw new Error('Accedi per modificare un commento');
+  const clean = body.trim();
+  if (!clean) throw new Error('Il commento non può essere vuoto');
+
+  const { error } = await state.supabase
+    .from('comments')
+    .update({ body: clean })
+    .eq('id', commentId)
+    .eq('user_id', state.user.id);
+
+  if (error) throw normalizeCommunityError(error);
+}
+
+export async function deleteComment(commentId) {
+  if (!state.supabase || !state.user) throw new Error('Accedi per eliminare un commento');
+
+  const { error } = await state.supabase
+    .from('comments')
+    .delete()
+    .eq('id', commentId)
+    .eq('user_id', state.user.id);
+
   if (error) throw error;
+}
+
+export async function reportContent(targetKind, targetKey, reason, commentId = null) {
+  if (!state.supabase || !state.user) throw new Error('Accedi per inviare una segnalazione');
+  const cleanReason = String(reason || '').trim();
+  if (cleanReason.length < 3) throw new Error('Indica brevemente il motivo della segnalazione');
+
+  const { error } = await state.supabase.from('reports').insert({
+    reporter_id: state.user.id,
+    target_kind: targetKind,
+    target_key: targetKey,
+    comment_id: commentId,
+    reason: cleanReason.slice(0, 500)
+  });
+
+  if (error) throw normalizeCommunityError(error);
+}
+
+function normalizeCommunityError(error) {
+  const message = String(error?.message || '');
+  if (message.includes('comment_rate_limit')) {
+    return new Error('Stai commentando troppo velocemente. Attendi qualche secondo e riprova.');
+  }
+  if (message.includes('report_rate_limit')) {
+    return new Error('Hai inviato diverse segnalazioni in poco tempo. Riprova tra qualche minuto.');
+  }
+  if (message.includes('duplicate key') || error?.code === '23505') {
+    return new Error('Operazione già registrata.');
+  }
+  return error;
 }
 
 export async function setRating(targetKind, targetKey, rating) {
