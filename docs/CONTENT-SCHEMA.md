@@ -1,249 +1,235 @@
 # StudyLibrary Content Schema
 
-StudyLibrary è **JSON-first**. Un corso può vivere come file versionato in Git oppure come `jsonb` in Supabase. Il renderer usa la stessa struttura in entrambi i casi.
+## Gerarchia
 
-## Principio editoriale
+StudyLibrary usa questa gerarchia:
 
-Una pagina non deve essere una trascrizione delle slide. Ogni topic deve rispondere, in quest'ordine, a cinque domande:
+```text
+Utente
+└── Catalogo
+    ├── Libreria
+    │   ├── Lezione
+    │   │   ├── Argomento
+    │   │   └── Argomento
+    │   └── Lezione
+    └── Libreria
+```
 
-1. **Perché mi serve?** — motivazione concreta.
-2. **Cosa devo già sapere?** — prerequisiti come ID di topic.
-3. **Qual è l'intuizione?** — modello mentale prima delle definizioni.
-4. **Come funziona davvero?** — formalismo, esempio, formula, immagine o confronto.
-5. **Ho capito?** — almeno un checkpoint con risposta.
+Il **Catalogo** è l'unità di pubblicazione. Può essere privato oppure pubblico nella Home.
 
-Le relazioni non vanno lasciate nel testo: se sapere A serve per B, aggiungi un arco esplicito.
+Una **Libreria** rappresenta normalmente un corso o un'area coerente.
 
-## Struttura minima del corso
+Una **Lezione** corrisponde idealmente a una lezione del docente, a un PDF o a un gruppo preciso di slide.
+
+Gli **Argomenti** sono le unità didattiche vere e proprie.
+
+## Manifest del catalogo
+
+I cataloghi locali vivono in `data/catalogs/`.
+
+Esempio:
+
+```json
+{
+  "schemaVersion": 2,
+  "id": "computer-vision-catalog",
+  "slug": "computer-vision",
+  "title": "Computer Vision",
+  "description": "Catalogo di studio",
+  "visibility": "public",
+  "libraries": [
+    {
+      "id": "computer-vision",
+      "slug": "computer-vision",
+      "title": "Computer Vision",
+      "description": "Corso organizzato per lezioni",
+      "lessons": [
+        {
+          "id": "cv-lesson-01",
+          "slug": "lesson-01-introduction",
+          "title": "Lezione 01 — Introduction",
+          "order": 1,
+          "src": "/data/courses/computer-vision-introduction.json"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Perché `src`
+
+Nel repository è consigliato tenere ogni lezione in un JSON separato.
+
+Così puoi aggiungere progressivamente:
+
+```text
+computer-vision-lesson-01.json
+computer-vision-lesson-02.json
+computer-vision-lesson-03.json
+...
+```
+
+senza modificare un file gigantesco.
+
+Quando il catalogo viene salvato nel database, il contenuto può essere memorizzato già espanso come JSONB.
+
+## JSON della singola lezione
+
+Una lezione mantiene la struttura didattica:
 
 ```json
 {
   "schemaVersion": 1,
-  "id": "course-id",
-  "slug": "course-slug",
-  "title": "Titolo",
-  "description": "Cosa imparerai e perché conta.",
-  "language": "it",
-  "visibility": "private",
-  "tags": ["tag"],
+  "id": "cv-lesson-02",
+  "slug": "lesson-02",
+  "title": "Lezione 02",
+  "description": "Descrizione",
   "sources": [],
   "modules": [
     {
-      "id": "module-id",
-      "title": "Modulo",
+      "id": "fondamenti",
+      "title": "Fondamenti",
       "topicIds": ["topic-a"]
     }
   ],
-  "topics": []
-}
-```
-
-## Must-have di ogni topic
-
-```json
-{
-  "id": "topic-a",
-  "title": "Titolo leggibile",
-  "summary": "Una frase: che cosa capisco dopo questa pagina?",
-  "why": "Perché questo concetto è utile nel corso o in un problema reale.",
-  "estimatedMinutes": 10,
-  "prerequisites": [],
-  "learningGoals": [
-    "Obiettivo verificabile 1",
-    "Obiettivo verificabile 2"
-  ],
-  "sections": [
+  "topics": [
     {
-      "type": "lead",
-      "body": "Intuizione iniziale."
-    },
-    {
-      "type": "concept",
-      "title": "Idea chiave",
-      "body": "Spiegazione progressiva."
-    },
-    {
-      "type": "checkpoint",
-      "question": "Domanda di controllo?",
-      "answer": "Risposta breve e verificabile."
-    }
-  ],
-  "connections": [],
-  "sources": [
-    {
-      "ref": "source-id",
-      "pages": "12–14",
-      "note": "Cosa supporta questa fonte."
+      "id": "topic-a",
+      "title": "Titolo",
+      "summary": "Cosa capisco dopo questa sezione.",
+      "why": "Perché serve.",
+      "estimatedMinutes": 10,
+      "prerequisites": [],
+      "learningGoals": ["Obiettivo verificabile"],
+      "sections": [
+        {
+          "type": "lead",
+          "body": "Intuizione iniziale."
+        },
+        {
+          "type": "concept",
+          "title": "Idea chiave",
+          "body": "Spiegazione progressiva."
+        },
+        {
+          "type": "checkpoint",
+          "question": "Domanda di verifica?",
+          "answer": "Risposta."
+        }
+      ],
+      "connections": [],
+      "sources": [
+        {
+          "ref": "slide-02",
+          "pages": "3–5",
+          "note": "Fonte di questo argomento."
+        }
+      ]
     }
   ]
 }
 ```
 
-## Tipi di sezione supportati
+## Must-have per ogni argomento
 
-### `lead`
-Apre l'argomento con una spiegazione intuitiva. Evita definizioni fredde come prima frase.
+Ogni topic deve avere:
 
-```json
-{ "type": "lead", "body": "..." }
-```
+1. **Perché serve**
+2. **Prerequisiti**
+3. **Intuizione**
+4. **Spiegazione**
+5. **Esempio, visuale, confronto o formula** quando utile
+6. **Checkpoint**
+7. **Fonti**
+8. **Connessioni**
 
-### `concept`, `text`, `example`
-Testo principale. `body` può essere stringa o array di paragrafi. Puoi aggiungere `items`.
+Non trasformare le slide in una trascrizione.
 
-```json
-{
-  "type": "concept",
-  "title": "Idea chiave",
-  "body": "...",
-  "items": ["...", "..."]
-}
-```
+## Tipi di blocco
 
-### `callout`
-Solo per informazione con funzione precisa: warning, nota d'esame, intuizione cruciale. Non usarlo come decorazione.
+Sono supportati:
 
-```json
-{
-  "type": "callout",
-  "tone": "warning",
-  "title": "Attenzione",
-  "body": "..."
-}
-```
+- `lead`
+- `concept`
+- `text`
+- `example`
+- `callout`
+- `formula`
+- `image`
+- `flow`
+- `comparison`
+- `list`
+- `checkpoint`
 
-Toni: `info`, `warning`, `success`.
-
-### `formula`
-Supporta LaTeX/KaTeX.
-
-```json
-{
-  "type": "formula",
-  "title": "Legge",
-  "latex": "F = ma",
-  "note": "Definisci sempre i simboli."
-}
-```
-
-### `image`
-L'immagine può essere locale (`/assets/...`) o remota HTTPS.
+### Immagini
 
 ```json
 {
   "type": "image",
-  "src": "https://example.org/figure.png",
+  "src": "https://example.org/image.png",
   "alt": "Descrizione accessibile",
-  "caption": "Cosa deve notare lo studente",
-  "credit": "Fonte / autore"
+  "caption": "Cosa deve osservare lo studente",
+  "credit": "Fonte"
 }
 ```
 
-Regole: usa sempre `alt`; non hotlinkare immagini senza permesso; preferisci fonti universitarie, documentazione ufficiale o asset propri.
+## Collegamenti
 
-### `flow`
-Piccola mappa lineare, utile per pipeline e catene causali.
+### Stessa lezione
 
 ```json
 {
-  "type": "flow",
-  "title": "Pipeline",
-  "nodes": ["A", "B", "C"]
+  "target": "spatial-resolution",
+  "type": "requires",
+  "label": "Serve per capire il campionamento"
 }
 ```
 
-### `comparison`
-Due concetti da confrontare senza creare due card decorative separate.
+### Altra lezione della stessa libreria
 
 ```json
 {
-  "type": "comparison",
-  "title": "A vs B",
-  "left": { "title": "A", "body": "..." },
-  "right": { "title": "B", "body": "..." }
+  "target": "lesson-03/fourier-transform",
+  "type": "enables"
 }
 ```
 
-### `list`
-Lista concettuale breve.
-
-```json
-{ "type": "list", "title": "Ricorda", "items": ["...", "..."] }
-```
-
-### `checkpoint`
-Obbligatorio almeno una volta per topic.
+### Altra libreria dello stesso catalogo
 
 ```json
 {
-  "type": "checkpoint",
-  "question": "...",
-  "answer": "..."
+  "target": "numerical-methods/lesson-02/interpolation",
+  "type": "related"
 }
 ```
 
-## Collegamenti tra argomenti
-
-`prerequisites` indica dipendenze forti. Se `gauss-law` richiede `symmetry`, scrivi:
+### Altro catalogo
 
 ```json
 {
-  "id": "gauss-law",
-  "prerequisites": ["symmetry"]
+  "target": "physics/electromagnetism/gauss-law/symmetry",
+  "type": "related"
 }
 ```
 
-`connections` indica relazioni semantiche aggiuntive:
+Tipi consigliati:
 
-```json
-{
-  "connections": [
-    {
-      "target": "electric-field",
-      "type": "uses",
-      "label": "Il teorema collega flusso e campo elettrico"
-    },
-    {
-      "target": "another-course/fourier-transform",
-      "type": "related",
-      "label": "Collegamento cross-course"
-    }
-  ]
-}
-```
+`requires`, `enables`, `uses`, `related`, `contrasts`, `motivates`, `applies-to`.
 
-Tipi raccomandati: `requires`, `enables`, `uses`, `related`, `contrasts`, `motivates`, `applies-to`.
+## Universi
 
-Non duplicare archi senza motivo. Un prerequisito è già una relazione.
+La stessa struttura alimenta quattro viste:
 
-## Fonti
+- **Universo lezione** → lezione + argomenti
+- **Universo libreria** → libreria + lezioni + argomenti
+- **Universo catalogo** → catalogo + librerie + lezioni + argomenti
+- **Universo totale** → tutti i cataloghi accessibili all'utente
 
-Il corso definisce una bibliografia riutilizzabile:
+## Pubblicazione
 
-```json
-{
-  "sources": [
-    {
-      "id": "book-1",
-      "type": "book",
-      "label": "Titolo",
-      "url": "https://..."
-    }
-  ]
-}
-```
+`visibility: "private"` significa catalogo personale.
 
-Ogni topic cita gli ID pertinenti e, quando esistono, pagine o sezioni. Se una spiegazione amplia una slide con materiale esterno, aggiungi una seconda fonte invece di far sembrare che la slide lo dicesse.
+`visibility: "public"` significa catalogo pubblicato nella Home.
 
-## Checklist prima di pubblicare
-
-- Titolo e summary comprensibili senza aprire le slide.
-- `why` concreto, non generico.
-- Prerequisiti espliciti.
-- Almeno un visuale, esempio o confronto per i concetti non banali.
-- Formule con simboli spiegati.
-- Almeno un checkpoint.
-- Almeno una fonte.
-- Connessioni coerenti e senza target inesistenti.
-- Immagini con alt text e credito.
-- Nessun paragrafo enorme usato per sostituire una struttura didattica.
+Con Supabase, la sicurezza non dipende dal JSON ma dalle policy RLS definite in `supabase/schema.sql`.
