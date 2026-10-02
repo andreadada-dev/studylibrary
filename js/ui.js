@@ -175,7 +175,7 @@ function renderComment(c) {
 
 export function catalogCard(catalog) {
   const stats = catalogStats(catalog);
-  const author = catalog._author?.display_name || catalog.university || (catalog._static ? 'Catalogo demo' : 'Community');
+  const author = catalog._author?.display_name || (state.user && catalog._db?.owner_id === state.user.id ? 'Tu' : null) || catalog.university || (catalog._static ? 'Catalogo demo' : 'Community');
   const visibility = catalog.visibility === 'private' ? 'Privato' : 'Pubblico';
   return '<a class="course-card catalog-card" href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '" style="--card-accent:' + escapeHtml(catalog.accent || '#6157e7') + '">' +
     '<div class="course-meta"><strong>' + escapeHtml(author) + '</strong><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span></div>' +
