@@ -52,6 +52,9 @@ function parseRoute() {
 async function safeRoute() {
   try {
     await route();
+    if (!document.body.classList.contains('universe-mode')) {
+      app.focus({ preventScroll: true });
+    }
   } catch (err) {
     console.error(err);
     renderRouteError(err);
