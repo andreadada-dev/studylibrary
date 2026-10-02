@@ -181,7 +181,7 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
 
     if (active) {
       ctx.beginPath();
-      ctx.arc(node.x, node.y, radius + (isCourse ? 9 : 7), 0, Math.PI * 2);
+      ctx.arc(node.x, node.y, radius + (isCatalog ? 10 : isLibrary ? 8 : 7), 0, Math.PI * 2);
       ctx.fillStyle = withAlpha(color, 0.14);
       ctx.fill();
     }
@@ -286,7 +286,7 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
 
     const matches = data.nodes
       .filter(node => node.title.toLowerCase().includes(query))
-      .sort((a, b) => Number(b.type === 'course') - Number(a.type === 'course'))
+      .sort((a, b) => nodeRank(b.type) - nodeRank(a.type))
       .slice(0, 8);
 
     for (const match of matches) {
@@ -397,4 +397,11 @@ function typeLabel(type) {
   if (type === 'library') return 'Libreria';
   if (type === 'lesson') return 'Lezione';
   return 'Argomento';
+}
+
+function nodeRank(type) {
+  if (type === 'catalog') return 4;
+  if (type === 'library') return 3;
+  if (type === 'lesson') return 2;
+  return 1;
 }
