@@ -37,6 +37,7 @@ export async function loadProfile() {
     .select('id, display_name, avatar_url, bio')
     .eq('id', state.user.id)
     .maybeSingle();
+
   if (!error) state.profile = data;
   return data;
 }
@@ -57,51 +58,88 @@ export async function signOut() {
   if (error) throw error;
 }
 
-export async function fetchPublicCourses() {
+export async function fetchPublicCatalogs() {
   if (!state.supabase) return [];
   const { data, error } = await state.supabase
-    .from('courses')
-    .select('id, owner_id, slug, title, description, tags, is_public, course_json, created_at, updated_at')
+    .from('catalogs')
+    .select('id, owner_id, slug, title, description, tags, is_public, catalog_json, created_at, updated_at, profiles(display_name, avatar_url)')
     .eq('is_public', true)
     .order('updated_at', { ascending: false });
+
   if (error) throw error;
-  state.remoteCourses = (data || []).map(row => ({
-    ...row.course_json,
-    _db: { id: row.id, owner_id: row.owner_id, updated_at: row.updated_at }
+
+  state.remoteCatalogs = (data || []).map(row => ({
+    ...row.catalog_json,
+    visibility: 'public',
+    _db: {
+      id: row.id,
+      owner_id: row.owner_id,
+      updated_at: row.updated_at
+    },
+    _author: row.profiles || null
   }));
-  return state.remoteCourses;
+
+  return state.remoteCatalogs;
 }
 
-export async function fetchMyCourses() {
+export async function fetchMyCatalogs() {
   if (!state.supabase || !state.user) return [];
+
   const { data, error } = await state.supabase
-    .from('courses')
-    .select('id, owner_id, slug, title, description, tags, is_public, course_json, created_at, updated_at')
+    .from('catalogs')
+    .select('id, owner_id, slug, title, description, tags, is_public, catalog_json, created_at, updated_at')
     .eq('owner_id', state.user.id)
     .order('updated_at', { ascending: false });
+
   if (error) throw error;
-  return (data || []).map(row => ({ ...row.course_json, _db: { id: row.id, owner_id: row.owner_id, updated_at: row.updated_at } }));
+
+  return (data || []).map(row => ({
+    ...row.catalog_json,
+    visibility: row.is_public ? 'public' : 'private',
+    _db: {
+      id: row.id,
+      owner_id: row.owner_id,
+      updated_at: row.updated_at
+    }
+  }));
 }
 
-export async function saveCourse(course, publish = false) {
+export async function saveCatalog(catalog, publish = false) {
   if (!state.supabase || !state.user) throw new Error('Accedi per salvare o pubblicare');
+
+  const cleanCatalog = stripRuntimeFields(catalog);
+  cleanCatalog.visibility = publish ? 'public' : 'private';
+
   const payload = {
     owner_id: state.user.id,
-    slug: course.slug,
-    title: course.title,
-    description: course.description || '',
-    tags: course.tags || [],
+    slug: cleanCatalog.slug,
+    title: cleanCatalog.title,
+    description: cleanCatalog.description || '',
+    tags: cleanCatalog.tags || [],
     is_public: Boolean(publish),
-    course_json: { ...course, visibility: publish ? 'public' : 'private' }
+    catalog_json: cleanCatalog
   };
 
   const { data, error } = await state.supabase
-    .from('courses')
+    .from('catalogs')
     .upsert(payload, { onConflict: 'owner_id,slug' })
     .select('id, slug, is_public, updated_at')
     .single();
+
   if (error) throw error;
   return data;
+}
+
+function stripRuntimeFields(value) {
+  if (Array.isArray(value)) return value.map(stripRuntimeFields);
+  if (!value || typeof value !== 'object') return value;
+
+  const output = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key.startsWith('_')) continue;
+    output[key] = stripRuntimeFields(item);
+  }
+  return output;
 }
 
 export async function getDiscussion(targetKind, targetKey) {
@@ -126,21 +164,34 @@ export async function getDiscussion(targetKind, targetKey) {
   if (ratingsRes.error) throw ratingsRes.error;
 
   const ratings = ratingsRes.data || [];
-  const average = ratings.length ? ratings.reduce((a, r) => a + r.rating, 0) / ratings.length : null;
-  const mine = state.user ? ratings.find(r => r.user_id === state.user.id)?.rating ?? null : null;
-  return { comments: commentsRes.data || [], ratings, average, count: ratings.length, mine };
+  const average = ratings.length
+    ? ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length
+    : null;
+  const mine = state.user
+    ? ratings.find(item => item.user_id === state.user.id)?.rating ?? null
+    : null;
+
+  return {
+    comments: commentsRes.data || [],
+    ratings,
+    average,
+    count: ratings.length,
+    mine
+  };
 }
 
 export async function addComment(targetKind, targetKey, body) {
   if (!state.supabase || !state.user) throw new Error('Accedi per commentare');
   const clean = body.trim();
   if (!clean) throw new Error('Scrivi un commento');
+
   const { error } = await state.supabase.from('comments').insert({
     user_id: state.user.id,
     target_kind: targetKind,
     target_key: targetKey,
     body: clean
   });
+
   if (error) throw error;
 }
 
@@ -148,11 +199,13 @@ export async function setRating(targetKind, targetKey, rating) {
   if (!state.supabase || !state.user) throw new Error('Accedi per lasciare una valutazione');
   const value = Number(rating);
   if (!Number.isInteger(value) || value < 1 || value > 5) throw new Error('Valutazione non valida');
+
   const { error } = await state.supabase.from('ratings').upsert({
     user_id: state.user.id,
     target_kind: targetKind,
     target_key: targetKey,
     rating: value
   }, { onConflict: 'user_id,target_kind,target_key' });
+
   if (error) throw error;
 }
