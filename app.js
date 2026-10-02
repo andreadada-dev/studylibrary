@@ -700,7 +700,7 @@ function renderLegalPage(kind) {
        <h2>Dati tecnici</h2>
        <p>Il provider di hosting, il browser e i servizi collegati possono generare log tecnici secondo la loro configurazione. StudyLibrary non inserisce tracker pubblicitari nel codice dell'applicazione.</p>
        <h2>Controllo dei dati</h2>
-       <p>Puoi eliminare i tuoi cataloghi e i tuoi commenti dall'interfaccia. Per la rimozione dell'account di autenticazione, il gestore dell'istanza deve completare la procedura lato Supabase.</p>`
+       <p>Puoi esportare i tuoi cataloghi, eliminare i tuoi contenuti oppure eliminare definitivamente l’account dall’interfaccia. La cancellazione dell’account rimuove anche i dati applicativi associati tramite le relazioni del database.</p>`
     : `<h1>Termini di utilizzo</h1>
        <p>StudyLibrary è uno strumento per creare e condividere materiale di studio. Chi pubblica un catalogo resta responsabile del contenuto che carica e delle fonti che utilizza.</p>
        <h2>Contenuti</h2>
