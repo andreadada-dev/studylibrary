@@ -333,3 +333,31 @@ drop trigger if exists reports_rate_limit on public.reports;
 create trigger reports_rate_limit
 before insert on public.reports
 for each row execute function public.enforce_report_rate_limit();
+
+
+create or replace function public.cleanup_catalog_community_data()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.ratings
+  where target_key = old.id::text
+     or target_key like old.id::text || '/%';
+
+  delete from public.comments
+  where target_key = old.id::text
+     or target_key like old.id::text || '/%';
+
+  delete from public.reports
+  where target_key = old.id::text
+     or target_key like old.id::text || '/%';
+
+  return old;
+end;
+$$;
+
+drop trigger if exists catalogs_cleanup_community_data on public.catalogs;
+create trigger catalogs_cleanup_community_data
+after delete on public.catalogs
+for each row execute function public.cleanup_catalog_community_data();
