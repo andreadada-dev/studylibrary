@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "id": "computer-vision-catalog",
+  "slug": "computer-vision",
+  "title": "Computer Vision",
+  "description": "Catalogo personale di Computer Vision. Le lezioni seguono il materiale del corso e ogni lezione contiene i propri argomenti e collegamenti.",
+  "language": "it",
+  "visibility": "public",
+  "university": "UniPV",
+  "tags": ["computer vision", "magistrale", "immagini digitali"],
+  "accent": "#6157e7",
+  "libraries": [
+    {
+      "id": "computer-vision",
+      "slug": "computer-vision",
+      "title": "Computer Vision",
+      "description": "Libreria del corso di Computer Vision organizzata per lezioni del docente.",
+      "accent": "#6157e7",
+      "lessons": [
+        {
+          "id": "cv-lesson-01",
+          "slug": "lesson-01-introduction",
+          "title": "Lezione 01 — Introduction",
+          "description": "Introduzione alla Computer Vision: percezione, spettro elettromagnetico, immagini digitali, colore e formati.",
+          "order": 1,
+          "src": "/data/courses/computer-vision-introduction.json"
+        }
+      ]
+    }
+  ]
+}
