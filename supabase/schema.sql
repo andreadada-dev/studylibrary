@@ -46,7 +46,7 @@ create index if not exists ratings_target_idx on public.ratings(target_kind, tar
 
 create table if not exists public.comments (
   id bigint generated always as identity primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   target_kind text not null check (target_kind in ('course', 'topic')),
   target_key text not null,
   body text not null check (char_length(body) between 1 and 1200),
