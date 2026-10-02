@@ -214,17 +214,23 @@ async function renderCatalog(catalogSlug) {
 
   const stats = catalogStats(catalog);
   const universe = '#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '/universe';
-  const ownsCatalog = Boolean(
-    catalog._static ||
-    (state.user && catalog._db?.owner_id === state.user.id)
+  const ownsCloudCatalog = Boolean(
+    state.user &&
+    catalog._db?.owner_id === state.user.id
   );
+  const ownsCatalog = Boolean(catalog._static || ownsCloudCatalog);
   const editLabel = ownsCatalog ? 'Modifica JSON' : 'Apri copia in Studio';
+  const publishButton = ownsCloudCatalog
+    ? '<button class="button ' + (catalog.visibility === 'private' ? 'accent' : 'secondary') + '" type="button" data-toggle-publish>' +
+        (catalog.visibility === 'private' ? 'Pubblica in Home' : 'Rendi privato') +
+      '</button>'
+    : '';
 
   app.innerHTML =
     '<div class="page">' +
       '<header class="collection-hero">' +
         '<div><span class="eyebrow">Catalogo</span><h1>' + escapeHtml(catalog.title) + '</h1><p class="lede">' + escapeHtml(catalog.description || '') + '</p></div>' +
-        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a><button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button></div>' +
+        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a>' + publishButton + '<button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button></div>' +
       '</header>' +
       '<div class="catalog-stats">' +
         '<div><strong>' + stats.libraries + '</strong><span>librerie</span></div>' +
@@ -242,6 +248,19 @@ async function renderCatalog(catalogSlug) {
   app.querySelector('[data-edit-catalog]')?.addEventListener('click', () => {
     state.activeCatalog = catalog;
     location.hash = '#/studio';
+  });
+
+  app.querySelector('[data-toggle-publish]')?.addEventListener('click', async () => {
+    const makePublic = catalog.visibility === 'private';
+    try {
+      await saveCatalog(catalog, makePublic);
+      await fetchPublicCatalogs();
+      await fetchMyCatalogs();
+      toast(makePublic ? 'Catalogo pubblicato nella Home' : 'Catalogo reso privato');
+      await renderCatalog(catalogRef(catalog));
+    } catch (err) {
+      toast(err.message);
+    }
   });
 
   await renderDiscussion('catalog', catalogRef(catalog));
