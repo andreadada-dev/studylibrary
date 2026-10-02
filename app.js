@@ -1,7 +1,7 @@
 import { state, isBackendConfigured } from './js/state.js';
-import { initBackend, fetchPublicCourses, fetchMyCourses, saveCourse } from './js/api.js';
-import { loadStaticCourses, allCourses, findCourse, findTopic, getOrderedTopics, validateCourse } from './js/content.js';
-import { renderAccount, courseCard, readerRail, topicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml } from './js/ui.js';
+import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog } from './js/api.js';
+import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref } from './js/content.js';
+import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 
 const app = document.getElementById('app');
@@ -10,9 +10,9 @@ let cleanupRoute = null;
 async function bootstrap() {
   app.innerHTML = `<div class="page"><div class="skeleton" style="height:180px"></div></div>`;
   try {
-    await Promise.all([loadStaticCourses(), initBackend()]);
+    await Promise.all([loadStaticCatalogs(), initBackend()]);
     if (state.supabase) {
-      try { await fetchPublicCourses(); } catch (err) { console.warn('Remote courses unavailable', err); }
+      try { await fetchPublicCatalogs(); } catch (err) { console.warn('Remote catalogs unavailable', err); }
     }
   } catch (err) {
     console.error(err);
