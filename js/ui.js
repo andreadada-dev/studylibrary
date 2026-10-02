@@ -177,7 +177,7 @@ export function catalogCard(catalog) {
   const stats = catalogStats(catalog);
   const author = catalog._author?.display_name || catalog.university || (catalog._static ? 'Catalogo demo' : 'Community');
   const visibility = catalog.visibility === 'private' ? 'Privato' : 'Pubblico';
-  return '<a class="course-card catalog-card" href="#/catalog/' + encodeURIComponent(catalog.slug) + '" style="--card-accent:' + escapeHtml(catalog.accent || '#6157e7') + '">' +
+  return '<a class="course-card catalog-card" href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '" style="--card-accent:' + escapeHtml(catalog.accent || '#6157e7') + '">' +
     '<div class="course-meta"><strong>' + escapeHtml(author) + '</strong><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span></div>' +
     '<h3>' + escapeHtml(catalog.title) + '</h3>' +
     '<p>' + escapeHtml(catalog.description || '') + '</p>' +
@@ -191,7 +191,7 @@ export function catalogCard(catalog) {
 export function libraryCard(catalog, library) {
   const lessonCount = library.lessons?.length || 0;
   const topicCount = (library.lessons || []).reduce((sum, lesson) => sum + (lesson.topics?.length || 0), 0);
-  return '<a class="library-row" href="#/catalog/' + encodeURIComponent(catalog.slug) + '/library/' + encodeURIComponent(library.slug) + '">' +
+  return '<a class="library-row" href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '/library/' + encodeURIComponent(library.slug) + '">' +
     '<div><span class="eyebrow">Libreria</span><h3>' + escapeHtml(library.title) + '</h3><p>' + escapeHtml(library.description || '') + '</p></div>' +
     '<div class="library-row-meta"><strong>' + lessonCount + '</strong><span>lezioni</span><strong>' + topicCount + '</strong><span>argomenti</span><span class="library-row-arrow">→</span></div>' +
   '</a>';
@@ -242,9 +242,9 @@ export function lessonTopicArticle(context, topic) {
   return '<article class="reader">' +
     '<header class="reader-header">' +
       '<div class="reader-kicker">' +
-        '<a href="#/catalog/' + encodeURIComponent(context.catalog.slug) + '">' + escapeHtml(context.catalog.title) + '</a>' +
+        '<a href="#/catalog/' + encodeURIComponent(catalogRef(context.catalog)) + '">' + escapeHtml(context.catalog.title) + '</a>' +
         '<span>·</span>' +
-        '<a href="#/catalog/' + encodeURIComponent(context.catalog.slug) + '/library/' + encodeURIComponent(context.library.slug) + '">' + escapeHtml(context.library.title) + '</a>' +
+        '<a href="#/catalog/' + encodeURIComponent(catalogRef(context.catalog)) + '/library/' + encodeURIComponent(context.library.slug) + '">' + escapeHtml(context.library.title) + '</a>' +
         '<span>·</span><span>' + escapeHtml(lesson.title) + '</span>' +
       '</div>' +
       '<h2 class="topic-title">' + escapeHtml(topic.title) + '</h2>' +
