@@ -401,11 +401,11 @@ async function renderUniverse(options = {}) {
 }
 
 async function renderStudio() {
-  let initial = state.activeCourse || allCourses()[0];
-  if (!initial) initial = emptyCourseTemplate();
+  let initial = state.activeCatalog || allCatalogs()[0];
+  if (!initial) initial = emptyCatalogTemplate();
   app.innerHTML = `<div class="studio-layout">
     <section class="studio-editor">
-      <div class="studio-toolbar"><h1>Studio JSON</h1><div class="toolbar-actions"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva</button><button class="button accent" data-publish>Pubblica</button></div></div>
+      <div class="studio-toolbar"><div><h1>Studio JSON</h1><p class="demo-note">Catalogo → Librerie → Lezioni → Argomenti</p></div><div class="toolbar-actions"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva</button><button class="button accent" data-publish>Pubblica</button></div></div>
       <textarea class="json-editor" spellcheck="false" aria-label="Editor JSON"></textarea>
       <input data-file type="file" accept="application/json,.json" hidden />
     </section>
@@ -413,11 +413,11 @@ async function renderStudio() {
       <div data-validation></div>
       <div data-preview></div>
       <div class="schema-list">
-        <div class="schema-item"><strong>1. Perché serve</strong><span>Ogni topic deve spiegare il valore pratico prima della teoria.</span></div>
-        <div class="schema-item"><strong>2. Prerequisiti</strong><span>Usa ID di altri topic. Diventeranno archi nella mappa.</span></div>
-        <div class="schema-item"><strong>3. Intuizione → formalismo</strong><span>Prima una rappresentazione mentale, poi formule e definizioni.</span></div>
-        <div class="schema-item"><strong>4. Visuale o esempio</strong><span>Diagrammi, immagini, confronti o un caso svolto. Mai solo testo lungo.</span></div>
-        <div class="schema-item"><strong>5. Checkpoint + fonti</strong><span>Una domanda di verifica e almeno una fonte per ogni argomento.</span></div>
+        <div class="schema-item"><strong>1. Catalogo</strong><span>Lo spazio dell’utente. Può restare privato o essere pubblicato nella home.</span></div>
+        <div class="schema-item"><strong>2. Librerie</strong><span>Ogni catalogo contiene una o più librerie, per esempio Computer Vision.</span></div>
+        <div class="schema-item"><strong>3. Lezioni</strong><span>Ogni libreria contiene una o più lezioni, idealmente una per blocco di slide del docente.</span></div>
+        <div class="schema-item"><strong>4. Argomenti</strong><span>Ogni lezione contiene topic con intuizione, esempi, checkpoint, fonti e connessioni.</span></div>
+        <div class="schema-item"><strong>5. Universi</strong><span>Le relazioni diventano navigabili a livello di lezione, libreria, catalogo o spazio totale.</span></div>
       </div>
       <p class="demo-note">Schema completo: <code>docs/CONTENT-SCHEMA.md</code></p>
     </aside>
@@ -437,9 +437,10 @@ async function renderStudio() {
       previewEl.innerHTML = '';
       return null;
     }
-    const result = validateCourse(parsed);
+    const result = validateCatalog(parsed);
     validationEl.innerHTML = result.ok ? `<div class="validation ok">● Schema valido</div>` : `<div class="validation error">● ${result.errors.length} problemi</div><p class="demo-note">${result.errors.slice(0,6).map(escapeHtml).join('<br>')}</p>`;
-    previewEl.innerHTML = `<span class="eyebrow">Anteprima</span><h2 class="preview-title">${escapeHtml(parsed.title || 'Senza titolo')}</h2><p class="preview-description">${escapeHtml(parsed.description || '')}</p><div class="tags">${(parsed.tags || []).slice(0,4).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div><p class="demo-note">${parsed.topics?.length || 0} argomenti · ${parsed.modules?.length || 0} moduli</p>`;
+    const stats = catalogStats(parsed);
+    previewEl.innerHTML = `<span class="eyebrow">Anteprima catalogo</span><h2 class="preview-title">${escapeHtml(parsed.title || 'Senza titolo')}</h2><p class="preview-description">${escapeHtml(parsed.description || '')}</p><div class="tags">${(parsed.tags || []).slice(0,4).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div><p class="demo-note">${stats.libraries} librerie · ${stats.lessons} lezioni · ${stats.topics} argomenti</p>`;
     return { parsed, result };
   };
 
@@ -447,7 +448,7 @@ async function renderStudio() {
   editor.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(updatePreview, 150); });
   updatePreview();
 
-  app.querySelector('[data-new]').addEventListener('click', () => { editor.value = JSON.stringify(emptyCourseTemplate(), null, 2); updatePreview(); });
+  app.querySelector('[data-new]').addEventListener('click', () => { editor.value = JSON.stringify(emptyCatalogTemplate(), null, 2); updatePreview(); });
   app.querySelector('[data-import]').addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
@@ -462,54 +463,92 @@ async function renderStudio() {
     const blob = new Blob([JSON.stringify(checked.parsed, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${checked.parsed.slug || 'course'}.json`;
+    a.download = `${checked.parsed.slug || 'catalog'}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   });
-  app.querySelector('[data-save]').addEventListener('click', () => saveEditorCourse(false));
-  app.querySelector('[data-publish]').addEventListener('click', () => saveEditorCourse(true));
+  app.querySelector('[data-save]').addEventListener('click', () => saveEditorCatalog(false));
+  app.querySelector('[data-publish]').addEventListener('click', () => saveEditorCatalog(true));
 
-  async function saveEditorCourse(publish) {
+  async function saveEditorCatalog(publish) {
     const checked = updatePreview();
     if (!checked?.result.ok) return toast('Correggi prima gli errori nello schema');
     if (!state.user || !state.supabase) return toast(isBackendConfigured() ? 'Accedi con Google per salvare' : 'Configura Supabase per salvare online');
     try {
-      await saveCourse(checked.parsed, publish);
-      if (publish) await fetchPublicCourses();
-      toast(publish ? 'Corso pubblicato' : 'Bozza salvata');
+      await saveCatalog(checked.parsed, publish);
+      if (publish) await fetchPublicCatalogs();
+      toast(publish ? 'Catalogo pubblicato nella home' : 'Catalogo salvato come privato');
     } catch (err) { toast(err.message); }
   }
 }
 
-function emptyCourseTemplate() {
-  const id = `course-${Date.now()}`;
+function emptyCatalogTemplate() {
+  const stamp = Date.now();
+  const catalogSlug = 'catalog-' + stamp;
   return {
-    schemaVersion: 1,
-    id,
-    slug: id,
-    title: 'Nuovo corso',
-    description: 'Una frase che spiega cosa imparerai e perché conta.',
+    schemaVersion: 2,
+    id: catalogSlug,
+    slug: catalogSlug,
+    title: 'Nuovo catalogo',
+    description: 'Descrivi il tuo spazio di studio.',
     language: 'it',
     visibility: 'private',
     tags: [],
-    sources: [],
-    modules: [{ id: 'fondamenti', title: 'Fondamenti', topicIds: ['primo-argomento'] }],
-    topics: [{
-      id: 'primo-argomento',
-      title: 'Primo argomento',
-      summary: 'Una spiegazione breve e concreta.',
-      why: 'Spiega qui perché lo studente dovrebbe impararlo.',
-      estimatedMinutes: 8,
-      prerequisites: [],
-      learningGoals: ['Capire l’idea centrale', 'Saperla collegare al resto del corso'],
-      sections: [
-        { type: 'lead', body: 'Parti da un’intuizione semplice.' },
-        { type: 'concept', title: 'Idea chiave', body: 'Poi costruisci il concetto in modo progressivo.' },
-        { type: 'checkpoint', question: 'Qual è l’idea centrale?', answer: 'Scrivi qui una risposta breve e verificabile.' }
-      ],
-      connections: [],
-      sources: [{ ref: 'source-1', pages: '', note: 'Aggiungi una fonte reale.' }]
-    }]
+    libraries: [
+      {
+        id: 'library-1',
+        slug: 'prima-libreria',
+        title: 'Prima libreria',
+        description: 'Per esempio: Computer Vision.',
+        lessons: [
+          {
+            schemaVersion: 1,
+            id: 'lesson-01',
+            slug: 'lezione-01',
+            title: 'Lezione 01',
+            description: 'Una lezione può corrispondere a una lezione del docente o a un gruppo di slide.',
+            modules: [
+              {
+                id: 'fondamenti',
+                title: 'Fondamenti',
+                topicIds: ['primo-argomento']
+              }
+            ],
+            topics: [
+              {
+                id: 'primo-argomento',
+                title: 'Primo argomento',
+                summary: 'Una spiegazione breve e concreta.',
+                why: 'Spiega perché serve.',
+                estimatedMinutes: 8,
+                prerequisites: [],
+                learningGoals: ['Capire l’idea centrale'],
+                sections: [
+                  { type: 'lead', body: 'Parti da un’intuizione semplice.' },
+                  { type: 'concept', title: 'Idea chiave', body: 'Costruisci il concetto progressivamente.' },
+                  { type: 'checkpoint', question: 'Qual è l’idea centrale?', answer: 'Scrivi una risposta verificabile.' }
+                ],
+                connections: [],
+                sources: [
+                  {
+                    ref: 'source-1',
+                    pages: '',
+                    note: 'Aggiungi una fonte reale.'
+                  }
+                ]
+              }
+            ],
+            sources: [
+              {
+                id: 'source-1',
+                type: 'slides',
+                label: 'Materiale della lezione'
+              }
+            ]
+          }
+        ]
+      }
+    ]
   };
 }
 
