@@ -249,7 +249,7 @@ img { display: block; max-width: 100%; }
 .modal { width: min(460px, 100%); background: var(--paper); border-radius: 22px; padding: 25px; box-shadow: 0 24px 100px rgba(0,0,0,.18); }
 .modal h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -.04em; }
 .modal p { color: var(--muted); line-height: 1.55; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; flex-wrap: wrap; }
 
 .toast-region { position: fixed; z-index: 120; right: 18px; bottom: 18px; display: grid; gap: 9px; }
 .toast { background: #171820; color: white; border-radius: 12px; padding: 11px 14px; font-size: 13px; box-shadow: 0 14px 40px rgba(0,0,0,.18); animation: toast-in .2s ease; }
