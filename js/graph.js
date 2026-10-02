@@ -1,11 +1,11 @@
-import { courseGraph } from './content.js';
+import { catalogGraph } from './content.js';
 
 const PALETTE = ['#8d82ff', '#37c9a7', '#ff9a62', '#e66cd8', '#62a8ff', '#d9c85f', '#ff6f85', '#67d4e5'];
 
-export function renderUniverseGraph(container, courses) {
+export function renderUniverseGraph(container, catalogs, options = {}) {
   if (!container || !window.ForceGraph) return () => {};
 
-  const data = courseGraph(courses);
+  const data = catalogGraph(catalogs, options);
   const stage = container.closest('.universe-full');
   const searchInput = stage?.querySelector('[data-universe-search]');
   const searchResults = stage?.querySelector('[data-universe-results]');
@@ -14,9 +14,9 @@ export function renderUniverseGraph(container, courses) {
   const labelsButton = stage?.querySelector('[data-universe-labels]');
   const statsEl = stage?.querySelector('[data-universe-stats]');
 
-  const courseColors = new Map(courses.map((course, index) => [
-    course.slug,
-    course.accent || PALETTE[index % PALETTE.length]
+  const courseColors = new Map(catalogs.map((catalog, index) => [
+    catalog.slug,
+    catalog.accent || PALETTE[index % PALETTE.length]
   ]));
   const byId = new Map(data.nodes.map(node => [node.id, node]));
   const adjacency = new Map(data.nodes.map(node => [node.id, new Set()]));
@@ -37,16 +37,17 @@ export function renderUniverseGraph(container, courses) {
 
   if (statsEl) {
     statsEl.textContent =
-      courses.length + ' corsi · ' +
-      data.nodes.filter(n => n.type === 'topic').length + ' argomenti · ' +
-      data.links.length + ' collegamenti';
+      catalogs.length + ' cataloghi · ' +
+      data.nodes.filter(n => n.type === 'library').length + ' librerie · ' +
+      data.nodes.filter(n => n.type === 'lesson').length + ' lezioni · ' +
+      data.nodes.filter(n => n.type === 'topic').length + ' argomenti';
   }
 
   const graph = new window.ForceGraph()(container)
     .graphData(data)
     .backgroundColor('#0b0d12')
     .nodeId('id')
-    .nodeVal(node => node.type === 'course' ? 11 : 2.5)
+    .nodeVal(node => node.type === 'catalog' ? 14 : node.type === 'library' ? 9 : node.type === 'lesson' ? 6 : 2.5)
     .nodeLabel(node => tooltip(node))
     .nodeCanvasObject((node, ctx, scale) => drawNode(node, ctx, scale))
     .nodePointerAreaPaint((node, color, ctx, scale) => drawHitArea(node, color, ctx, scale))
@@ -85,7 +86,7 @@ export function renderUniverseGraph(container, courses) {
     });
 
   const charge = graph.d3Force('charge');
-  if (charge?.strength) charge.strength(node => node.type === 'course' ? -900 : -190);
+  if (charge?.strength) charge.strength(node => node.type === 'catalog' ? -1050 : node.type === 'library' ? -650 : node.type === 'lesson' ? -380 : -180);
 
   const linkForce = graph.d3Force('link');
   if (linkForce?.distance) {
@@ -97,7 +98,7 @@ export function renderUniverseGraph(container, courses) {
   if (window.d3?.forceCollide) {
     graph.d3Force(
       'collision',
-      window.d3.forceCollide(node => node.type === 'course' ? 34 : 13).strength(0.72)
+      window.d3.forceCollide(node => node.type === 'catalog' ? 40 : node.type === 'library' ? 30 : node.type === 'lesson' ? 22 : 13).strength(0.72)
     );
   }
 
@@ -169,8 +170,10 @@ export function renderUniverseGraph(container, courses) {
   function drawNode(node, ctx, scale) {
     const emphasized = isEmphasized(node);
     const active = selected?.id === node.id || hovered?.id === node.id;
-    const isCourse = node.type === 'course';
-    const radius = isCourse ? 10 : 4.5;
+    const isCatalog = node.type === 'catalog';
+    const isLibrary = node.type === 'library';
+    const isLesson = node.type === 'lesson';
+    const radius = isCatalog ? 12 : isLibrary ? 9 : isLesson ? 7 : 4.5;
     const color = nodeColor(node);
 
     ctx.save();
@@ -185,15 +188,15 @@ export function renderUniverseGraph(container, courses) {
 
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = isCourse ? color : (active ? '#ffffff' : withAlpha(color, 0.86));
+    ctx.fillStyle = isCatalog ? color : isLibrary ? withAlpha(color, 0.95) : isLesson ? withAlpha(color, 0.88) : (active ? '#ffffff' : withAlpha(color, 0.78));
     ctx.fill();
 
     ctx.lineWidth = (active ? 2 : 1) / Math.max(scale, 0.65);
-    ctx.strokeStyle = isCourse ? 'rgba(255,255,255,.82)' : 'rgba(255,255,255,.34)';
+    ctx.strokeStyle = isCatalog ? 'rgba(255,255,255,.88)' : isLibrary ? 'rgba(255,255,255,.58)' : 'rgba(255,255,255,.34)';
     ctx.stroke();
 
     const showLabel = labelsEnabled && (
-      isCourse ||
+      isCatalog || isLibrary || isLesson ||
       active ||
       (selected && relatedTo(selected.id, node.id)) ||
       (hovered && relatedTo(hovered.id, node.id)) ||
@@ -202,12 +205,12 @@ export function renderUniverseGraph(container, courses) {
     );
 
     if (showLabel) {
-      const fontSize = (isCourse ? 13 : 11) / Math.max(scale, 0.7);
-      const label = truncate(node.title, isCourse ? 38 : 31);
-      ctx.font = (isCourse ? '700 ' : '560 ') + fontSize + 'px Inter, ui-sans-serif, system-ui, sans-serif';
+      const fontSize = (isCatalog ? 14 : isLibrary ? 12.5 : isLesson ? 11.5 : 11) / Math.max(scale, 0.7);
+      const label = truncate(node.title, isCatalog ? 42 : isLibrary ? 36 : 31);
+      ctx.font = (isCatalog ? '760 ' : isLibrary ? '700 ' : isLesson ? '640 ' : '560 ') + fontSize + 'px Inter, ui-sans-serif, system-ui, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = isCourse ? 'rgba(255,255,255,.96)' : 'rgba(237,239,247,.88)';
+      ctx.fillStyle = isCatalog ? 'rgba(255,255,255,.98)' : isLibrary ? 'rgba(255,255,255,.94)' : 'rgba(237,239,247,.88)';
       ctx.fillText(label, node.x + radius + (6 / Math.max(scale, 0.8)), node.y);
     }
 
@@ -219,7 +222,7 @@ export function renderUniverseGraph(container, courses) {
     ctx.arc(
       node.x,
       node.y,
-      (node.type === 'course' ? 15 : 9) / Math.max(Math.min(scale, 2), 0.7),
+      (node.type === 'catalog' ? 18 : node.type === 'library' ? 14 : node.type === 'lesson' ? 11 : 9) / Math.max(Math.min(scale, 2), 0.7),
       0,
       Math.PI * 2
     );
@@ -245,28 +248,19 @@ export function renderUniverseGraph(container, courses) {
     selected = node;
     if (!inspector) return;
 
-    const course = courses.find(item => item.slug === node.slug);
-    const topic = node.type === 'topic'
-      ? course?.topics?.find(item => item.id === node.topicId)
-      : null;
     const neighborCount = adjacency.get(node.id)?.size || 0;
-    const href = node.type === 'course'
-      ? '#/course/' + encodeURIComponent(node.slug)
-      : '#/course/' + encodeURIComponent(node.slug) + '/topic/' + encodeURIComponent(node.topicId);
-
     inspector.hidden = false;
     inspector.innerHTML =
       '<button class="universe-inspector-close" type="button" data-inspector-close aria-label="Chiudi">×</button>' +
-      '<span class="universe-inspector-type">' + (node.type === 'course' ? 'Corso' : 'Argomento') + '</span>' +
+      '<span class="universe-inspector-type">' + typeLabel(node.type) + '</span>' +
       '<h2>' + escapeText(node.title) + '</h2>' +
-      '<p>' + escapeText(topic?.summary || course?.description || '') + '</p>' +
+      '<p>' + escapeText(node.description || '') + '</p>' +
       '<div class="universe-inspector-meta">' +
         neighborCount + ' collegamenti' +
-        (topic?.estimatedMinutes ? ' · ' + topic.estimatedMinutes + ' min' : '') +
+        (node.estimatedMinutes ? ' · ' + node.estimatedMinutes + ' min' : '') +
       '</div>' +
-      '<a class="universe-open-button" href="' + href + '">Apri ' +
-        (node.type === 'course' ? 'corso' : 'argomento') +
-        ' <span>↗</span></a>';
+      '<a class="universe-open-button" href="' + escapeAttr(node.href || '#/universe') + '">Apri ' +
+        typeLabel(node.type).toLowerCase() + ' <span>↗</span></a>';
 
     inspector.querySelector('[data-inspector-close]')?.addEventListener('click', event => {
       event.stopPropagation();
@@ -304,7 +298,7 @@ export function renderUniverseGraph(container, courses) {
     searchResults.innerHTML = matches.length
       ? matches.map(node =>
           '<button type="button" data-node-id="' + escapeAttr(node.id) + '">' +
-            '<span>' + (node.type === 'course' ? 'Corso' : 'Argomento') + '</span>' +
+            '<span>' + (typeLabel(node.type)) + '</span>' +
             '<strong>' + escapeText(node.title) + '</strong>' +
           '</button>'
         ).join('')
@@ -366,7 +360,7 @@ export function renderUniverseGraph(container, courses) {
 }
 
 function tooltip(node) {
-  const type = node.type === 'course' ? 'Corso' : 'Argomento';
+  const type = typeLabel(node.type);
   return '<div style="padding:4px 2px"><b>' + escapeText(type) + '</b><br>' + escapeText(node.title) + '</div>';
 }
 
@@ -396,4 +390,11 @@ function escapeText(value) {
 
 function escapeAttr(value) {
   return escapeText(value);
+}
+
+function typeLabel(type) {
+  if (type === 'catalog') return 'Catalogo';
+  if (type === 'library') return 'Libreria';
+  if (type === 'lesson') return 'Lezione';
+  return 'Argomento';
 }
