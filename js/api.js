@@ -107,11 +107,15 @@ export async function fetchMyCatalogs() {
     }
   }));
 
-  const merged = new Map(state.remoteCatalogs.map(catalog => [catalog.slug, catalog]));
-  mine.forEach(catalog => merged.set(catalog.slug, catalog));
+  const merged = new Map(state.remoteCatalogs.map(catalog => [catalogIdentity(catalog), catalog]));
+  mine.forEach(catalog => merged.set(catalogIdentity(catalog), catalog));
   state.remoteCatalogs = [...merged.values()];
 
   return mine;
+}
+
+function catalogIdentity(catalog) {
+  return catalog?._db?.id || ((catalog?._db?.owner_id || 'local') + ':' + (catalog?.slug || catalog?.id || 'catalog'));
 }
 
 export async function saveCatalog(catalog, publish = false) {
