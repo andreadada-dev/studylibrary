@@ -9,6 +9,20 @@ export const escapeHtml = value => String(value ?? '')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#039;');
 
+export function safeUrl(value, { image = false } = {}) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^https?:\/\//i.test(text)) return text;
+  if (/^\/(?!\/)/.test(text) || /^\.\.?\//.test(text)) return text;
+  if (image && /^data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml)[;,]/i.test(text)) return text;
+  return '';
+}
+
+function safeColor(value) {
+  const text = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(text) || /^#[0-9a-f]{3}$/i.test(text) ? text : '#6157e7';
+}
+
 export function toast(message) {
   const region = document.getElementById('toast-region');
   const el = document.createElement('div');
@@ -35,8 +49,8 @@ export function renderAccount() {
   }
 
   const name = state.profile?.display_name || state.user.user_metadata?.full_name || state.user.email?.split('@')[0] || 'Account';
-  const avatar = state.profile?.avatar_url || state.user.user_metadata?.avatar_url;
-  slot.innerHTML = `<button class="account-button" data-account>${avatar ? `<img class="avatar" src="${escapeHtml(avatar)}" alt="" />` : `<span class="avatar">${escapeHtml(name[0] || 'U')}</span>`}<span class="account-name">${escapeHtml(name)}</span></button>`;
+  const avatar = safeUrl(state.profile?.avatar_url || state.user.user_metadata?.avatar_url, { image: true });
+  slot.innerHTML = `<button class="account-button" data-account>${avatar ? `<img class="avatar" src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar">${escapeHtml(name[0] || 'U')}</span>`}<span class="account-name">${escapeHtml(name)}</span></button>`;
   slot.querySelector('[data-account]').addEventListener('click', () => showAccountModal(name));
 }
 
@@ -162,8 +176,11 @@ export function renderSection(section) {
       return `<aside class="callout" data-tone="${escapeHtml(section.tone || 'info')}">${title}${paragraphs(section.body)}</aside>`;
     case 'formula':
       return `<section class="lesson-section">${title}<div class="formula"><span class="math">${escapeHtml(section.latex || section.body || '')}</span></div>${section.note ? `<p>${escapeHtml(section.note)}</p>` : ''}</section>`;
-    case 'image':
-      return `<figure class="lesson-image"><img src="${escapeHtml(section.src)}" alt="${escapeHtml(section.alt || '')}" loading="lazy" />${section.caption ? `<figcaption>${escapeHtml(section.caption)}${section.credit ? ` · ${escapeHtml(section.credit)}` : ''}</figcaption>` : ''}</figure>`;
+    case 'image': {
+      const src = safeUrl(section.src, { image: true });
+      if (!src) return `<figure class="lesson-image"><div class="image-fallback"><strong>Immagine non valida</strong><span>La sorgente usa un URL non consentito.</span></div></figure>`;
+      return `<figure class="lesson-image"><img src="${escapeHtml(src)}" alt="${escapeHtml(section.alt || '')}" loading="lazy" referrerpolicy="no-referrer" />${section.caption ? `<figcaption>${escapeHtml(section.caption)}${section.credit ? ` · ${escapeHtml(section.credit)}` : ''}</figcaption>` : ''}</figure>`;
+    }
     case 'flow':
       return `<section class="lesson-section">${title}<div class="flow-diagram">${(section.nodes || []).map((n, idx) => `${idx ? '<span class="flow-arrow">→</span>' : ''}<div class="flow-node">${escapeHtml(typeof n === 'string' ? n : n.label)}</div>`).join('')}</div>${section.body ? paragraphs(section.body) : ''}</section>`;
     case 'comparison':
@@ -302,7 +319,7 @@ export async function renderDiscussion(targetKind, targetKey, rootId = 'discussi
 
 function renderComment(c, targetKind, targetKey) {
   const name = c.profiles?.display_name || 'Studente';
-  const avatar = c.profiles?.avatar_url;
+  const avatar = safeUrl(c.profiles?.avatar_url, { image: true });
   const date = new Date(c.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
   const mine = Boolean(state.user && c.user_id === state.user.id);
   const actions = mine
@@ -334,7 +351,7 @@ export function catalogCard(catalog) {
   const stats = catalogStats(catalog);
   const author = catalog._author?.display_name || (state.user && catalog._db?.owner_id === state.user.id ? 'Tu' : null) || catalog.university || (catalog._static ? 'Catalogo demo' : 'Community');
   const visibility = catalog.visibility === 'private' ? 'Privato' : 'Pubblico';
-  return '<a class="course-card catalog-card" href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '" style="--card-accent:' + escapeHtml(catalog.accent || '#6157e7') + '">' +
+  return '<a class="course-card catalog-card" href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '" style="--card-accent:' + safeColor(catalog.accent) + '">' +
     '<div class="course-meta"><strong>' + escapeHtml(author) + '</strong><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span></div>' +
     '<h3>' + escapeHtml(catalog.title) + '</h3>' +
     '<p>' + escapeHtml(catalog.description || '') + '</p>' +
@@ -429,8 +446,9 @@ function renderTopicSources(context, topic) {
   const rows = refs.map(ref => {
     const source = lessonSources.get(ref.ref) || catalogSources.get(ref.ref) || {};
     const label = source.label || ref.ref || 'Fonte';
-    const link = source.url
-      ? '<a href="' + escapeHtml(source.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + ' ↗</a>'
+    const sourceUrl = safeUrl(source.url);
+    const link = sourceUrl
+      ? '<a href="' + escapeHtml(sourceUrl) + '" target="_blank" rel="noopener noreferrer nofollow">' + escapeHtml(label) + ' ↗</a>'
       : '<strong>' + escapeHtml(label) + '</strong>';
     const meta = [ref.pages ? 'pp. ' + ref.pages : '', ref.note || ''].filter(Boolean).join(' · ');
     return '<li><div>' + link + '</div>' + (meta ? '<span>' + escapeHtml(meta) + '</span>' : '') + '</li>';
