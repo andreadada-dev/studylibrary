@@ -50,22 +50,64 @@ function parseRoute() {
 async function route() {
   if (cleanupRoute) { cleanupRoute(); cleanupRoute = null; }
   const parts = parseRoute();
-  document.body.classList.toggle('universe-mode', parts[0] === 'universe');
-  setActiveNav(parts[0] || 'home');
+  const universeMode = parts.includes('universe');
+  document.body.classList.toggle('universe-mode', universeMode);
+  setActiveNav(parts[0] || 'home', universeMode);
 
   if (!parts.length) return renderHome();
-  if (parts[0] === 'universe') return renderUniverse();
+  if (parts[0] === 'universe') return renderUniverse({});
+  if (parts[0] === 'mine') return renderMyCatalogs();
   if (parts[0] === 'studio') return renderStudio();
-  if (parts[0] === 'course' && parts[1]) {
-    if (parts[2] === 'topic' && parts[3]) return renderCourse(parts[1], parts[3]);
-    return renderCourse(parts[1]);
+
+  if (parts[0] === 'catalog' && parts[1]) {
+    const catalogSlug = parts[1];
+
+    if (parts[2] === 'universe') {
+      return renderUniverse({ catalogSlug });
+    }
+
+    if (!parts[2]) return renderCatalog(catalogSlug);
+
+    if (parts[2] === 'library' && parts[3]) {
+      const librarySlug = parts[3];
+
+      if (parts[4] === 'universe') {
+        return renderUniverse({ catalogSlug, librarySlug });
+      }
+
+      if (!parts[4]) return renderLibrary(catalogSlug, librarySlug);
+
+      if (parts[4] === 'lesson' && parts[5]) {
+        const lessonSlug = parts[5];
+
+        if (parts[6] === 'universe') {
+          return renderUniverse({ catalogSlug, librarySlug, lessonSlug });
+        }
+
+        if (parts[6] === 'topic' && parts[7]) {
+          return renderLesson(catalogSlug, librarySlug, lessonSlug, parts[7]);
+        }
+
+        return renderLesson(catalogSlug, librarySlug, lessonSlug);
+      }
+    }
   }
+
   return renderNotFound();
 }
 
-function setActiveNav(routeName) {
-  const map = { home: '#/', universe: '#/universe', studio: '#/studio', course: '#/' };
-  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', a.getAttribute('href') === (map[routeName] || '#/')));
+function setActiveNav(routeName, universeMode = false) {
+  const map = {
+    home: '#/',
+    mine: '#/mine',
+    universe: '#/universe',
+    studio: '#/studio',
+    catalog: '#/'
+  };
+  const activeHref = universeMode ? '#/universe' : (map[routeName] || '#/');
+  document.querySelectorAll('[data-nav]').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === activeHref);
+  });
 }
 
 function renderHome() {
