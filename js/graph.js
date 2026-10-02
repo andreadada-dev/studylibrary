@@ -15,7 +15,7 @@ export function renderUniverseGraph(container, catalogs, options = {}) {
   const statsEl = stage?.querySelector('[data-universe-stats]');
 
   const courseColors = new Map(catalogs.map((catalog, index) => [
-    catalog.slug,
+    catalog._db?.id || catalog.slug || catalog.id,
     catalog.accent || PALETTE[index % PALETTE.length]
   ]));
   const byId = new Map(data.nodes.map(node => [node.id, node]));
