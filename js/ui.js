@@ -1,5 +1,5 @@
 import { state, isBackendConfigured } from './state.js';
-import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, getDiscussion, addComment, updateComment, deleteComment, reportContent, setRating } from './api.js';
+import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, deleteAccount, getDiscussion, addComment, updateComment, deleteComment, reportContent, setRating } from './api.js';
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 
 export const escapeHtml = value => String(value ?? '')
@@ -70,9 +70,9 @@ function showAccountModal(name) {
       label: 'Elimina i miei contenuti',
       className: 'button danger',
       action: () => {
-        showModal('Eliminare tutti i tuoi contenuti?', '<p>Verranno eliminati cataloghi cloud, commenti, valutazioni e segnalazioni creati da questo account. L’account Google/Supabase non viene eliminato.</p>', [
+        showModal('Eliminare tutti i tuoi contenuti?', '<p>Verranno eliminati cataloghi cloud, commenti, valutazioni e segnalazioni creati da questo account. L’account di autenticazione resterà attivo.</p>', [
           {
-            label: 'Elimina tutto',
+            label: 'Elimina contenuti',
             className: 'button danger',
             action: async () => {
               try {
@@ -80,6 +80,27 @@ function showAccountModal(name) {
                 closeModal();
                 toast('Contenuti eliminati');
                 location.hash = '#/mine';
+              } catch (err) { toast(err.message); }
+            }
+          },
+          { label: 'Annulla', className: 'button secondary', action: closeModal }
+        ]);
+      }
+    },
+    {
+      label: 'Elimina account',
+      className: 'button danger',
+      action: () => {
+        showModal('Eliminare definitivamente l’account?', '<p>Verranno eliminati l’account StudyLibrary e tutti i contenuti associati. Questa operazione non può essere annullata.</p>', [
+          {
+            label: 'Elimina account',
+            className: 'button danger',
+            action: async () => {
+              try {
+                await deleteAccount();
+                closeModal();
+                toast('Account eliminato');
+                location.hash = '#/';
               } catch (err) { toast(err.message); }
             }
           },
