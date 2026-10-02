@@ -1,0 +1,10 @@
+{
+  "name": "StudyLibrary",
+  "short_name": "StudyLibrary",
+  "description": "Cataloghi, librerie, lezioni e argomenti collegati in uno spazio di studio condivisibile.",
+  "start_url": "/#/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#6157e7",
+  "lang": "it"
+}
