@@ -176,6 +176,24 @@ export async function deleteAllMyContent() {
   state.remoteCatalogs = state.remoteCatalogs.filter(catalog => catalog?._db?.owner_id !== state.user.id);
 }
 
+export async function deleteAccount() {
+  if (!state.supabase || !state.user) throw new Error('Accedi per eliminare l’account');
+  const ownerId = state.user.id;
+
+  const { error } = await state.supabase.rpc('delete_my_account');
+  if (error) throw error;
+
+  state.remoteCatalogs = state.remoteCatalogs.filter(catalog => catalog?._db?.owner_id !== ownerId);
+  state.user = null;
+  state.profile = null;
+
+  try {
+    await state.supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // The auth user has already been removed server-side; local cleanup is best effort.
+  }
+}
+
 function stripRuntimeFields(value) {
   if (Array.isArray(value)) return value.map(stripRuntimeFields);
   if (!value || typeof value !== 'object') return value;
