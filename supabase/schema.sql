@@ -161,7 +161,18 @@ alter table public.comments enable row level security;
 drop policy if exists "profiles readable" on public.profiles;
 create policy "profiles readable"
 on public.profiles for select
-using (true);
+using (
+  auth.uid() = id
+  or exists (
+    select 1 from public.catalogs
+    where catalogs.owner_id = profiles.id
+      and catalogs.is_public = true
+  )
+  or exists (
+    select 1 from public.comments
+    where comments.user_id = profiles.id
+  )
+);
 
 drop policy if exists "users update own profile" on public.profiles;
 create policy "users update own profile"
@@ -385,3 +396,29 @@ $$;
 revoke all on function public.delete_my_account() from public;
 revoke all on function public.delete_my_account() from anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+
+-- Bound user-controlled payload sizes so one catalog cannot exhaust browser/database resources.
+alter table public.catalogs
+  drop constraint if exists catalogs_title_length_check;
+alter table public.catalogs
+  add constraint catalogs_title_length_check
+  check (char_length(title) between 1 and 160);
+
+alter table public.catalogs
+  drop constraint if exists catalogs_description_length_check;
+alter table public.catalogs
+  add constraint catalogs_description_length_check
+  check (char_length(description) <= 4000);
+
+alter table public.catalogs
+  drop constraint if exists catalogs_tags_count_check;
+alter table public.catalogs
+  add constraint catalogs_tags_count_check
+  check (cardinality(tags) <= 20);
+
+alter table public.catalogs
+  drop constraint if exists catalogs_json_size_check;
+alter table public.catalogs
+  add constraint catalogs_json_size_check
+  check (octet_length(catalog_json::text) <= 5242880);
