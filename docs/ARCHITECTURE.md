@@ -121,3 +121,27 @@ Non devono mai essere esposte:
    - `APP_URL`
 6. Eseguire `supabase/schema.sql`.
 7. Abilitare Google OAuth e aggiungere `APP_URL` ai redirect consentiti.
+
+
+## Moderazione e abuso
+
+La community usa tre tabelle separate:
+
+- `comments`
+- `ratings`
+- `reports`
+
+Le segnalazioni possono riferirsi a cataloghi, librerie, lezioni, topic o commenti. Il frontend consente agli utenti di modificare/eliminare soltanto i propri commenti e di segnalare contenuti altrui.
+
+Il database applica un rate limit di base tramite trigger PostgreSQL per evitare burst di commenti e segnalazioni. La moderazione globale dei report resta server-side/amministrativa e non viene esposta alla anon key.
+
+Quando un catalogo cloud viene eliminato, un trigger rimuove anche rating, commenti e report che puntano al suo identificatore stabile o a contenuti figli.
+
+## Portabilità e cancellazione
+
+Dall'account l'utente può:
+
+- esportare tutti i propri cataloghi cloud in JSON;
+- eliminare i propri cataloghi/commenti/rating/report applicativi.
+
+La cancellazione dell'identità Auth richiede invece una procedura amministrativa/server-side Supabase, perché non deve essere autorizzata dalla anon key.
