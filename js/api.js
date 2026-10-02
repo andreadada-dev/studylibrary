@@ -93,7 +93,7 @@ export async function fetchMyCatalogs() {
 
   if (error) throw error;
 
-  return (data || []).map(row => ({
+  const mine = (data || []).map(row => ({
     ...row.catalog_json,
     visibility: row.is_public ? 'public' : 'private',
     _db: {
@@ -102,6 +102,12 @@ export async function fetchMyCatalogs() {
       updated_at: row.updated_at
     }
   }));
+
+  const merged = new Map(state.remoteCatalogs.map(catalog => [catalog.slug, catalog]));
+  mine.forEach(catalog => merged.set(catalog.slug, catalog));
+  state.remoteCatalogs = [...merged.values()];
+
+  return mine;
 }
 
 export async function saveCatalog(catalog, publish = false) {
