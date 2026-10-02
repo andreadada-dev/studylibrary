@@ -278,9 +278,69 @@ img { display: block; max-width: 100%; }
 }
 
 @media (max-width: 720px) {
-  .topbar { height: 62px; grid-template-columns: 1fr auto; }
-  .topnav { position: fixed; z-index: 45; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 999px; padding: 4px; box-shadow: 0 10px 40px rgba(20,21,28,.14); backdrop-filter: blur(14px); }
-  .topnav a { font-size: 12px; padding: 8px 10px; }
+  .topbar {
+    height: 58px;
+    grid-template-columns: 30px minmax(0, 1fr) 38px;
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .brand {
+    width: 30px;
+    min-width: 30px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .brand > span:last-child {
+    display: none;
+  }
+
+  .brand-mark {
+    width: 24px;
+    min-width: 24px;
+  }
+
+  .topnav {
+    position: static;
+    z-index: auto;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    min-width: 0;
+    width: 100%;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .topnav a {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 7px clamp(5px, 1.5vw, 8px);
+    border-radius: 999px;
+    font-size: clamp(9px, 2.7vw, 11px);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .account-slot {
+    width: 38px;
+    justify-self: end;
+  }
+
+  .account-button {
+    width: 38px;
+    height: 38px;
+    justify-content: center;
+    padding: 5px;
+  }
+
   .account-button .account-name { display: none; }
   .page { width: min(100% - 30px, var(--content)); padding-top: 34px; }
   .display { font-size: clamp(42px, 15vw, 67px); }
@@ -685,11 +745,11 @@ body.universe-mode #app {
 
 @media (max-width: 720px) {
   body.universe-mode #app {
-    height: calc(100dvh - 62px);
+    height: calc(100dvh - 58px);
   }
   body.universe-mode .topnav {
-    background: rgba(18,20,27,.9);
-    border-color: rgba(255,255,255,.08);
+    background: transparent;
+    border: 0;
   }
   .universe-titlebar {
     top: 20px;
