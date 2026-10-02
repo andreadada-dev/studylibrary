@@ -44,6 +44,7 @@ function parseRoute() {
 async function route() {
   if (cleanupRoute) { cleanupRoute(); cleanupRoute = null; }
   const parts = parseRoute();
+  document.body.classList.toggle('universe-mode', parts[0] === 'universe');
   setActiveNav(parts[0] || 'home');
 
   if (!parts.length) return renderHome();
@@ -145,6 +146,7 @@ async function renderCourse(slug, topicId = null) {
 async function renderUniverse() {
   let courses = allCourses();
   let ownershipNote = 'Corsi pubblici e contenuti locali';
+
   if (state.user && state.supabase) {
     try {
       const mine = await fetchMyCourses();
@@ -155,14 +157,49 @@ async function renderUniverse() {
     } catch (err) { console.warn(err); }
   }
 
-  app.innerHTML = `<div class="page">
-    <div class="universe-head"><div><span class="eyebrow">Universo</span><h1>Le idee hanno<br/>una geometria.</h1></div><div><p class="lede" style="font-size:15px;max-width:360px">${escapeHtml(ownershipNote)}. Trascina i nodi, fai zoom e apri un argomento per vedere perché è collegato agli altri.</p></div></div>
-    <div class="universe-shell">
-      <div class="universe-legend"><span><i class="legend-dot"></i> Corso</span><span><i class="legend-dot topic"></i> Argomento</span></div>
-      <svg class="universe-graph" data-universe-graph aria-label="Mappa dei corsi e degli argomenti"></svg>
+  app.innerHTML = \`<section class="universe-full">
+    <div class="universe-canvas" data-universe-graph aria-label="Mappa interattiva dei corsi e degli argomenti"></div>
+
+    <div class="universe-titlebar">
+      <span class="universe-overline">Spazio Universo</span>
+      <h1>Conoscenza, non cartelle.</h1>
+      <p>\${escapeHtml(ownershipNote)}</p>
+      <span class="universe-stats" data-universe-stats></span>
     </div>
-  </div>`;
-  cleanupRoute = renderUniverseGraph(app.querySelector('[data-universe-graph]'), courses) || null;
+
+    <div class="universe-search-wrap">
+      <div class="universe-searchbox">
+        <span aria-hidden="true">⌕</span>
+        <input data-universe-search type="search" placeholder="Cerca un corso o un argomento…" autocomplete="off" aria-label="Cerca nell'universo" />
+        <kbd>Esc</kbd>
+      </div>
+      <div class="universe-search-results" data-universe-results hidden></div>
+    </div>
+
+    <div class="universe-actions" aria-label="Controlli mappa">
+      <button type="button" class="universe-control" data-universe-fit title="Mostra tutta la mappa" aria-label="Mostra tutta la mappa">
+        <span aria-hidden="true">⌗</span>
+      </button>
+      <button type="button" class="universe-control" data-universe-labels aria-pressed="true" title="Mostra o nascondi etichette" aria-label="Mostra o nascondi etichette">
+        <span aria-hidden="true">Aa</span>
+      </button>
+    </div>
+
+    <div class="universe-legend">
+      <span><i class="legend-dot"></i> Corso</span>
+      <span><i class="legend-dot topic"></i> Argomento</span>
+      <span class="universe-legend-hint">trascina · rotella per zoom · clicca per esplorare</span>
+    </div>
+
+    <aside class="universe-inspector" data-universe-inspector hidden></aside>
+  </section>\`;
+
+  const graphHost = app.querySelector('[data-universe-graph]');
+  cleanupRoute = renderUniverseGraph(graphHost, courses) || null;
+
+  requestAnimationFrame(() => {
+    app.querySelector('[data-universe-search]')?.focus({ preventScroll: true });
+  });
 }
 
 async function renderStudio() {
