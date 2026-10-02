@@ -379,8 +379,8 @@ create or replace function public.delete_my_account()
 returns void
 language plpgsql
 security definer
-set search_path = public, auth
-as $$
+set search_path = ''
+as $
 declare
   current_user_id uuid;
 begin
