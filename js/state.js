@@ -1,5 +1,7 @@
+const runtimeConfig = typeof window !== 'undefined' ? (window.STUDYLIBRARY_CONFIG || {}) : {};
+
 export const state = {
-  config: window.STUDYLIBRARY_CONFIG || {},
+  config: runtimeConfig,
   supabase: null,
   user: null,
   profile: null,
