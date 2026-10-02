@@ -1,6 +1,6 @@
 import { state, isBackendConfigured } from './state.js';
 import { signInWithGoogle, signOut, getDiscussion, addComment, setRating } from './api.js';
-import { getOrderedTopics, topicNumber, findTopic } from './content.js';
+import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref } from './content.js';
 
 export const escapeHtml = value => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -42,13 +42,13 @@ export function renderAccount() {
 
 function showBackendHelp() {
   showModal('Backend in modalità demo', `
-    <p>Il sito funziona già con i corsi JSON locali. Per Google Login, pubblicazione, stelline e commenti configura Supabase in Coolify.</p>
+    <p>Il sito funziona già con i cataloghi JSON locali. Per Google Login, pubblicazione, stelline e commenti configura Supabase in Coolify.</p>
     <p><code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> vengono trasformate in <code>config.js</code> all'avvio del container.</p>
   `);
 }
 
 function showAccountModal(name) {
-  showModal(escapeHtml(name), `<p>Sei autenticato. Il tuo Universo può contenere corsi privati e pubblici.</p>`, [
+  showModal(escapeHtml(name), `<p>Sei autenticato. Il tuo catalogo può contenere librerie e lezioni private o pubblicate.</p>`, [
     { label: 'Esci', className: 'button danger', action: async () => { await signOut(); closeModal(); } },
     { label: 'Chiudi', className: 'button secondary', action: closeModal }
   ]);
@@ -241,4 +241,127 @@ function renderComment(c) {
   const avatar = c.profiles?.avatar_url;
   const date = new Date(c.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
   return `<div class="comment">${avatar ? `<img class="avatar" src="${escapeHtml(avatar)}" alt="" />` : `<span class="avatar">${escapeHtml(name[0] || 'S')}</span>`}<div><div class="comment-author">${escapeHtml(name)} <span class="comment-time">${escapeHtml(date)}</span></div><div class="comment-body">${escapeHtml(c.body)}</div></div></div>`;
+}
+
+
+export function catalogCard(catalog) {
+  const stats = catalogStats(catalog);
+  const author = catalog._author?.display_name || catalog.university || (catalog._static ? 'Catalogo demo' : 'Community');
+  const visibility = catalog.visibility === 'private' ? 'Privato' : 'Pubblico';
+  return '<a class="course-card catalog-card" href="#/catalog/' + encodeURIComponent(catalog.slug) + '" style="--card-accent:' + escapeHtml(catalog.accent || '#6157e7') + '">' +
+    '<div class="course-meta"><strong>' + escapeHtml(author) + '</strong><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span></div>' +
+    '<h3>' + escapeHtml(catalog.title) + '</h3>' +
+    '<p>' + escapeHtml(catalog.description || '') + '</p>' +
+    '<div class="course-footer">' +
+      '<div class="tags">' + (catalog.tags || []).slice(0,3).map(t => '<span class="tag">' + escapeHtml(t) + '</span>').join('') + '</div>' +
+      '<span class="rating-inline">' + escapeHtml(visibility) + ' · ' + stats.topics + ' argomenti</span>' +
+    '</div>' +
+  '</a>';
+}
+
+export function libraryCard(catalog, library) {
+  const lessonCount = library.lessons?.length || 0;
+  const topicCount = (library.lessons || []).reduce((sum, lesson) => sum + (lesson.topics?.length || 0), 0);
+  return '<a class="library-row" href="#/catalog/' + encodeURIComponent(catalog.slug) + '/library/' + encodeURIComponent(library.slug) + '">' +
+    '<div><span class="eyebrow">Libreria</span><h3>' + escapeHtml(library.title) + '</h3><p>' + escapeHtml(library.description || '') + '</p></div>' +
+    '<div class="library-row-meta"><strong>' + lessonCount + '</strong><span>lezioni</span><strong>' + topicCount + '</strong><span>argomenti</span><span class="library-row-arrow">→</span></div>' +
+  '</a>';
+}
+
+export function lessonCard(catalog, library, lesson, index) {
+  const topics = lesson.topics?.length || 0;
+  const minutes = lesson.estimatedMinutes || (lesson.topics || []).reduce((sum, topic) => sum + (topic.estimatedMinutes || 0), 0);
+  const href = lessonHref(catalog.slug, library.slug, lesson.slug);
+  return '<article class="lesson-row">' +
+    '<a class="lesson-row-main" href="' + href + '">' +
+      '<span class="lesson-index">' + String(index + 1).padStart(2, '0') + '</span>' +
+      '<div><h3>' + escapeHtml(lesson.title) + '</h3><p>' + escapeHtml(lesson.description || '') + '</p></div>' +
+      '<div class="lesson-meta"><strong>' + topics + '</strong><span>argomenti</span><strong>' + (minutes || '—') + '</strong><span>min</span></div>' +
+    '</a>' +
+    '<a class="lesson-universe-link" href="' + href + '/universe">Universo lezione ↗</a>' +
+  '</article>';
+}
+
+export function lessonReaderRail(context, activeTopicId) {
+  const lesson = context.lesson;
+  let i = 0;
+  const base = lessonHref(context.catalog.slug, context.library.slug, lesson.slug);
+  return (lesson.modules || []).map(module =>
+    '<section class="module-group">' +
+      '<p class="module-title">' + escapeHtml(module.title) + '</p>' +
+      (module.topicIds || []).map(id => {
+        const topic = findTopic(lesson, id);
+        if (!topic) return '';
+        i += 1;
+        return '<a class="topic-link ' + (id === activeTopicId ? 'active' : '') + '" href="' + base + '/topic/' + encodeURIComponent(id) + '">' +
+          '<span class="topic-num">' + String(i).padStart(2,'0') + '</span><span>' + escapeHtml(topic.title) + '</span>' +
+        '</a>';
+      }).join('') +
+    '</section>'
+  ).join('');
+}
+
+export function lessonTopicArticle(context, topic) {
+  const lesson = context.lesson;
+  const ordered = getOrderedTopics(lesson);
+  const index = ordered.findIndex(item => item.id === topic.id);
+  const prev = ordered[index - 1];
+  const next = ordered[index + 1];
+  const number = topicNumber(lesson, topic.id);
+  const base = lessonHref(context.catalog.slug, context.library.slug, lesson.slug);
+
+  return '<article class="reader">' +
+    '<header class="reader-header">' +
+      '<div class="reader-kicker">' +
+        '<a href="#/catalog/' + encodeURIComponent(context.catalog.slug) + '">' + escapeHtml(context.catalog.title) + '</a>' +
+        '<span>·</span>' +
+        '<a href="#/catalog/' + encodeURIComponent(context.catalog.slug) + '/library/' + encodeURIComponent(context.library.slug) + '">' + escapeHtml(context.library.title) + '</a>' +
+        '<span>·</span><span>' + escapeHtml(lesson.title) + '</span>' +
+      '</div>' +
+      '<h2 class="topic-title">' + escapeHtml(topic.title) + '</h2>' +
+      '<p class="topic-summary">' + escapeHtml(topic.summary || '') + '</p>' +
+      ((topic.learningGoals || []).length ? '<ul class="learning-goals">' + topic.learningGoals.map(goal => '<li>' + escapeHtml(goal) + '</li>').join('') + '</ul>' : '') +
+    '</header>' +
+    (topic.why ? '<aside class="callout"><h4>Perché ti serve</h4>' + paragraphs(topic.why) + '</aside>' : '') +
+    (topic.sections || []).map(renderSection).join('') +
+    renderLessonConnections(context, topic) +
+    '<nav class="lesson-nav">' +
+      (prev ? '<a href="' + base + '/topic/' + encodeURIComponent(prev.id) + '">← Prima<strong>' + escapeHtml(prev.title) + '</strong></a>' : '<span></span>') +
+      (next ? '<a href="' + base + '/topic/' + encodeURIComponent(next.id) + '" style="text-align:right">Dopo →<strong>' + escapeHtml(next.title) + '</strong></a>' : '<span></span>') +
+    '</nav>' +
+    '<div id="discussion-root"></div>' +
+  '</article>';
+}
+
+function renderLessonConnections(context, topic) {
+  const items = [];
+  for (const prerequisite of topic.prerequisites || []) {
+    if (prerequisite.includes('/')) continue;
+    const target = findTopic(context.lesson, prerequisite);
+    if (target) items.push({ type: 'richiede', label: target.title, target: target.id });
+  }
+
+  for (const connection of topic.connections || []) {
+    if (connection.target.includes('/')) continue;
+    const target = findTopic(context.lesson, connection.target);
+    if (target) {
+      items.push({
+        type: connection.type || 'collegato',
+        label: connection.label || target.title,
+        target: target.id
+      });
+    }
+  }
+
+  if (!items.length) return '';
+  const base = lessonHref(context.catalog.slug, context.library.slug, context.lesson.slug);
+  return '<section class="topic-connections"><h3>Collegamenti nella lezione</h3><div class="connection-list">' +
+    items.map(item =>
+      '<a class="connection" href="' + base + '/topic/' + encodeURIComponent(item.target) + '">' +
+        '<span class="connection-type">' + escapeHtml(item.type) + '</span>' +
+        '<span class="connection-label">' + escapeHtml(item.label) + '</span>' +
+        '<span class="connection-arrow">→</span>' +
+      '</a>'
+    ).join('') +
+  '</div></section>';
 }
