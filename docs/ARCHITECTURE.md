@@ -1,113 +1,123 @@
 # Architecture
 
-## Obiettivo
+## Gerarchia del prodotto
 
-StudyLibrary deve restare semplice da distribuire su Coolify ma supportare autenticazione, contenuti personali e community. Per questo la prima versione separa chiaramente:
+StudyLibrary usa una gerarchia esplicita:
 
-- **Frontend statico**: HTML, CSS e JavaScript ES modules.
-- **Contenuti portabili**: JSON nel repository oppure `jsonb` nel database.
-- **Backend managed/self-hostable**: Supabase per Google OAuth, Postgres, Row Level Security, rating e commenti.
-- **Deploy**: Nginx in un container Docker. Nessun processo Node necessario in produzione.
+```text
+Utente
+└── Catalogo
+    ├── Libreria
+    │   ├── Lezione
+    │   │   └── Argomenti
+    │   └── Lezione
+    └── Libreria
+```
 
-## Perché non un CMS pesante
+Il catalogo è l'unità di proprietà e pubblicazione. Le librerie organizzano corsi o aree di studio; le lezioni seguono il materiale del docente; gli argomenti sono le unità didattiche.
 
-Il contenuto di studio deve poter essere:
+## Frontend
 
-1. modificato con un editor di testo;
-2. generato da strumenti automatici;
-3. revisionato con Git diff;
-4. importato/esportato senza lock-in;
-5. visualizzato nella stessa UI sia da file locale sia da database.
+- HTML, CSS e JavaScript ES modules.
+- Nginx statico in produzione.
+- Nessun processo Node richiesto a runtime.
+- KaTeX per le formule.
+- ForceGraph + d3-force per gli Universi.
 
-Il JSON è quindi il contratto. Il database memorizza lo stesso documento per gli utenti che vogliono pubblicare dal browser.
+## Contenuti locali
 
-## UI/UX principles
+`data/catalog.json` è il registry dei cataloghi locali.
 
-La UI prende spunto da tre famiglie di prodotti, senza copiarne il look:
+Ogni catalogo ha un manifest in `data/catalogs/`.
 
-- **Knowledge bases**: gerarchia chiara, ricerca veloce, reader concentrato.
-- **Digital gardens / knowledge graphs**: backlinks e relazioni visibili, mappa globale opzionale.
-- **Infinite canvas tools**: pan/zoom e manipolazione diretta nella vista Universo.
+Le lezioni possono essere file JSON separati in `data/courses/` e vengono referenziate dal manifest tramite `src`.
 
-Regole locali:
+Il loader espande i riferimenti in memoria, quindi il renderer lavora sempre su una struttura completa:
 
-- max ~760 px per il testo lungo;
-- un solo livello principale di superficie per sezione;
-- bordi solo per separare funzioni, non per decorare ogni blocco;
-- callout solo quando il significato lo richiede;
-- sidebar del corso = indice, non dashboard;
-- l'Universo è una vista complementare, non il modo obbligatorio di leggere;
-- mobile: reader lineare, indice orizzontale e navigazione bottom floating.
+```text
+Catalogo -> Librerie -> Lezioni -> Topics
+```
 
-## Data flow
+## Contenuti cloud
 
-### Locale
+Supabase salva il catalogo espanso in `catalogs.catalog_json`.
 
-`data/catalog.json` → file corso → renderer.
+Campi principali:
 
-Questo percorso funziona senza account e senza Supabase.
+- `owner_id`
+- `slug`
+- `title`
+- `description`
+- `tags`
+- `is_public`
+- `catalog_json`
 
-### Cloud
+`is_public = true` rende il catalogo visibile nella Home.
 
-Supabase `courses.course_json` → merge per `slug` con i corsi locali → renderer.
+La RLS permette all'utente di leggere e modificare i propri cataloghi privati; gli altri utenti vedono soltanto quelli pubblici.
 
-A parità di `slug`, la versione remota ha precedenza. Questo permette di partire da un corso in Git e sostituirlo con una versione pubblicata dal browser.
+## Universe scopes
 
-### Community
+Il grafo usa gli stessi dati del reader e può essere filtrato a quattro livelli:
 
-`ratings` e `comments` usano una coppia generica:
-
-- `target_kind`: `course` o `topic`;
-- `target_key`: es. `computer-vision-introduction/spatial-resolution`.
-
-Non serve una tabella commenti per ogni tipo di contenuto.
-
-## Auth
-
-Il browser usa solo la Supabase **anon key**. Le autorizzazioni vere sono nel database tramite RLS.
-
-Mai mettere nel frontend:
-
-- service role key;
-- client secret Google;
-- password database.
-
-Google OAuth reindirizza all'`APP_URL` configurato nel container.
-
-## Search
-
-La v1 usa ricerca client-side su corsi già caricati. Per una biblioteca ampia conviene aggiungere una seconda fase:
-
-- Postgres Full Text Search su titolo, description e topic estratti dal JSON;
-- oppure un indice dedicato (Typesense/Meilisearch) se il catalogo diventa molto grande.
-
-## Knowledge graph
-
-La vista Universo usa D3 force simulation.
+- **lezione** → lezione + topics
+- **libreria** → libreria + lezioni + topics
+- **catalogo** → catalogo + librerie + lezioni + topics
+- **totale** → tutti i cataloghi accessibili
 
 Nodi:
 
-- corso;
-- topic.
+- `catalog`
+- `library`
+- `lesson`
+- `topic`
 
 Archi:
 
-- course → topic (`contains`);
-- prerequisite → topic (`requires`);
-- `connections[]` definite nel JSON.
+- `contains`
+- `requires`
+- `uses`
+- `enables`
+- `related`
+- altri tipi dichiarati in `connections[]`
 
-Per grafi grandi è consigliabile filtrare per corso/modulo e caricare progressivamente i vicini del nodo selezionato.
+Il renderer è canvas-first per evitare i limiti di una grande mappa SVG.
 
-## Deployment on Coolify
+## Community
 
-1. Sorgente: repository GitHub.
-2. Build pack: Dockerfile.
-3. Porta: 80.
-4. Env:
+`ratings` e `comments` usano:
+
+- `target_kind`: `catalog`, `library`, `lesson` o `topic`
+- `target_key`: path stabile del contenuto
+
+Esempio:
+
+`computer-vision/computer-vision/lesson-01-introduction/spatial-resolution`
+
+## Auth
+
+Google OAuth passa da Supabase Auth.
+
+Il browser usa soltanto:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Non devono mai essere esposte:
+
+- service-role key
+- client secret Google
+- password del database
+
+## Deployment Coolify
+
+1. Repository GitHub.
+2. Build con `Dockerfile`.
+3. Porta interna `80`.
+4. Per la modalità demo non servono env.
+5. Per account e community:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
    - `APP_URL`
-5. In Supabase aggiungi `APP_URL` tra gli URL OAuth consentiti.
-6. Applica `supabase/schema.sql` una volta.
-
-L'entrypoint crea `/usr/share/nginx/html/config.js` a runtime. Così la stessa immagine Docker può essere promossa tra ambienti con configurazioni diverse.
+6. Eseguire `supabase/schema.sql`.
+7. Abilitare Google OAuth e aggiungere `APP_URL` ai redirect consentiti.
