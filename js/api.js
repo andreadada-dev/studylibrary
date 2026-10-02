@@ -23,7 +23,11 @@ export async function initBackend() {
   state.supabase.auth.onAuthStateChange(async (_event, sessionNow) => {
     state.user = sessionNow?.user ?? null;
     state.profile = null;
-    if (state.user) await loadProfile();
+    if (state.user) {
+      await loadProfile();
+    } else {
+      state.remoteCatalogs = state.remoteCatalogs.filter(catalog => catalog.visibility !== 'private');
+    }
     window.dispatchEvent(new CustomEvent('studylibrary:auth-changed'));
   });
 
