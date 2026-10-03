@@ -73,7 +73,7 @@ Per account e community:
 
 ```text
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLIC_ANON_KEY
 APP_URL=https://study.example.com
 ```
 
