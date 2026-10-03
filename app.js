@@ -259,6 +259,13 @@ async function renderMyCatalogs() {
     await importPersonalFiles([...fileInput.files]);
     fileInput.value = '';
   });
+
+  app.querySelectorAll('[data-edit-personal]').forEach(button => button.addEventListener('click', () => {
+    const catalog = catalogs.find(item => catalogRef(item) === button.dataset.editPersonal);
+    if (!catalog) return;
+    state.activeCatalog = catalog;
+    location.hash = '#/studio';
+  }));
 }
 
 function renderPersonalCatalogTree(catalog) {
@@ -565,24 +572,40 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
 }
 
 async function renderUniverse(options = {}) {
-  setPageMeta('Universo', 'Esplora visualmente cataloghi, librerie, lezioni e argomenti collegati.');
-  let catalogs = allCatalogs();
-  let ownershipNote = 'Cataloghi pubblici e contenuti locali';
+  const personal = Boolean(options.mineOnly);
+  setPageMeta(personal ? 'Universo personale' : 'Universo', personal ? 'Esplora soltanto i tuoi cataloghi e collegamenti.' : 'Esplora visualmente cataloghi, librerie, lezioni e argomenti collegati.');
+
+  let catalogs = personal ? [] : allCatalogs();
+  let ownershipNote = personal ? 'Solo i tuoi cataloghi' : 'Cataloghi pubblici';
 
   if (state.user && state.supabase) {
     try {
       const mine = await fetchMyCatalogs();
-      const map = new Map(catalogs.map(catalog => [catalogRef(catalog), catalog]));
-      mine.forEach(catalog => map.set(catalogRef(catalog), catalog));
-      catalogs = [...map.values()];
-      ownershipNote = 'Il tuo spazio personale + cataloghi pubblici';
+      if (personal) {
+        catalogs = mine;
+      } else {
+        const map = new Map(catalogs.map(catalog => [catalogRef(catalog), catalog]));
+        mine.forEach(catalog => map.set(catalogRef(catalog), catalog));
+        catalogs = [...map.values()];
+        ownershipNote = 'Il tuo spazio personale + cataloghi pubblici';
+      }
     } catch (err) {
       console.warn(err);
     }
+  } else if (personal) {
+    document.body.classList.remove('universe-mode');
+    app.innerHTML = '<div class="page empty-state"><span class="eyebrow">Universo personale</span><h2>Accedi per vedere il tuo universo</h2><p>Il tuo universo comprende soltanto cataloghi, librerie, lezioni e argomenti che appartengono al tuo account.</p><a class="button secondary" href="#/mine">Torna al catalogo</a></div>';
+    return;
   }
 
-  let scopeTitle = 'Universo totale';
-  let scopeSubtitle = 'Cataloghi, librerie, lezioni e argomenti in un’unica mappa.';
+  let scopeTitle = personal ? 'Universo personale' : 'Universo totale';
+  let scopeSubtitle = personal ? 'Tutto il tuo spazio di studio in una sola mappa.' : 'Cataloghi, librerie, lezioni e argomenti in un’unica mappa.';
+
+  if (personal && !catalogs.length) {
+    document.body.classList.remove('universe-mode');
+    app.innerHTML = '<div class="page empty-state"><span class="eyebrow">Universo personale</span><h2>Ancora nessun nodo</h2><p>Importa o crea il tuo primo catalogo per costruire l’universo personale.</p><a class="button accent" href="#/mine">Importa un JSON</a></div>';
+    return;
+  }
 
   if (options.catalogSlug) {
     const catalog = catalogs.find(item => catalogRef(item) === options.catalogSlug || item.slug === options.catalogSlug || item.id === options.catalogSlug);
@@ -650,86 +673,141 @@ async function renderUniverse(options = {}) {
 }
 
 async function renderStudio() {
-  setPageMeta('Studio JSON', 'Crea, valida, salva e pubblica cataloghi StudyLibrary in formato JSON.');
-  let initial = state.activeCatalog || allCatalogs()[0];
-  if (!initial) initial = emptyCatalogTemplate();
-  app.innerHTML = `<div class="studio-layout">
-    <section class="studio-editor">
-      <div class="studio-toolbar"><div><h1>Studio JSON</h1><p class="demo-note">Catalogo → Librerie → Lezioni → Argomenti</p></div><div class="toolbar-actions"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva privato</button><button class="button accent" data-publish>Pubblica in Home</button></div></div>
-      <textarea class="json-editor" spellcheck="false" aria-label="Editor JSON"></textarea>
-      <input data-file type="file" accept="application/json,.json" hidden />
-    </section>
-    <aside class="studio-side">
-      <div data-validation></div>
-      <div data-preview></div>
-      <div class="schema-list">
-        <div class="schema-item"><strong>1. Catalogo</strong><span>Lo spazio dell’utente. Può restare privato o essere pubblicato nella home.</span></div>
-        <div class="schema-item"><strong>2. Librerie</strong><span>Ogni catalogo contiene una o più librerie, per esempio Computer Vision.</span></div>
-        <div class="schema-item"><strong>3. Lezioni</strong><span>Ogni libreria contiene una o più lezioni, idealmente una per blocco di slide del docente.</span></div>
-        <div class="schema-item"><strong>4. Argomenti</strong><span>Ogni lezione contiene topic con intuizione, esempi, checkpoint, fonti e connessioni.</span></div>
-        <div class="schema-item"><strong>5. Universi</strong><span>Le relazioni diventano navigabili a livello di lezione, libreria, catalogo o spazio totale.</span></div>
-      </div>
-      <p class="demo-note">Schema completo: <code>docs/CONTENT-SCHEMA.md</code></p>
-    </aside>
-  </div>`;
+  setPageMeta('Editor', 'Modifica cataloghi, librerie, lezioni e argomenti con un editor visuale Markdown.');
+  let draft = stripRuntimeForEditor(state.activeCatalog || emptyCatalogTemplate());
+  let visualEditor = null;
 
-  const editor = app.querySelector('.json-editor');
+  app.innerHTML = '<div class="studio-page">' +
+    '<section class="studio-topbar">' +
+      '<div><span class="eyebrow">Editor</span><h1>Modifica il catalogo</h1><p class="demo-note">Editor visuale Markdown basato su EasyMDE. Il JSON resta disponibile come modalità avanzata.</p></div>' +
+      '<div class="toolbar-actions"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa JSON</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva privato</button><button class="button accent" data-publish>Pubblica</button></div>' +
+    '</section>' +
+    '<div class="studio-tabs" role="tablist"><button class="active" type="button" data-studio-tab="visual">Visuale</button><button type="button" data-studio-tab="json">JSON avanzato</button></div>' +
+    '<div class="studio-workspace">' +
+      '<section class="studio-main">' +
+        '<div data-visual-editor></div>' +
+        '<textarea class="json-editor studio-json-advanced" data-json-editor spellcheck="false" aria-label="Editor JSON" hidden></textarea>' +
+        '<input data-file type="file" accept="application/json,.json" hidden />' +
+      '</section>' +
+      '<aside class="studio-side"><div data-validation></div><div data-preview></div><div class="schema-list"><div class="schema-item"><strong>Markdown</strong><span>Descrizioni, riassunti, spiegazioni e risposte supportano formattazione Markdown.</span></div><div class="schema-item"><strong>Struttura</strong><span>Usa la colonna a sinistra per spostarti tra catalogo, librerie, lezioni e argomenti.</span></div><div class="schema-item"><strong>JSON avanzato</strong><span>Per fonti, connessioni e proprietà speciali puoi sempre intervenire sul JSON completo.</span></div></div></aside>' +
+    '</div>' +
+  '</div>';
+
+  const visualHost = app.querySelector('[data-visual-editor]');
+  const rawEditor = app.querySelector('[data-json-editor]');
   const validationEl = app.querySelector('[data-validation]');
   const previewEl = app.querySelector('[data-preview]');
   const fileInput = app.querySelector('[data-file]');
-  editor.value = JSON.stringify(stripRuntimeForEditor(initial), null, 2);
 
-  const updatePreview = () => {
-    let parsed;
-    try { parsed = JSON.parse(editor.value); }
-    catch (err) {
-      validationEl.innerHTML = `<div class="validation error">● JSON non valido</div><p class="demo-note">${escapeHtml(err.message)}</p>`;
-      previewEl.innerHTML = '';
-      return null;
+  function validateAndPreview(value = draft) {
+    const result = validateCatalog(value);
+    validationEl.innerHTML = result.ok
+      ? '<div class="validation ok">● Schema valido</div>'
+      : '<div class="validation error">● ' + result.errors.length + ' problemi</div><p class="demo-note">' + result.errors.slice(0, 8).map(escapeHtml).join('<br>') + '</p>';
+    const stats = catalogStats(value);
+    previewEl.innerHTML = '<span class="eyebrow">Anteprima</span><h2 class="preview-title">' + escapeHtml(value.title || 'Senza titolo') + '</h2><p class="preview-description">' + escapeHtml(value.description || '') + '</p><div class="tags">' + (value.tags || []).slice(0, 4).map(tag => '<span class="tag">' + escapeHtml(tag) + '</span>').join('') + '</div><p class="demo-note">' + stats.libraries + ' librerie · ' + stats.lessons + ' lezioni · ' + stats.topics + ' argomenti</p>';
+    return result;
+  }
+
+  function mountVisual() {
+    visualEditor?.destroy();
+    visualEditor = mountCatalogEditor(visualHost, draft, {
+      onChange(next) {
+        draft = next;
+        validateAndPreview();
+      }
+    });
+  }
+
+  mountVisual();
+  validateAndPreview();
+
+  app.querySelectorAll('[data-studio-tab]').forEach(button => button.addEventListener('click', () => {
+    const mode = button.dataset.studioTab;
+    if (mode === 'json') {
+      rawEditor.value = JSON.stringify(draft, null, 2);
+      rawEditor.hidden = false;
+      visualHost.hidden = true;
+    } else {
+      try {
+        if (!rawEditor.hidden) draft = JSON.parse(rawEditor.value);
+      } catch (err) {
+        toast('Il JSON contiene errori: ' + err.message);
+        return;
+      }
+      rawEditor.hidden = true;
+      visualHost.hidden = false;
+      mountVisual();
+      validateAndPreview();
     }
-    const result = validateCatalog(parsed);
-    validationEl.innerHTML = result.ok ? `<div class="validation ok">● Schema valido</div>` : `<div class="validation error">● ${result.errors.length} problemi</div><p class="demo-note">${result.errors.slice(0,6).map(escapeHtml).join('<br>')}</p>`;
-    const stats = catalogStats(parsed);
-    previewEl.innerHTML = `<span class="eyebrow">Anteprima catalogo</span><h2 class="preview-title">${escapeHtml(parsed.title || 'Senza titolo')}</h2><p class="preview-description">${escapeHtml(parsed.description || '')}</p><div class="tags">${(parsed.tags || []).slice(0,4).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div><p class="demo-note">${stats.libraries} librerie · ${stats.lessons} lezioni · ${stats.topics} argomenti</p>`;
-    return { parsed, result };
-  };
+    app.querySelectorAll('[data-studio-tab]').forEach(tab => tab.classList.toggle('active', tab === button));
+  }));
 
-  let timer;
-  editor.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(updatePreview, 150); });
-  updatePreview();
+  let rawTimer;
+  rawEditor.addEventListener('input', () => {
+    clearTimeout(rawTimer);
+    rawTimer = setTimeout(() => {
+      try {
+        draft = JSON.parse(rawEditor.value);
+        validateAndPreview();
+      } catch (err) {
+        validationEl.innerHTML = '<div class="validation error">● JSON non valido</div><p class="demo-note">' + escapeHtml(err.message) + '</p>';
+      }
+    }, 180);
+  });
 
-  app.querySelector('[data-new]').addEventListener('click', () => { editor.value = JSON.stringify(emptyCatalogTemplate(), null, 2); updatePreview(); });
+  app.querySelector('[data-new]').addEventListener('click', () => {
+    draft = emptyCatalogTemplate();
+    state.activeCatalog = null;
+    rawEditor.value = JSON.stringify(draft, null, 2);
+    mountVisual();
+    validateAndPreview();
+  });
+
   app.querySelector('[data-import]').addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
-    editor.value = await file.text();
-    updatePreview();
+    try {
+      draft = normalizeImportedCatalog(JSON.parse(await file.text()), file.name);
+      rawEditor.value = JSON.stringify(draft, null, 2);
+      mountVisual();
+      validateAndPreview();
+      toast('JSON caricato nell’editor');
+    } catch (err) {
+      toast(err.message);
+    }
     fileInput.value = '';
   });
+
   app.querySelector('[data-download]').addEventListener('click', () => {
-    const checked = updatePreview();
-    if (!checked) return;
-    const blob = new Blob([JSON.stringify(checked.parsed, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${checked.parsed.slug || 'catalog'}.json`;
+    a.download = (draft.slug || 'catalog') + '.json';
     a.click();
     URL.revokeObjectURL(a.href);
   });
-  app.querySelector('[data-save]').addEventListener('click', () => saveEditorCatalog(false));
-  app.querySelector('[data-publish]').addEventListener('click', () => saveEditorCatalog(true));
 
-  async function saveEditorCatalog(publish) {
-    const checked = updatePreview();
-    if (!checked?.result.ok) return toast('Correggi prima gli errori nello schema');
+  app.querySelector('[data-save]').addEventListener('click', () => saveDraft(false));
+  app.querySelector('[data-publish]').addEventListener('click', () => saveDraft(true));
+
+  async function saveDraft(publish) {
+    const result = validateAndPreview();
+    if (!result.ok) return toast('Correggi prima gli errori nello schema');
     if (!state.user || !state.supabase) return toast(isBackendConfigured() ? 'Accedi con Google per salvare' : 'Configura Supabase per salvare online');
     try {
-      await saveCatalog(checked.parsed, publish);
+      await saveCatalog(draft, publish);
       if (publish) await fetchPublicCatalogs();
-      toast(publish ? 'Catalogo pubblicato nella home' : 'Catalogo salvato come privato');
-    } catch (err) { toast(err.message); }
+      const mine = await fetchMyCatalogs();
+      state.activeCatalog = mine.find(item => item.slug === draft.slug) || null;
+      toast(publish ? 'Catalogo pubblicato nella Home' : 'Catalogo salvato come privato');
+    } catch (err) {
+      toast(err.message);
+    }
   }
+
+  cleanupRoute = () => visualEditor?.destroy();
 }
 
 function emptyCatalogTemplate() {
