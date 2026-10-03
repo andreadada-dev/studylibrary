@@ -77,7 +77,7 @@ SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
 APP_URL=https://study.example.com
 ```
 
-Poi esegui `supabase/schema.sql` e abilita Google OAuth in Supabase.
+Il database non va più inizializzato a mano dal SQL Editor: usa le migration in `supabase/migrations/` e il workflow GitHub **Deploy Supabase**. `supabase/schema.sql` resta soltanto come snapshot leggibile dello schema.
 
 ## Struttura
 
@@ -121,3 +121,27 @@ Sono inoltre inclusi:
 - cleanup dei dati community alla cancellazione di un catalogo.
 
 Le configurazioni che restano manuali sono Supabase, Google OAuth, dominio/redirect e variabili Coolify.
+
+
+## Supabase migrations
+
+Lo schema è versionato in:
+
+`supabase/migrations/`
+
+Per il primo deploy:
+
+1. crea il progetto Supabase;
+2. crea le GitHub Actions secrets richieste da `.github/workflows/deploy-supabase.yml`;
+3. esegui manualmente il workflow **Deploy Supabase**.
+
+Il workflow esegue:
+
+```text
+supabase link
+supabase db push --dry-run
+supabase db push
+supabase config push
+```
+
+Quindi applica sia le migration PostgreSQL sia la configurazione Auth dichiarata in `supabase/config.toml`.
