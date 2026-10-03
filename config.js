@@ -1,5 +1,5 @@
 window.STUDYLIBRARY_CONFIG = {
   SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: "",
+  SUPABASE_PUBLISHABLE_KEY: "",
   APP_URL: window.location.origin
 };
