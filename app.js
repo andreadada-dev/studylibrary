@@ -384,7 +384,7 @@ async function renderCatalog(catalogSlug) {
     catalog._db?.owner_id === state.user.id
   );
   const ownsCatalog = Boolean(catalog._static || ownsCloudCatalog);
-  const editLabel = ownsCatalog ? 'Modifica JSON' : 'Apri copia in Studio';
+  const editLabel = ownsCatalog ? 'Modifica' : 'Apri copia nell’editor';
   const publishButton = ownsCloudCatalog
     ? '<button class="button ' + (catalog.visibility === 'private' ? 'accent' : 'secondary') + '" type="button" data-toggle-publish>' +
         (catalog.visibility === 'private' ? 'Pubblica in Home' : 'Rendi privato') +
