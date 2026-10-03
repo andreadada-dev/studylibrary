@@ -80,4 +80,43 @@ jobs:
           done
 
       - name: Apply Auth configuration
-        run: supabase config push --project-ref "$SUPABASE_PROJECT_REF"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          import urllib.error
+
+          project_ref = os.environ["SUPABASE_PROJECT_REF"]
+          token = os.environ["SUPABASE_ACCESS_TOKEN"]
+
+          payload = {
+              "site_url": "https://study.ddone.it",
+              "uri_allow_list": "https://study.ddone.it,https://study.ddone.it/",
+              "external_google_enabled": True,
+              "external_google_client_id": os.environ["SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID"],
+              "external_google_secret": os.environ["SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET"],
+              "external_google_skip_nonce_check": False,
+          }
+
+          request = urllib.request.Request(
+              f"https://api.supabase.com/v1/projects/{project_ref}/config/auth",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Content-Type": "application/json",
+              },
+              method="PATCH",
+          )
+
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  if response.status < 200 or response.status >= 300:
+                      raise RuntimeError(f"Unexpected HTTP status {response.status}")
+                  print("Supabase Auth configuration updated.")
+          except urllib.error.HTTPError as error:
+              body = error.read().decode("utf-8", errors="replace")
+              raise SystemExit(f"Supabase Auth config failed: HTTP {error.code}: {body}")
+          PY
