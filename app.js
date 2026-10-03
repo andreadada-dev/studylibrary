@@ -3,6 +3,7 @@ import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, deleteC
 import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref, catalogRef } from './js/content.js';
 import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
+import { mountCatalogEditor } from './js/catalog-editor.js';
 
 const app = document.getElementById('app');
 let cleanupRoute = null;
@@ -70,6 +71,7 @@ async function route() {
 
   if (!parts.length) return renderHome();
   if (parts[0] === 'universe') return renderUniverse({});
+  if (parts[0] === 'mine' && parts[1] === 'universe') return renderUniverse({ mineOnly: true });
   if (parts[0] === 'mine') return renderMyCatalogs();
   if (parts[0] === 'studio') return renderStudio();
   if (parts[0] === 'privacy') return renderLegalPage('privacy');
@@ -120,7 +122,7 @@ function setActiveNav(routeName, universeMode = false) {
     studio: '#/studio',
     catalog: '#/'
   };
-  const activeHref = universeMode ? '#/universe' : (map[routeName] || '#/');
+  const activeHref = routeName === 'mine' ? '#/mine' : (universeMode ? '#/universe' : (map[routeName] || '#/'));
   document.querySelectorAll('[data-nav]').forEach(a => {
     a.classList.toggle('active', a.getAttribute('href') === activeHref);
   });
@@ -196,7 +198,7 @@ function catalogSearchText(catalog) {
 }
 
 async function renderMyCatalogs() {
-  setPageMeta('Il mio catalogo', 'Gestisci i tuoi cataloghi privati e pubblici su StudyLibrary.');
+  setPageMeta('Il mio catalogo', 'Gestisci cataloghi, librerie e lezioni nel tuo spazio personale.');
   let catalogs = [];
 
   if (state.user && state.supabase) {
@@ -208,27 +210,150 @@ async function renderMyCatalogs() {
     }
   }
 
-  const demoCatalogs = state.staticCatalogs || [];
   app.innerHTML =
     '<div class="page">' +
-      '<section class="collection-hero">' +
-        '<div><span class="eyebrow">Spazio personale</span><h1>Il mio catalogo</h1><p class="lede">Organizza le tue librerie per corso e spezza il materiale in lezioni. La pubblicazione è una scelta del proprietario.</p></div>' +
-        '<div class="hero-actions"><a class="button accent" href="#/studio">Crea o modifica JSON</a><a class="button secondary" href="#/universe">Universo totale</a></div>' +
+      '<section class="collection-hero personal-hero">' +
+        '<div><span class="eyebrow">Spazio personale</span><h1>Il mio catalogo</h1><p class="lede">Qui trovi tutta la tua struttura: cataloghi, librerie, lezioni e argomenti. Importa un JSON oppure apri l’editor visuale.</p></div>' +
+        '<div class="hero-actions"><a class="button accent" href="#/studio">＋ Nuovo / Editor</a><a class="button secondary" href="#/mine/universe">Universo personale</a></div>' +
       '</section>' +
       (!state.supabase
-        ? '<aside class="catalog-notice"><strong>Modalità demo</strong><p>Il backend non è ancora configurato. Puoi usare il catalogo locale e preparare i JSON; login, salvataggio personale e pubblicazione si attiveranno con Supabase.</p></aside>'
+        ? '<aside class="catalog-notice"><strong>Backend non configurato</strong><p>Collega Supabase per salvare il tuo spazio personale.</p></aside>'
         : !state.user
-          ? '<aside class="catalog-notice"><strong>Accedi con Google</strong><p>Usa il pulsante in alto a destra per vedere e gestire i tuoi cataloghi privati.</p></aside>'
-          : '') +
-      (catalogs.length
-        ? '<div class="section-head"><div><h2>I tuoi cataloghi</h2><p>Privati e pubblicati.</p></div><span class="tag">' + catalogs.length + '</span></div><div class="course-grid">' + catalogs.map(catalogCard).join('') + '</div>'
+          ? '<aside class="catalog-notice"><strong>Accedi con Google</strong><p>Accedi per importare e gestire i tuoi cataloghi.</p></aside>'
+          : '<section class="json-drop-zone" data-json-drop tabindex="0" role="button" aria-label="Importa file JSON"><div class="json-drop-icon">↓</div><div><strong>Trascina qui un file JSON</strong><span>oppure clicca per selezionarlo · catalogo singolo o export StudyLibrary</span></div><button class="button secondary" type="button" data-json-browse>Scegli file</button><input data-json-file type="file" accept="application/json,.json" multiple hidden></section>') +
+      (state.user && catalogs.length
+        ? '<section class="personal-catalog-list"><div class="section-head"><div><h2>I tuoi cataloghi</h2><p>Apri direttamente librerie, lezioni o l’universo del singolo catalogo.</p></div><span class="tag">' + catalogs.length + ' cataloghi</span></div>' + catalogs.map(renderPersonalCatalogTree).join('') + '</section>'
         : state.user
-          ? '<div class="empty-state"><h2>Nessun catalogo cloud</h2><p>Apri Studio JSON, crea il primo catalogo e salvalo come privato oppure pubblicalo.</p></div>'
+          ? '<div class="empty-state personal-empty"><h2>Il tuo spazio è vuoto</h2><p>Trascina qui sopra il primo JSON oppure crea un catalogo con l’editor.</p><a class="button accent" href="#/studio">Crea il primo catalogo</a></div>'
           : '') +
-      (demoCatalogs.length
-        ? '<hr class="section-rule"/><div class="section-head"><div><h2>Cataloghi locali</h2><p>Contenuti presenti nella repository.</p></div></div><div class="course-grid">' + demoCatalogs.map(catalogCard).join('') + '</div>'
-        : '') +
     '</div>';
+
+  const dropZone = app.querySelector('[data-json-drop]');
+  const fileInput = app.querySelector('[data-json-file]');
+  const browse = app.querySelector('[data-json-browse]');
+
+  browse?.addEventListener('click', event => {
+    event.stopPropagation();
+    fileInput?.click();
+  });
+  dropZone?.addEventListener('click', event => {
+    if (event.target.closest('button')) return;
+    fileInput?.click();
+  });
+  dropZone?.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      fileInput?.click();
+    }
+  });
+  ['dragenter','dragover'].forEach(type => dropZone?.addEventListener(type, event => {
+    event.preventDefault();
+    dropZone.classList.add('dragging');
+  }));
+  ['dragleave','drop'].forEach(type => dropZone?.addEventListener(type, event => {
+    event.preventDefault();
+    dropZone.classList.remove('dragging');
+  }));
+  dropZone?.addEventListener('drop', event => importPersonalFiles([...event.dataTransfer.files]));
+  fileInput?.addEventListener('change', async () => {
+    await importPersonalFiles([...fileInput.files]);
+    fileInput.value = '';
+  });
+}
+
+function renderPersonalCatalogTree(catalog) {
+  const ref = catalogRef(catalog);
+  const stats = catalogStats(catalog);
+  return '<article class="personal-catalog">' +
+    '<header class="personal-catalog-head">' +
+      '<div><span class="eyebrow">' + escapeHtml(catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</span><h3>' + escapeHtml(catalog.title) + '</h3><p>' + escapeHtml(catalog.description || '') + '</p></div>' +
+      '<div class="personal-catalog-actions"><a href="#/catalog/' + encodeURIComponent(ref) + '">Apri</a><a href="#/catalog/' + encodeURIComponent(ref) + '/universe">Universo</a><button type="button" data-edit-personal="' + escapeHtml(ref) + '">Modifica</button></div>' +
+    '</header>' +
+    '<div class="personal-catalog-stats"><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span><span>' + stats.topics + ' argomenti</span></div>' +
+    '<div class="personal-library-tree">' +
+      (catalog.libraries || []).map(library =>
+        '<section class="personal-library">' +
+          '<a class="personal-library-title" href="#/catalog/' + encodeURIComponent(ref) + '/library/' + encodeURIComponent(library.slug) + '"><i></i><strong>' + escapeHtml(library.title) + '</strong><span>' + (library.lessons?.length || 0) + ' lezioni</span></a>' +
+          '<div class="personal-lessons">' +
+            (library.lessons || []).map((lesson, index) =>
+              '<a href="' + lessonHref(catalog, library.slug, lesson.slug) + '"><span>' + String(index + 1).padStart(2, '0') + '</span><strong>' + escapeHtml(lesson.title) + '</strong><em>' + (lesson.topics?.length || 0) + ' argomenti</em></a>'
+            ).join('') +
+          '</div>' +
+        '</section>'
+      ).join('') +
+    '</div>' +
+  '</article>';
+}
+
+async function importPersonalFiles(files) {
+  if (!state.user || !state.supabase) return toast('Accedi con Google per importare');
+  const jsonFiles = files.filter(file => file.name.toLowerCase().endsWith('.json') || file.type === 'application/json');
+  if (!jsonFiles.length) return toast('Seleziona almeno un file JSON');
+
+  let imported = 0;
+  for (const file of jsonFiles) {
+    if (file.size > 5 * 1024 * 1024) {
+      toast(file.name + ': supera il limite di 5 MB');
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      const candidates = Array.isArray(parsed?.catalogs) ? parsed.catalogs : [normalizeImportedCatalog(parsed, file.name)];
+
+      for (const candidate of candidates) {
+        const validation = validateCatalog(candidate);
+        if (!validation.ok) {
+          showModal(
+            'JSON non valido',
+            '<p><strong>' + escapeHtml(file.name) + '</strong> non rispetta lo schema.</p><p class="demo-note">' + validation.errors.slice(0, 8).map(escapeHtml).join('<br>') + '</p>',
+            [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+          );
+          continue;
+        }
+        await saveCatalog(candidate, false);
+        imported += 1;
+      }
+    } catch (err) {
+      toast(file.name + ': ' + err.message);
+    }
+  }
+
+  if (imported) {
+    await fetchMyCatalogs();
+    toast(imported === 1 ? 'Catalogo importato come privato' : imported + ' cataloghi importati come privati');
+    await renderMyCatalogs();
+  }
+}
+
+function normalizeImportedCatalog(value, filename = 'catalogo.json') {
+  if (value?.libraries && Array.isArray(value.libraries)) return stripRuntimeForEditor(value);
+
+  if (Array.isArray(value?.topics) && Array.isArray(value?.modules)) {
+    const base = filename.replace(/\.json$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'catalogo-importato';
+    const lesson = stripRuntimeForEditor(value);
+    lesson.slug ||= base + '-lezione';
+    lesson.id ||= lesson.slug;
+    return {
+      schemaVersion: 2,
+      id: base,
+      slug: base,
+      title: value.courseTitle || value.title || 'Catalogo importato',
+      description: value.description || 'Importato da una singola lezione JSON.',
+      language: 'it',
+      visibility: 'private',
+      tags: [],
+      libraries: [{
+        id: base + '-library',
+        slug: base,
+        title: value.courseTitle || 'Libreria importata',
+        description: value.description || '',
+        lessons: [lesson]
+      }]
+    };
+  }
+
+  return value;
 }
 
 async function renderCatalog(catalogSlug) {
