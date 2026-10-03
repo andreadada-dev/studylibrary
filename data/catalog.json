@@ -1,9 +1,4 @@
 {
   "schemaVersion": 2,
-  "catalogs": [
-    {
-      "slug": "computer-vision",
-      "src": "/data/catalogs/computer-vision.json"
-    }
-  ]
+  "catalogs": []
 }
