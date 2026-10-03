@@ -141,7 +141,10 @@ Il workflow esegue:
 supabase link
 supabase db push --dry-run
 supabase db push
-supabase config push
+Management API Auth PATCH
 ```
 
 Quindi applica sia le migration PostgreSQL sia la configurazione Auth dichiarata in `supabase/config.toml`.
+
+
+Note: il deploy Auth non usa `supabase config push` in CI, così il token scoped non necessita del permesso Infrastructure Add-ons. Sono sufficienti i permessi già richiesti per link del progetto e Auth config.
