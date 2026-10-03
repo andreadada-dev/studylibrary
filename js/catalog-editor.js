@@ -179,7 +179,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       const lib = selected(); lib.lessons ||= []; lib.lessons.push(newLesson(lib.lessons.length + 1));
       selection = { type: 'lesson', li: selection.li, lj: lib.lessons.length - 1, ti: null };
       emit(); render();
-    }));
+    });
 
     container.querySelector('[data-add-topic]')?.addEventListener('click', () => {
       const lesson = selected(); lesson.topics ||= [];
@@ -191,13 +191,13 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       lesson.modules[0].topicIds.push(topic.id);
       selection = { type: 'topic', li: selection.li, lj: selection.lj, ti: lesson.topics.length - 1 };
       emit(); render();
-    }));
+    });
 
     container.querySelector('[data-add-section]')?.addEventListener('click', () => {
       const topic = selected(); topic.sections ||= [];
       topic.sections.push({ type: 'concept', title: 'Nuova sezione', body: 'Scrivi qui il contenuto in **Markdown**.' });
       emit(); render();
-    }));
+    });
 
     container.querySelector('[data-delete-selected]')?.addEventListener('click', () => {
       if (selection.type === 'library') {
@@ -218,7 +218,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         selection = { type: 'lesson', li: selection.li, lj: selection.lj, ti: null };
       }
       emit(); render();
-    }));
+    });
 
     container.querySelectorAll('[data-delete-section]').forEach(button => button.addEventListener('click', () => {
       const topic = selected();
