@@ -91,3 +91,6 @@ SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET
 Dopo averli inseriti, vai in Actions → **Deploy Supabase** → Run workflow.
 
 La configurazione URL/Auth è dichiarata in `supabase/config.toml`, quindi Site URL, redirect URL e provider Google vengono applicati dal workflow insieme alle migration.
+
+
+Note: il deploy Auth non usa `supabase config push` in CI, così il token scoped non necessita del permesso Infrastructure Add-ons. Sono sufficienti i permessi già richiesti per link del progetto e Auth config.
