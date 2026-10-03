@@ -238,7 +238,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         status: false,
         minHeight: '105px',
         maxHeight: '260px',
-        toolbar: ['bold','italic','heading-2','|','unordered-list','ordered-list','link','|','preview']
+        toolbar: ['bold','italic','heading-2','|','unordered-list','ordered-list','link']
       });
       instance.codemirror.on('change', () => {
         set(textarea.dataset.markdown, instance.value());
