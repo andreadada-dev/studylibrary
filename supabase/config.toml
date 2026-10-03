@@ -1,0 +1,15 @@
+project_id = "studylibrary"
+
+[auth]
+enabled = true
+site_url = "https://study.ddone.it"
+additional_redirect_urls = [
+  "https://study.ddone.it",
+  "https://study.ddone.it/"
+]
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
