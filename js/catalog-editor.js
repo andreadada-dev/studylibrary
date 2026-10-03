@@ -262,7 +262,18 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       if (section) section[parts[2]] = value;
       return;
     }
-    if (key === 'tags') item.tags = value.split(',').map(v => v.trim()).filter(Boolean);
+    if (selection.type === 'topic' && key === 'id') {
+      const oldId = item.id;
+      item.id = value;
+      const lesson = catalog.libraries[selection.li].lessons[selection.lj];
+      (lesson.modules || []).forEach(module => {
+        module.topicIds = (module.topicIds || []).map(id => id === oldId ? value : id);
+      });
+      (lesson.topics || []).forEach(topic => {
+        topic.prerequisites = (topic.prerequisites || []).map(id => id === oldId ? value : id);
+        topic.connections = (topic.connections || []).map(connection => connection.target === oldId ? { ...connection, target: value } : connection);
+      });
+    } else if (key === 'tags') item.tags = value.split(',').map(v => v.trim()).filter(Boolean);
     else if (key === 'learningGoals' || key === 'prerequisites') item[key] = value.split(/\n+/).map(v => v.trim()).filter(Boolean);
     else if (key === 'estimatedMinutes') item[key] = Math.max(0, Number(value) || 0);
     else item[key] = value;
@@ -273,14 +284,14 @@ function newLibrary(i) {
   return { id: 'library-' + i, slug: 'libreria-' + i, title: 'Libreria ' + i, description: 'Descrivi questa libreria in **Markdown**.', lessons: [] };
 }
 function newLesson(i) {
-  return { schemaVersion: 1, id: 'lesson-' + i, slug: 'lezione-' + i, title: 'Lezione ' + String(i).padStart(2, '0'), description: 'Descrivi questa lezione in **Markdown**.', modules: [], topics: [], sources: [] };
+  return { schemaVersion: 1, id: 'lesson-' + i, slug: 'lezione-' + i, title: 'Lezione ' + String(i).padStart(2, '0'), description: 'Descrivi questa lezione in **Markdown**.', modules: [], topics: [], sources: [{ id: 'source-1', type: 'notes', label: 'Appunti personali' }] };
 }
 function newTopic(i) {
   return {
     id: 'argomento-' + i, title: 'Argomento ' + i, summary: 'Riassunto breve in **Markdown**.', why: 'Perché questo argomento è utile.',
     estimatedMinutes: 8, prerequisites: [], learningGoals: ['Capire il concetto principale'],
     sections: [{ type: 'concept', title: 'Idea chiave', body: 'Scrivi qui il contenuto in **Markdown**.' }, { type: 'checkpoint', question: 'Qual è l’idea principale?', answer: 'Scrivi qui la risposta.' }],
-    connections: [], sources: []
+    connections: [], sources: [{ ref: 'source-1', pages: '', note: 'Fonte modificabile dal JSON avanzato.' }]
   };
 }
 function num(value) { return value === undefined ? null : Number(value); }
