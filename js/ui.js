@@ -159,8 +159,12 @@ export function showModal(title, body, actions = [{ label: 'Chiudi', className: 
 export function closeModal() { document.getElementById('modal-backdrop')?.remove(); }
 
 function paragraphs(body) {
-  if (Array.isArray(body)) return body.map(p => `<p>${escapeHtml(p)}</p>`).join('');
-  return String(body || '').split(/\n\n+/).filter(Boolean).map(p => `<p>${escapeHtml(p)}</p>`).join('');
+  const source = Array.isArray(body) ? body.join('\n\n') : String(body || '');
+  if (window.marked && window.DOMPurify) {
+    const html = window.marked.parse(source, { gfm: true, breaks: false });
+    return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+  }
+  return source.split(/\n\n+/).filter(Boolean).map(p => `<p>${escapeHtml(p)}</p>`).join('');
 }
 
 export function renderSection(section) {
@@ -422,7 +426,7 @@ export function lessonTopicArticle(context, topic) {
         '<span>·</span><span>' + escapeHtml(lesson.title) + '</span>' +
       '</div>' +
       '<h2 class="topic-title">' + escapeHtml(topic.title) + '</h2>' +
-      '<p class="topic-summary">' + escapeHtml(topic.summary || '') + '</p>' +
+      '<div class="topic-summary markdown-content">' + paragraphs(topic.summary || '') + '</div>' +
       ((topic.learningGoals || []).length ? '<ul class="learning-goals">' + topic.learningGoals.map(goal => '<li>' + escapeHtml(goal) + '</li>').join('') + '</ul>' : '') +
     '</header>' +
     (topic.why ? '<aside class="callout"><h4>Perché ti serve</h4>' + paragraphs(topic.why) + '</aside>' : '') +
