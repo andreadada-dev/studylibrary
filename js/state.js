@@ -16,5 +16,6 @@ export const state = {
 };
 
 export const isBackendConfigured = () => Boolean(
-  state.config?.SUPABASE_URL && state.config?.SUPABASE_ANON_KEY
+  state.config?.SUPABASE_URL &&
+  (state.config?.SUPABASE_PUBLISHABLE_KEY || state.config?.SUPABASE_ANON_KEY)
 );
