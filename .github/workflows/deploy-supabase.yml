@@ -66,9 +66,10 @@ jobs:
             echo "Migration attempt $attempt/5"
             if supabase db push --db-url "$SUPABASE_DB_URL"; then
               exit 0
+            else
+              status=$?
             fi
 
-            status=$?
             if [ "$attempt" -eq 5 ]; then
               exit "$status"
             fi
