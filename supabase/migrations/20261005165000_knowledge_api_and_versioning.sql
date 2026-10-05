@@ -33,6 +33,10 @@ create index if not exists catalog_versions_owner_idx
 
 alter table public.catalog_versions enable row level security;
 
+revoke all on table public.catalog_versions from anon;
+revoke all on table public.catalog_versions from authenticated;
+grant select on table public.catalog_versions to authenticated;
+
 drop policy if exists "owners read catalog versions" on public.catalog_versions;
 create policy "owners read catalog versions"
 on public.catalog_versions for select
@@ -816,6 +820,14 @@ begin
   return jsonb_build_object('data', topic);
 end;
 $$;
+
+revoke all on function public.api_item_public(jsonb, boolean) from public, anon, authenticated;
+revoke all on function public.api_filter_lesson(jsonb, boolean) from public, anon, authenticated;
+revoke all on function public.api_filter_library(jsonb, boolean) from public, anon, authenticated;
+revoke all on function public.api_filter_catalog(jsonb) from public, anon, authenticated;
+revoke all on function public.api_context(jsonb) from public, anon, authenticated;
+revoke all on function public.api_graph(jsonb) from public, anon, authenticated;
+revoke all on function public.api_changes(jsonb, jsonb) from public, anon, authenticated;
 
 revoke all on function public.studylibrary_api(text) from public;
 grant execute on function public.studylibrary_api(text) to anon, authenticated;
