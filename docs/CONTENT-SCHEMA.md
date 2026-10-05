@@ -233,3 +233,68 @@ La stessa struttura alimenta quattro viste:
 `visibility: "public"` significa catalogo pubblicato nella Home.
 
 Con Supabase, la sicurezza non dipende dal JSON ma dalle policy RLS definite in `supabase/schema.sql`.
+
+
+## Accesso API
+
+La visibilità nella Home e l'accesso API sono separati.
+
+Sul catalogo:
+
+```json
+{
+  "visibility": "private",
+  "api": {
+    "publicRead": true
+  }
+}
+```
+
+In questo esempio il catalogo non compare nella Home, ma può essere letto tramite la Knowledge API.
+
+Librerie, lezioni e topic possono avere un override:
+
+```json
+{
+  "api": {
+    "publicRead": false
+  }
+}
+```
+
+Se `api.publicRead` manca, il valore viene ereditato dal genitore. Un genitore privato rende privati anche tutti i discendenti.
+
+Esempio:
+
+```json
+{
+  "slug": "computer-vision",
+  "title": "Computer Vision",
+  "api": { "publicRead": true },
+  "lessons": [
+    {
+      "slug": "lesson-01",
+      "api": { "publicRead": true }
+    },
+    {
+      "slug": "lesson-private-notes",
+      "api": { "publicRead": false }
+    }
+  ]
+}
+```
+
+La documentazione completa degli endpoint è in `docs/API.md`.
+
+## Versioning cloud
+
+Il numero di versione non va scritto a mano nel JSON.
+
+Quando il catalogo è salvato su Supabase, il database mantiene:
+
+- `current_version`;
+- snapshot immutabili in `catalog_versions`;
+- messaggio della versione;
+- timestamp.
+
+Questo permette di continuare a usare JSON portabili senza inserire metadati runtime nel formato didattico.
