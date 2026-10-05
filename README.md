@@ -15,7 +15,9 @@ Un utente può tenere il proprio catalogo privato oppure pubblicarlo nella Home.
 - **Universo della lezione**, della libreria, del catalogo e Universo totale.
 - Force graph fullscreen con ricerca, zoom, drag, focus e pannello nodo.
 - Editor visuale Markdown + JSON avanzato, import/export, salvataggio privato e pubblicazione.
-- Knowledge API pubblica per cataloghi/librerie/lezioni/topic con controllo gerarchico.\n- Versioning automatico, cronologia, ripristino e diff degli import.\n- Google Login via Supabase.
+- Knowledge API pubblica per cataloghi/librerie/lezioni/topic con controllo gerarchico.
+- Versioning automatico, cronologia, ripristino e diff degli import.
+- Google Login via Supabase.
 - Rating e commenti con Row Level Security.
 - Docker/Nginx pronto per Coolify.
 - Modalità demo senza backend.
@@ -77,14 +79,20 @@ Il database non va più inizializzato a mano dal SQL Editor: usa le migration in
 
 ```text
 data/
-├── catalog.json                  # registry dei cataloghi locali
-├── catalogs/
-│   └── computer-vision.json      # catalogo -> librerie -> riferimenti alle lezioni
-└── courses/
-    └── computer-vision-introduction.json  # contenuto della singola lezione
+└── catalog.json                  # registry opzionale di contenuti locali
+
+js/
+├── catalog-editor.js             # editor visuale Markdown
+├── content.js                    # loader, validazione e graph model
+├── api.js                        # accesso Supabase
+└── graph.js                      # Universo
+
+supabase/
+├── migrations/                   # schema/versioning/API
+└── schema.sql                    # snapshot leggibile
 ```
 
-Il database salva invece il catalogo espanso come JSONB, così può essere modificato e pubblicato direttamente dal browser.
+Il flusso principale usa cataloghi cloud espansi come JSONB; i file locali sono opzionali.
 
 
 ## Qualità e produzione
