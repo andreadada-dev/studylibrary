@@ -49,7 +49,11 @@ Campi principali:
 - `title`
 - `description`
 - `tags`
-- `is_public`\n- `api_public`\n- `current_version`\n- `version_message`\n- `catalog_json`
+- `is_public`
+- `api_public`
+- `current_version`
+- `version_message`
+- `catalog_json`
 
 `is_public = true` rende il catalogo visibile nella Home. `api_public = true` abilita invece la lettura tramite Knowledge API; i due stati sono indipendenti.
 
@@ -100,7 +104,7 @@ Google OAuth passa da Supabase Auth.
 Il browser usa soltanto:
 
 - `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
+- `SUPABASE_PUBLISHABLE_KEY`
 
 Non devono mai essere esposte:
 
@@ -116,10 +120,10 @@ Non devono mai essere esposte:
 4. Per la modalità demo non servono env.
 5. Per account e community:
    - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_PUBLISHABLE_KEY`
    - `APP_URL`
-6. Eseguire `supabase/schema.sql`.
-7. Abilitare Google OAuth e aggiungere `APP_URL` ai redirect consentiti.
+6. Applicare le migration tramite il workflow **Deploy Supabase**.
+7. La configurazione Google/Auth viene applicata dal workflow e dalla Management API.
 
 
 ## Moderazione e abuso
