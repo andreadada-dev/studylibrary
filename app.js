@@ -306,6 +306,12 @@ async function importPersonalFiles(files) {
 
     try {
       const parsed = JSON.parse(await file.text());
+
+      if (parsed?.kind === 'studylibrary.update') {
+        imported += await importUpdatePackage(parsed, file.name);
+        continue;
+      }
+
       const candidates = Array.isArray(parsed?.catalogs) ? parsed.catalogs : [normalizeImportedCatalog(parsed, file.name)];
 
       for (const candidate of candidates) {
@@ -341,6 +347,173 @@ async function importPersonalFiles(files) {
     toast(imported === 1 ? 'Catalogo importato come privato' : imported + ' cataloghi importati come privati');
     await renderMyCatalogs();
   }
+}
+
+async function importUpdatePackage(update, filename) {
+  const target = state.remoteCatalogs.find(item =>
+    item?._db?.owner_id === state.user.id &&
+    (
+      item._db?.id === update.catalog ||
+      item.slug === update.catalog ||
+      item.id === update.catalog
+    )
+  );
+
+  if (!target) {
+    showModal(
+      'Catalogo destinazione non trovato',
+      '<p>Il pacchetto <strong>' + escapeHtml(filename) + '</strong> richiede il catalogo <code>' + escapeHtml(update.catalog || '') + '</code>.</p>',
+      [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+    );
+    return 0;
+  }
+
+  if (update.baseVersion != null && Number(update.baseVersion) !== Number(target._db?.current_version || 1)) {
+    showModal(
+      'Conflitto di versione',
+      '<p>Il pacchetto è basato sulla versione <strong>v' + escapeHtml(update.baseVersion) + '</strong>, ma il catalogo è già alla <strong>v' + escapeHtml(target._db?.current_version || 1) + '</strong>.</p><p class="demo-note">Chiedi di rigenerare l’aggiornamento partendo dalla versione corrente per evitare di sovrascrivere modifiche recenti.</p>',
+      [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+    );
+    return 0;
+  }
+
+  let candidate;
+  try {
+    candidate = applyUpdatePackage(stripRuntimeForEditor(target), update);
+  } catch (err) {
+    showModal(
+      'Pacchetto non applicabile',
+      '<p>' + escapeHtml(err.message) + '</p>',
+      [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+    );
+    return 0;
+  }
+
+  const validation = validateCatalog(candidate);
+  if (!validation.ok) {
+    showModal(
+      'Aggiornamento non valido',
+      '<p>Il risultato non rispetta lo schema StudyLibrary.</p><p class="demo-note">' + validation.errors.slice(0, 10).map(escapeHtml).join('<br>') + '</p>',
+      [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+    );
+    return 0;
+  }
+
+  const approved = await confirmCatalogImport(target, candidate, filename);
+  if (!approved) return 0;
+
+  const publish = target.visibility === 'public';
+  await saveCatalog(candidate, publish, update.message || ('Pacchetto aggiornamento: ' + filename));
+  return 1;
+}
+
+function applyUpdatePackage(baseCatalog, update) {
+  const catalog = structuredClone(baseCatalog);
+  const operations = Array.isArray(update.operations) ? update.operations : [];
+  if (!operations.length) throw new Error('Il pacchetto non contiene operazioni.');
+
+  const findLibraryForOp = op => {
+    const library = (catalog.libraries || []).find(item => item.slug === op.library || item.id === op.library);
+    if (!library) throw new Error('Libreria non trovata: ' + (op.library || ''));
+    return library;
+  };
+
+  const findLessonForOp = op => {
+    const library = findLibraryForOp(op);
+    const lesson = (library.lessons || []).find(item => item.slug === op.lesson || item.id === op.lesson);
+    if (!lesson) throw new Error('Lezione non trovata: ' + (op.lesson || ''));
+    return { library, lesson };
+  };
+
+  for (const op of operations) {
+    if (!op || !op.op) throw new Error('Operazione senza campo op.');
+
+    if (op.op === 'upsertLesson') {
+      const library = findLibraryForOp(op);
+      if (!op.value || typeof op.value !== 'object') throw new Error('upsertLesson richiede value.');
+      library.lessons ||= [];
+      const index = library.lessons.findIndex(item =>
+        item.slug === op.value.slug ||
+        item.id === op.value.id
+      );
+      if (index >= 0) library.lessons[index] = structuredClone(op.value);
+      else library.lessons.push(structuredClone(op.value));
+      continue;
+    }
+
+    if (op.op === 'removeLesson') {
+      const library = findLibraryForOp(op);
+      const before = library.lessons?.length || 0;
+      library.lessons = (library.lessons || []).filter(item => item.slug !== op.lesson && item.id !== op.lesson);
+      if ((library.lessons?.length || 0) === before) throw new Error('Lezione non trovata: ' + (op.lesson || ''));
+      continue;
+    }
+
+    if (op.op === 'upsertTopic') {
+      const { lesson } = findLessonForOp(op);
+      if (!op.value || typeof op.value !== 'object' || !op.value.id) throw new Error('upsertTopic richiede value.id.');
+      lesson.topics ||= [];
+      const index = lesson.topics.findIndex(item => item.id === op.value.id);
+      if (index >= 0) lesson.topics[index] = structuredClone(op.value);
+      else lesson.topics.push(structuredClone(op.value));
+
+      lesson.modules ||= [];
+      let module = null;
+      if (op.module) module = lesson.modules.find(item => item.id === op.module);
+      if (!module) module = lesson.modules[0];
+      if (!module) {
+        module = { id: op.module || 'contenuti', title: op.moduleTitle || 'Contenuti', topicIds: [] };
+        lesson.modules.push(module);
+      }
+      module.topicIds ||= [];
+      if (!module.topicIds.includes(op.value.id)) module.topicIds.push(op.value.id);
+      continue;
+    }
+
+    if (op.op === 'removeTopic') {
+      const { lesson } = findLessonForOp(op);
+      const topicId = op.topic;
+      const before = lesson.topics?.length || 0;
+      lesson.topics = (lesson.topics || []).filter(item => item.id !== topicId);
+      if ((lesson.topics?.length || 0) === before) throw new Error('Topic non trovato: ' + (topicId || ''));
+      (lesson.modules || []).forEach(module => {
+        module.topicIds = (module.topicIds || []).filter(id => id !== topicId);
+      });
+      (lesson.topics || []).forEach(topic => {
+        topic.prerequisites = (topic.prerequisites || []).filter(id => id !== topicId);
+        topic.connections = (topic.connections || []).filter(connection => connection.target !== topicId);
+      });
+      continue;
+    }
+
+    if (op.op === 'addConnection') {
+      const { lesson } = findLessonForOp(op);
+      const topic = (lesson.topics || []).find(item => item.id === op.from);
+      if (!topic) throw new Error('Topic origine non trovato: ' + (op.from || ''));
+      if (!op.connection?.target) throw new Error('addConnection richiede connection.target.');
+      topic.connections ||= [];
+      const duplicate = topic.connections.some(connection =>
+        connection.target === op.connection.target &&
+        (connection.type || 'related') === (op.connection.type || 'related')
+      );
+      if (!duplicate) topic.connections.push(structuredClone(op.connection));
+      continue;
+    }
+
+    if (op.op === 'removeConnection') {
+      const { lesson } = findLessonForOp(op);
+      const topic = (lesson.topics || []).find(item => item.id === op.from);
+      if (!topic) throw new Error('Topic origine non trovato: ' + (op.from || ''));
+      topic.connections = (topic.connections || []).filter(connection =>
+        !(connection.target === op.target && (!op.type || connection.type === op.type))
+      );
+      continue;
+    }
+
+    throw new Error('Operazione non supportata: ' + op.op);
+  }
+
+  return catalog;
 }
 
 function confirmCatalogImport(existing, candidate, filename) {
