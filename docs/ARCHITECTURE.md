@@ -19,7 +19,7 @@ Il catalogo è l'unità di proprietà e pubblicazione. Le librerie organizzano c
 ## Frontend
 
 - HTML, CSS e JavaScript ES modules.
-- Nginx statico in produzione.
+- Nginx serve il frontend statico e fa da proxy same-origin verso le RPC pubbliche Supabase per `/api/v1`.
 - Nessun processo Node richiesto a runtime.
 - KaTeX per le formule.
 - ForceGraph + d3-force per gli Universi.
@@ -49,10 +49,9 @@ Campi principali:
 - `title`
 - `description`
 - `tags`
-- `is_public`
-- `catalog_json`
+- `is_public`\n- `api_public`\n- `current_version`\n- `version_message`\n- `catalog_json`
 
-`is_public = true` rende il catalogo visibile nella Home.
+`is_public = true` rende il catalogo visibile nella Home. `api_public = true` abilita invece la lettura tramite Knowledge API; i due stati sono indipendenti.
 
 La RLS permette all'utente di leggere e modificare i propri cataloghi privati; gli altri utenti vedono soltanto quelli pubblici.
 
@@ -145,3 +144,51 @@ Dall'account l'utente può:
 - eliminare i propri cataloghi/commenti/rating/report applicativi.
 
 La cancellazione dell'identità Auth richiede invece una procedura amministrativa/server-side Supabase, perché non deve essere autorizzata dalla anon key.
+
+
+## Knowledge API
+
+Il browser e i client esterni usano:
+
+```text
+https://study.ddone.it/api/v1
+```
+
+Nginx inoltra le richieste pubbliche alla RPC PostgreSQL `studylibrary_api(path)`, aggiungendo la Publishable Key.
+
+La funzione è `SECURITY DEFINER` ma applica esplicitamente:
+
+- `catalogs.api_public` sul catalogo;
+- ereditarietà `api.publicRead` su librerie, lezioni e topic;
+- filtraggio dei contenuti non esposti.
+
+La scrittura esterna passa invece da `studylibrary_api_write(...)` e richiede il JWT Supabase dell'utente. La funzione verifica `auth.uid()` e la proprietà del catalogo.
+
+## Versioning
+
+`catalog_versions` contiene snapshot immutabili del catalogo.
+
+Due trigger gestiscono il flusso:
+
+```text
+UPDATE/INSERT catalogs
+        ↓
+prepare_catalog_version
+        ↓
+current_version + 1
+        ↓
+snapshot_catalog_version
+        ↓
+catalog_versions
+```
+
+Sono versionate le modifiche a:
+
+- JSON del catalogo;
+- metadata;
+- pubblicazione Home;
+- pubblicazione API.
+
+`restore_catalog_version()` ripristina uno snapshot creando una nuova versione invece di riscrivere la storia.
+
+Per aggiornamenti esterni, `studylibrary_api_write` accetta `p_base_version`: se non coincide con la versione corrente restituisce un conflitto e impedisce sovrascritture accidentali.
