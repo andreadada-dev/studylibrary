@@ -1,5 +1,5 @@
 import { state, isBackendConfigured } from './js/state.js';
-import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, deleteCatalog, reportContent } from './js/api.js';
+import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, fetchCatalogVersions, restoreCatalogVersion, deleteCatalog, reportContent } from './js/api.js';
 import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref, catalogRef } from './js/content.js';
 import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
@@ -318,7 +318,7 @@ async function importPersonalFiles(files) {
           );
           continue;
         }
-        await saveCatalog(candidate, false);
+        await saveCatalog(candidate, false, 'Importazione JSON: ' + file.name);
         imported += 1;
       }
     } catch (err) {
@@ -396,18 +396,26 @@ async function renderCatalog(catalogSlug) {
   const reportButton = catalog._db?.id && !ownsCloudCatalog
     ? '<button class="button ghost" type="button" data-report-catalog>Segnala</button>'
     : '';
+  const apiButton = catalog._db?.id && (ownsCloudCatalog || catalog._db?.api_public)
+    ? '<button class="button secondary" type="button" data-api-catalog>API</button>'
+    : '';
+  const versionsButton = ownsCloudCatalog
+    ? '<button class="button secondary" type="button" data-version-history>Cronologia</button>'
+    : '';
 
   app.innerHTML =
     '<div class="page">' +
       '<header class="collection-hero">' +
         '<div><span class="eyebrow">Catalogo</span><h1>' + escapeHtml(catalog.title) + '</h1><p class="lede">' + escapeHtml(catalog.description || '') + '</p></div>' +
-        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a>' + publishButton + reportButton + '<button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button>' + deleteButton + '</div>' +
+        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a>' + publishButton + apiButton + versionsButton + reportButton + '<button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button>' + deleteButton + '</div>' +
       '</header>' +
       '<div class="catalog-stats">' +
         '<div><strong>' + stats.libraries + '</strong><span>librerie</span></div>' +
         '<div><strong>' + stats.lessons + '</strong><span>lezioni</span></div>' +
         '<div><strong>' + stats.topics + '</strong><span>argomenti</span></div>' +
-        '<div><strong>' + (catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</strong><span>visibilità</span></div>' +
+        '<div><strong>' + (catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</strong><span>Home</span></div>' +
+        '<div><strong>' + (catalog._db?.api_public ? 'Pubblica' : 'Privata') + '</strong><span>API</span></div>' +
+        '<div><strong>v' + (catalog._db?.current_version || 1) + '</strong><span>versione</span></div>' +
       '</div>' +
       '<section class="collection-list">' +
         '<div class="section-head"><div><h2>Librerie</h2><p>Ogni libreria raccoglie le lezioni di un corso o di un’area di studio.</p></div></div>' +
@@ -424,11 +432,23 @@ async function renderCatalog(catalogSlug) {
   app.querySelector('[data-toggle-publish]')?.addEventListener('click', async () => {
     const makePublic = catalog.visibility === 'private';
     try {
-      await saveCatalog(catalog, makePublic);
+      await saveCatalog(catalog, makePublic, makePublic ? 'Pubblicazione in Home' : 'Catalogo reso privato');
       await fetchPublicCatalogs();
       await fetchMyCatalogs();
       toast(makePublic ? 'Catalogo pubblicato nella Home' : 'Catalogo reso privato');
       await renderCatalog(catalogRef(catalog));
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  app.querySelector('[data-api-catalog]')?.addEventListener('click', () => {
+    openCatalogApiModal(catalog, ownsCloudCatalog);
+  });
+
+  app.querySelector('[data-version-history]')?.addEventListener('click', async () => {
+    try {
+      await openVersionHistory(catalog);
     } catch (err) {
       toast(err.message);
     }
@@ -475,6 +495,97 @@ async function renderCatalog(catalogSlug) {
   });
 
   await renderDiscussion('catalog', catalogRef(catalog));
+}
+
+function openCatalogApiModal(catalog, owner = false) {
+  const catalogId = catalog?._db?.id;
+  if (!catalogId) return toast('Salva prima il catalogo nel cloud');
+
+  const base = location.origin + '/api/v1/catalogs/' + encodeURIComponent(catalogId);
+  const currentVersion = catalog._db?.current_version || 1;
+  const endpoints = [
+    ['Catalogo filtrato', base],
+    ['Context AI compatto', base + '/context'],
+    ['Grafo nodi/connessioni', base + '/graph'],
+    ['Cronologia versioni', base + '/versions'],
+    ['Cambiamenti da v' + currentVersion, base + '/changes/' + currentVersion]
+  ];
+
+  const status = catalog._db?.api_public
+    ? '<span class="api-status on">API pubblica attiva</span>'
+    : '<span class="api-status off">API pubblica disattivata</span>';
+
+  const rows = endpoints.map(([label, url]) =>
+    '<div class="api-endpoint"><div><strong>' + escapeHtml(label) + '</strong><code>' + escapeHtml(url) + '</code></div><button type="button" data-copy-api="' + escapeHtml(url) + '">Copia</button></div>'
+  ).join('');
+
+  showModal(
+    'Knowledge API',
+    '<div class="api-modal">' + status +
+      '<p>La pubblicazione API è indipendente dalla Home. Librerie, lezioni e argomenti possono ereditare o sovrascrivere l’accesso.</p>' +
+      (owner && !catalog._db?.api_public ? '<p class="demo-note">Apri Modifica → Catalogo → API pubblica per abilitarla.</p>' : '') +
+      rows +
+      '<div class="api-write-note"><strong>Scrittura autenticata</strong><code>POST ' + escapeHtml(location.origin + '/api/v1/write') + '</code><span>Richiede un Supabase access token e baseVersion per evitare sovrascritture concorrenti.</span></div>' +
+    '</div>',
+    [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+  );
+
+  document.querySelectorAll('[data-copy-api]').forEach(button => button.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(button.dataset.copyApi);
+      toast('Endpoint copiato');
+    } catch {
+      toast('Copia non disponibile nel browser');
+    }
+  }));
+}
+
+async function openVersionHistory(catalog) {
+  if (!catalog?._db?.id) throw new Error('Catalogo non salvato nel cloud');
+  const versions = await fetchCatalogVersions(catalog._db.id);
+
+  const list = versions.length
+    ? versions.map(version =>
+        '<article class="version-row' + (version.version === catalog._db.current_version ? ' current' : '') + '">' +
+          '<div><strong>v' + version.version + '</strong><span>' + escapeHtml(version.message || 'Aggiornamento') + '</span><time>' + escapeHtml(new Date(version.created_at).toLocaleString('it-IT')) + '</time></div>' +
+          (version.version === catalog._db.current_version
+            ? '<span class="version-current">Attuale</span>'
+            : '<button type="button" data-restore-version="' + version.version + '">Ripristina</button>') +
+        '</article>'
+      ).join('')
+    : '<p class="demo-note">Nessuna versione disponibile.</p>';
+
+  showModal(
+    'Cronologia versioni',
+    '<div class="version-list">' + list + '</div><p class="demo-note">Il ripristino non cancella la cronologia: crea una nuova versione contenente lo snapshot scelto.</p>',
+    [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+  );
+
+  document.querySelectorAll('[data-restore-version]').forEach(button => button.addEventListener('click', async () => {
+    const version = Number(button.dataset.restoreVersion);
+    showModal(
+      'Ripristinare v' + version + '?',
+      '<p>Verrà creato un nuovo snapshot usando il contenuto della versione ' + version + '.</p>',
+      [
+        {
+          label: 'Ripristina',
+          className: 'button',
+          action: async () => {
+            try {
+              await restoreCatalogVersion(catalog._db.id, version);
+              await fetchMyCatalogs();
+              closeModal();
+              toast('Versione ' + version + ' ripristinata');
+              await renderCatalog(catalogRef(catalog));
+            } catch (err) {
+              toast(err.message);
+            }
+          }
+        },
+        { label: 'Annulla', className: 'button secondary', action: closeModal }
+      ]
+    );
+  }));
 }
 
 async function renderLibrary(catalogSlug, librarySlug) {
@@ -797,7 +908,7 @@ async function renderStudio() {
     if (!result.ok) return toast('Correggi prima gli errori nello schema');
     if (!state.user || !state.supabase) return toast(isBackendConfigured() ? 'Accedi con Google per salvare' : 'Configura Supabase per salvare online');
     try {
-      await saveCatalog(draft, publish);
+      await saveCatalog(draft, publish, publish ? 'Pubblicazione dall’editor' : 'Salvataggio editor');
       if (publish) await fetchPublicCatalogs();
       const mine = await fetchMyCatalogs();
       state.activeCatalog = mine.find(item => item.slug === draft.slug) || null;
@@ -821,6 +932,7 @@ function emptyCatalogTemplate() {
     description: 'Descrivi il tuo spazio di studio.',
     language: 'it',
     visibility: 'private',
+    api: { publicRead: false },
     tags: [],
     libraries: [
       {
