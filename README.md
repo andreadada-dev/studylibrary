@@ -14,54 +14,48 @@ Un utente può tenere il proprio catalogo privato oppure pubblicarlo nella Home.
 - Reader progressivo per i topic della singola lezione.
 - **Universo della lezione**, della libreria, del catalogo e Universo totale.
 - Force graph fullscreen con ricerca, zoom, drag, focus e pannello nodo.
-- Studio JSON con validazione, import/export, salvataggio privato e pubblicazione.
-- Google Login via Supabase.
+- Editor visuale Markdown + JSON avanzato, import/export, salvataggio privato e pubblicazione.
+- Knowledge API pubblica per cataloghi/librerie/lezioni/topic con controllo gerarchico.\n- Versioning automatico, cronologia, ripristino e diff degli import.\n- Google Login via Supabase.
 - Rating e commenti con Row Level Security.
 - Docker/Nginx pronto per Coolify.
 - Modalità demo senza backend.
 
-## Esempio incluso
+## Contenuti personali
 
-Il repository contiene:
+Il repository non contiene più cataloghi demo obbligatori. I contenuti principali vivono nello spazio personale dell'utente su Supabase.
+
+Da **Il mio catalogo** puoi:
+
+- trascinare file JSON;
+- vedere Cataloghi → Librerie → Lezioni → Argomenti;
+- aprire l'Universo personale;
+- modificare i contenuti con editor visuale Markdown;
+- usare il JSON avanzato quando serve;
+- pubblicare o mantenere privato ogni catalogo.
+
+## Knowledge API e versioning
+
+Ogni catalogo può abilitare una API pubblica in sola lettura, indipendente dalla visibilità nella Home.
+
+Endpoint principale:
 
 ```text
-Catalogo: Computer Vision
-└── Libreria: Computer Vision
-    └── Lezione 01 — Introduction
-        └── 12 argomenti
+https://study.ddone.it/api/v1
 ```
 
-La lezione usa il JSON già presente in:
+Sono disponibili:
 
-`data/courses/computer-vision-introduction.json`
+- catalog/export completo filtrato;
+- `/context` compatto per AI;
+- `/graph` per nodi e collegamenti;
+- endpoint per librerie, lezioni e topic;
+- cronologia versioni;
+- diff da una versione precedente;
+- endpoint di scrittura autenticato con optimistic concurrency.
 
-e viene collegata dal manifest:
+Ogni salvataggio significativo crea automaticamente uno snapshot immutabile. Il ripristino crea una nuova versione senza cancellare la cronologia.
 
-`data/catalogs/computer-vision.json`
-
-Questo permette di aggiungere **una lezione alla volta** senza trasformare il catalogo in un unico file enorme.
-
-## Aggiungere una nuova lezione da Git
-
-1. Crea un JSON lezione, per esempio:
-   `data/courses/computer-vision-lesson-02.json`
-2. Apri:
-   `data/catalogs/computer-vision.json`
-3. Aggiungi alla libreria:
-
-```json
-{
-  "id": "cv-lesson-02",
-  "slug": "lesson-02",
-  "title": "Lezione 02",
-  "order": 2,
-  "src": "/data/courses/computer-vision-lesson-02.json"
-}
-```
-
-4. Commit + redeploy.
-
-Lo schema completo è in `docs/CONTENT-SCHEMA.md`.
+Documentazione completa: `docs/API.md`.
 
 ## Coolify
 
