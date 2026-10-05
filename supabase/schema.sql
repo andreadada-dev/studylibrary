@@ -1290,6 +1290,18 @@ begin
     end
   );
 
+  p_catalog := p_catalog || jsonb_build_object(
+    'api',
+    coalesce(p_catalog->'api', '{}'::jsonb) || jsonb_build_object('publicRead', next_api_public)
+  );
+
+  if p_publish is not null then
+    p_catalog := p_catalog || jsonb_build_object(
+      'visibility',
+      case when p_publish then 'public' else 'private' end
+    );
+  end if;
+
   update public.catalogs
   set
     title = coalesce(nullif(p_catalog->>'title', ''), current_row.title),
