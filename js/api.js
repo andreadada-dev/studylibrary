@@ -66,7 +66,7 @@ export async function fetchPublicCatalogs() {
   if (!state.supabase) return [];
   const { data, error } = await state.supabase
     .from('catalogs')
-    .select('id, owner_id, slug, title, description, tags, is_public, catalog_json, created_at, updated_at, profiles(display_name, avatar_url)')
+    .select('id, owner_id, slug, title, description, tags, is_public, api_public, current_version, version_message, catalog_json, created_at, updated_at, profiles(display_name, avatar_url)')
     .eq('is_public', true)
     .order('updated_at', { ascending: false });
 
@@ -78,6 +78,9 @@ export async function fetchPublicCatalogs() {
     _db: {
       id: row.id,
       owner_id: row.owner_id,
+      api_public: row.api_public,
+      current_version: row.current_version,
+      version_message: row.version_message,
       updated_at: row.updated_at
     },
     _author: row.profiles || null
@@ -91,7 +94,7 @@ export async function fetchMyCatalogs() {
 
   const { data, error } = await state.supabase
     .from('catalogs')
-    .select('id, owner_id, slug, title, description, tags, is_public, catalog_json, created_at, updated_at')
+    .select('id, owner_id, slug, title, description, tags, is_public, api_public, current_version, version_message, catalog_json, created_at, updated_at')
     .eq('owner_id', state.user.id)
     .order('updated_at', { ascending: false });
 
@@ -103,6 +106,9 @@ export async function fetchMyCatalogs() {
     _db: {
       id: row.id,
       owner_id: row.owner_id,
+      api_public: row.api_public,
+      current_version: row.current_version,
+      version_message: row.version_message,
       updated_at: row.updated_at
     }
   }));
@@ -118,7 +124,7 @@ function catalogIdentity(catalog) {
   return catalog?._db?.id || ((catalog?._db?.owner_id || 'local') + ':' + (catalog?.slug || catalog?.id || 'catalog'));
 }
 
-export async function saveCatalog(catalog, publish = false) {
+export async function saveCatalog(catalog, publish = false, versionMessage = '') {
   if (!state.supabase || !state.user) throw new Error('Accedi per salvare o pubblicare');
 
   const cleanCatalog = stripRuntimeFields(catalog);
@@ -131,15 +137,39 @@ export async function saveCatalog(catalog, publish = false) {
     description: cleanCatalog.description || '',
     tags: cleanCatalog.tags || [],
     is_public: Boolean(publish),
+    api_public: Boolean(cleanCatalog.api?.publicRead),
+    version_message: String(versionMessage || (publish ? 'Pubblicazione catalogo' : 'Salvataggio catalogo')).slice(0, 240),
     catalog_json: cleanCatalog
   };
 
   const { data, error } = await state.supabase
     .from('catalogs')
     .upsert(payload, { onConflict: 'owner_id,slug' })
-    .select('id, slug, is_public, updated_at')
+    .select('id, slug, is_public, api_public, current_version, version_message, updated_at')
     .single();
 
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchCatalogVersions(catalogId) {
+  if (!state.supabase || !state.user) throw new Error('Accedi per vedere la cronologia');
+  const { data, error } = await state.supabase
+    .from('catalog_versions')
+    .select('id, catalog_id, version, message, is_public, api_public, created_at')
+    .eq('catalog_id', catalogId)
+    .order('version', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function restoreCatalogVersion(catalogId, version) {
+  if (!state.supabase || !state.user) throw new Error('Accedi per ripristinare una versione');
+  const { data, error } = await state.supabase.rpc('restore_catalog_version', {
+    p_catalog_id: catalogId,
+    p_version: Number(version)
+  });
   if (error) throw error;
   return data;
 }
