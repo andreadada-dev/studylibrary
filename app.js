@@ -276,7 +276,7 @@ function renderPersonalCatalogTree(catalog) {
       '<div><span class="eyebrow">' + escapeHtml(catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</span><h3>' + escapeHtml(catalog.title) + '</h3><p>' + escapeHtml(catalog.description || '') + '</p></div>' +
       '<div class="personal-catalog-actions"><a href="#/catalog/' + encodeURIComponent(ref) + '">Apri</a><a href="#/catalog/' + encodeURIComponent(ref) + '/universe">Universo</a><button type="button" data-edit-personal="' + escapeHtml(ref) + '">Modifica</button></div>' +
     '</header>' +
-    '<div class="personal-catalog-stats"><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span><span>' + stats.topics + ' argomenti</span></div>' +
+    '<div class="personal-catalog-stats"><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span><span>' + stats.topics + ' argomenti</span><span>v' + (catalog._db?.current_version || 1) + '</span><span>API ' + (catalog._db?.api_public ? 'pubblica' : 'privata') + '</span></div>' +
     '<div class="personal-library-tree">' +
       (catalog.libraries || []).map(library =>
         '<section class="personal-library">' +
@@ -318,6 +318,16 @@ async function importPersonalFiles(files) {
           );
           continue;
         }
+        const existing = state.remoteCatalogs.find(item =>
+          item?._db?.owner_id === state.user.id &&
+          (item.slug === candidate.slug || item.id === candidate.id)
+        );
+
+        if (existing) {
+          const approved = await confirmCatalogImport(existing, candidate, file.name);
+          if (!approved) continue;
+        }
+
         await saveCatalog(candidate, false, 'Importazione JSON: ' + file.name);
         imported += 1;
       }
@@ -331,6 +341,81 @@ async function importPersonalFiles(files) {
     toast(imported === 1 ? 'Catalogo importato come privato' : imported + ' cataloghi importati come privati');
     await renderMyCatalogs();
   }
+}
+
+function confirmCatalogImport(existing, candidate, filename) {
+  const diff = summarizeCatalogDiff(existing, candidate);
+  return new Promise(resolve => {
+    showModal(
+      'Aggiornare ' + escapeHtml(existing.title || candidate.title || 'catalogo') + '?',
+      '<div class="import-diff">' +
+        '<p><strong>' + escapeHtml(filename) + '</strong> aggiornerà un catalogo già esistente. Prima del salvataggio verrà mantenuto automaticamente lo snapshot attuale.</p>' +
+        '<div class="diff-stats">' +
+          '<span><strong>+' + diff.added + '</strong> aggiunti</span>' +
+          '<span><strong>~' + diff.changed + '</strong> modificati</span>' +
+          '<span><strong>−' + diff.removed + '</strong> rimossi</span>' +
+        '</div>' +
+        (diff.samples.length ? '<div class="diff-samples">' + diff.samples.slice(0, 8).map(item => '<code>' + escapeHtml(item) + '</code>').join('') + '</div>' : '') +
+        '<p class="demo-note">Versione corrente: v' + (existing._db?.current_version || 1) + '. L’import creerà automaticamente la versione successiva.</p>' +
+      '</div>',
+      [
+        {
+          label: 'Applica aggiornamento',
+          className: 'button',
+          action: () => { closeModal(); resolve(true); }
+        },
+        {
+          label: 'Annulla',
+          className: 'button secondary',
+          action: () => { closeModal(); resolve(false); }
+        }
+      ]
+    );
+  });
+}
+
+function summarizeCatalogDiff(before, after) {
+  const flatten = catalog => {
+    const map = new Map();
+    for (const library of catalog?.libraries || []) {
+      const libraryKey = 'library:' + (library.slug || library.id || 'library');
+      map.set(libraryKey, library);
+      for (const lesson of library.lessons || []) {
+        const lessonKey = libraryKey + '/lesson:' + (lesson.slug || lesson.id || 'lesson');
+        map.set(lessonKey, lesson);
+        for (const topic of lesson.topics || []) {
+          map.set(lessonKey + '/topic:' + (topic.id || 'topic'), topic);
+        }
+      }
+    }
+    return map;
+  };
+
+  const beforeMap = flatten(before);
+  const afterMap = flatten(after);
+  let added = 0;
+  let changed = 0;
+  let removed = 0;
+  const samples = [];
+
+  for (const [key, value] of afterMap) {
+    if (!beforeMap.has(key)) {
+      added += 1;
+      samples.push('+ ' + key);
+    } else if (JSON.stringify(stripRuntimeForEditor(beforeMap.get(key))) !== JSON.stringify(stripRuntimeForEditor(value))) {
+      changed += 1;
+      samples.push('~ ' + key);
+    }
+  }
+
+  for (const key of beforeMap.keys()) {
+    if (!afterMap.has(key)) {
+      removed += 1;
+      samples.push('− ' + key);
+    }
+  }
+
+  return { added, changed, removed, samples };
 }
 
 function normalizeImportedCatalog(value, filename = 'catalogo.json') {
@@ -791,7 +876,7 @@ async function renderStudio() {
   app.innerHTML = '<div class="studio-page">' +
     '<section class="studio-topbar">' +
       '<div><span class="eyebrow">Editor</span><h1>Modifica il catalogo</h1><p class="demo-note">Editor visuale Markdown basato su EasyMDE. Il JSON resta disponibile come modalità avanzata.</p></div>' +
-      '<div class="toolbar-actions"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa JSON</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva privato</button><button class="button accent" data-publish>Pubblica</button></div>' +
+      '<div class="toolbar-actions studio-save-actions"><input class="version-message-input" data-version-message maxlength="240" placeholder="Nota versione (opzionale)" aria-label="Nota versione"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa JSON</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva privato</button><button class="button accent" data-publish>Pubblica</button></div>' +
     '</section>' +
     '<div class="studio-tabs" role="tablist"><button class="active" type="button" data-studio-tab="visual">Visuale</button><button type="button" data-studio-tab="json">JSON avanzato</button></div>' +
     '<div class="studio-workspace">' +
@@ -809,6 +894,7 @@ async function renderStudio() {
   const validationEl = app.querySelector('[data-validation]');
   const previewEl = app.querySelector('[data-preview]');
   const fileInput = app.querySelector('[data-file]');
+  const versionMessageInput = app.querySelector('[data-version-message]');
 
   function validateAndPreview(value = draft) {
     const result = validateCatalog(value);
@@ -908,10 +994,12 @@ async function renderStudio() {
     if (!result.ok) return toast('Correggi prima gli errori nello schema');
     if (!state.user || !state.supabase) return toast(isBackendConfigured() ? 'Accedi con Google per salvare' : 'Configura Supabase per salvare online');
     try {
-      await saveCatalog(draft, publish, publish ? 'Pubblicazione dall’editor' : 'Salvataggio editor');
+      const versionMessage = versionMessageInput?.value.trim() || (publish ? 'Pubblicazione dall’editor' : 'Salvataggio editor');
+      await saveCatalog(draft, publish, versionMessage);
       if (publish) await fetchPublicCatalogs();
       const mine = await fetchMyCatalogs();
       state.activeCatalog = mine.find(item => item.slug === draft.slug) || null;
+      if (versionMessageInput) versionMessageInput.value = '';
       toast(publish ? 'Catalogo pubblicato nella Home' : 'Catalogo salvato come privato');
     } catch (err) {
       toast(err.message);
