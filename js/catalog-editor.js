@@ -125,7 +125,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   function apiPolicy(item) {
     const raw = item.api && typeof item.api.publicRead === 'boolean' ? String(item.api.publicRead) : 'inherit';
-    return '<label class="editor-field"><span>Accesso API</span><select data-api-policy><option value="inherit"' + (raw === 'inherit' ? ' selected' : '') + '>Eredita</option><option value="true"' + (raw === 'true' ? ' selected' : '') + '>Pubblico</option><option value="false"' + (raw === 'false' ? ' selected' : '') + '>Privato</option></select><small>Può restringere o aprire questo livello rispetto al genitore.</small></label>';
+    return '<label class="editor-field"><span>Accesso API</span><select data-api-policy><option value="inherit"' + (raw === 'inherit' ? ' selected' : '') + '>Eredita</option><option value="true"' + (raw === 'true' ? ' selected' : '') + '>Pubblico</option><option value="false"' + (raw === 'false' ? ' selected' : '') + '>Privato</option></select><small>Eredita dal genitore oppure restringe questo livello. Un genitore privato blocca sempre i discendenti.</small></label>';
   }
 
   function sections(topic) {
