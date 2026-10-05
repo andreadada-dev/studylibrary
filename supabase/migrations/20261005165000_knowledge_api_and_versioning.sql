@@ -110,7 +110,19 @@ security definer
 set search_path = public
 as $$
 begin
-  if tg_op = 'INSERT' or new.current_version is distinct from old.current_version then
+  if tg_op = 'INSERT' then
+    insert into public.catalog_versions (
+      catalog_id, owner_id, version, message, title, description, tags,
+      is_public, api_public, catalog_json
+    )
+    values (
+      new.id, new.owner_id, new.current_version,
+      coalesce(nullif(new.version_message, ''), 'Creazione catalogo'),
+      new.title, new.description, new.tags,
+      new.is_public, new.api_public, new.catalog_json
+    )
+    on conflict (catalog_id, version) do nothing;
+  elsif new.current_version is distinct from old.current_version then
     insert into public.catalog_versions (
       catalog_id, owner_id, version, message, title, description, tags,
       is_public, api_public, catalog_json
@@ -683,7 +695,8 @@ begin
       ) order by v.version desc), '[]'::jsonb)
       into result
       from public.catalog_versions v
-      where v.catalog_id = row_catalog.id;
+      where v.catalog_id = row_catalog.id
+        and v.api_public = true;
 
       return jsonb_build_object(
         'catalogId', row_catalog.id,
@@ -703,7 +716,7 @@ begin
     where v.catalog_id = row_catalog.id
       and v.version = requested_version;
 
-    if not found then
+    if not found or version_row.api_public is not true then
       return jsonb_build_object('error', 'version_not_found');
     end if;
 
@@ -730,7 +743,7 @@ begin
     where v.catalog_id = row_catalog.id
       and v.version = since_version;
 
-    if not found then
+    if not found or before_row.api_public is not true then
       return jsonb_build_object('error', 'version_not_found');
     end if;
 
