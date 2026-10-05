@@ -86,19 +86,24 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   function fields(item) {
     if (selection.type === 'catalog') {
-      return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description) + text('Tag', 'tags', (item.tags || []).join(', '), 'Separati da virgola');
+      return text('Titolo', 'title', item.title) +
+        text('Slug', 'slug', item.slug) +
+        md('Descrizione', 'description', item.description) +
+        text('Tag', 'tags', (item.tags || []).join(', '), 'Separati da virgola') +
+        toggle('API pubblica', 'api.publicRead', item.api?.publicRead === true, 'Indipendente dalla pubblicazione in Home: espone in sola lettura i contenuti consentiti tramite /api/v1.');
     }
     if (selection.type === 'library') {
-      return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description);
+      return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description) + apiPolicy(item);
     }
     if (selection.type === 'lesson') {
-      return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description);
+      return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description) + apiPolicy(item);
     }
     return text('Titolo', 'title', item.title) + text('ID', 'id', item.id) +
       '<label class="editor-field"><span>Minuti stimati</span><input type="number" min="0" data-field="estimatedMinutes" value="' + (Number(item.estimatedMinutes) || 0) + '"></label>' +
       md('Riassunto', 'summary', item.summary) + md('Perché serve', 'why', item.why) +
       textarea('Obiettivi', 'learningGoals', (item.learningGoals || []).join('\n'), 'Uno per riga') +
       textarea('Prerequisiti', 'prerequisites', (item.prerequisites || []).join('\n'), 'ID, uno per riga') +
+      apiPolicy(item) +
       sections(item);
   }
 
@@ -112,6 +117,15 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   function md(label, key, value) {
     return '<label class="editor-field editor-field-wide markdown-field"><span>' + esc(label) + ' <em>Markdown</em></span><textarea data-markdown="' + attr(key) + '">' + esc(value || '') + '</textarea></label>';
+  }
+
+  function toggle(label, key, checked, hint) {
+    return '<label class="editor-field editor-field-wide editor-toggle"><span>' + esc(label) + '</span><span class="toggle-row"><input type="checkbox" data-toggle-field="' + attr(key) + '"' + (checked ? ' checked' : '') + '><i aria-hidden="true"></i><strong>' + (checked ? 'Attiva' : 'Disattiva') + '</strong></span>' + (hint ? '<small>' + esc(hint) + '</small>' : '') + '</label>';
+  }
+
+  function apiPolicy(item) {
+    const raw = item.api && typeof item.api.publicRead === 'boolean' ? String(item.api.publicRead) : 'inherit';
+    return '<label class="editor-field"><span>Accesso API</span><select data-api-policy><option value="inherit"' + (raw === 'inherit' ? ' selected' : '') + '>Eredita</option><option value="true"' + (raw === 'true' ? ' selected' : '') + '>Pubblico</option><option value="false"' + (raw === 'false' ? ' selected' : '') + '>Privato</option></select><small>Può restringere o aprire questo livello rispetto al genitore.</small></label>';
   }
 
   function sections(topic) {
@@ -152,6 +166,23 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       set(input.dataset.field, input.value);
       emit();
     }));
+
+    container.querySelectorAll('[data-toggle-field]').forEach(input => input.addEventListener('change', () => {
+      catalog.api ||= {};
+      catalog.api.publicRead = input.checked;
+      const strong = input.closest('.toggle-row')?.querySelector('strong');
+      if (strong) strong.textContent = input.checked ? 'Attiva' : 'Disattiva';
+      emit();
+    }));
+
+    container.querySelector('[data-api-policy]')?.addEventListener('change', event => {
+      const item = selected();
+      item.api ||= {};
+      if (event.target.value === 'inherit') delete item.api.publicRead;
+      else item.api.publicRead = event.target.value === 'true';
+      if (!Object.keys(item.api).length) delete item.api;
+      emit();
+    });
 
     container.querySelectorAll('[data-section-type]').forEach(select => select.addEventListener('change', () => {
       const topic = selected();
