@@ -59,6 +59,8 @@ Ogni salvataggio significativo crea automaticamente uno snapshot immutabile. Il 
 
 Documentazione completa: `docs/API.md`.
 
+Per aggiornamenti incrementali generati da AI/agent usa il formato version-aware descritto in `docs/UPDATE-PACKAGE.md`.
+
 ## Coolify
 
 Build con il `Dockerfile`, porta interna `80`.
