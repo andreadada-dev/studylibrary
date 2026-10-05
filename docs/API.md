@@ -252,3 +252,14 @@ Per un flusso manuale:
 - service-role key, DB password e Google Client Secret non sono esposti;
 - i contenuti nascosti a livello libreria/lezione/topic vengono rimossi dal JSON restituito;
 - i riferimenti interni a topic nascosti vengono filtrati quando possibile.
+
+
+## Update package
+
+Per aggiornamenti incrementali tramite file JSON usa il formato `studylibrary.update`.
+
+Specifica completa:
+
+`docs/UPDATE-PACKAGE.md`
+
+Il pacchetto include `baseVersion`, quindi StudyLibrary blocca automaticamente un aggiornamento preparato su una versione vecchia.
