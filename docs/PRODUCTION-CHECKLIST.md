@@ -94,3 +94,28 @@ La configurazione URL/Auth è dichiarata in `supabase/config.toml`, quindi Site 
 
 
 Note: il deploy Auth non usa `supabase config push` in CI, così il token scoped non necessita del permesso Infrastructure Add-ons. Sono sufficienti i permessi già richiesti per link del progetto e Auth config.
+
+
+## Knowledge API / versioning
+
+Dopo ogni migration che modifica API o versioning:
+
+1. eseguire **Actions → Deploy Supabase**;
+2. verificare che `catalog_versions` esista;
+3. salvare un catalogo e verificare che `current_version` aumenti;
+4. abilitare **API pubblica** dall'editor;
+5. redeployare Coolify;
+6. verificare:
+
+```text
+GET https://study.ddone.it/api/v1
+GET https://study.ddone.it/api/v1/catalogs
+GET https://study.ddone.it/api/v1/catalogs/{catalog-id}/context
+GET https://study.ddone.it/api/v1/catalogs/{catalog-id}/graph
+```
+
+La Home e la Knowledge API hanno visibilità indipendente.
+
+Il proxy Nginx usa soltanto `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`, già presenti in Coolify. Non aggiungere service-role key al container.
+
+Per la scrittura esterna usare `POST /api/v1/write` con un JWT Supabase dell'utente proprietario e `p_base_version` per optimistic concurrency.
