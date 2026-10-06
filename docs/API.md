@@ -310,3 +310,8 @@ Specifica completa:
 `docs/UPDATE-PACKAGE.md`
 
 Il pacchetto include `baseVersion`, quindi StudyLibrary blocca automaticamente un aggiornamento preparato su una versione vecchia.
+
+
+### Validazione delle scritture
+
+La validazione non è affidata soltanto al browser. `/api/v1/write` valida server-side struttura minima, limiti di dimensione, checkpoint e fonti prima di aggiornare il catalogo. Lo slug del catalogo è trattato come identità stabile e non può essere cambiato tramite l'endpoint di scrittura.
