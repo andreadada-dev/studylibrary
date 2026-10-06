@@ -82,37 +82,90 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     if (selection.type === 'topic') add = '<button class="button secondary" type="button" data-add-section>＋ Sezione</button>';
     const del = selection.type === 'catalog' ? '' : '<button class="button danger ghost" type="button" data-delete-selected>Elimina</button>';
 
-    return '<header class="catalog-editor-panel-head"><div><span class="eyebrow">' + labels[selection.type] + '</span><h2>' + esc(item.title || item.id || labels[selection.type]) + '</h2></div><div class="toolbar-actions">' + add + del + '</div></header>' +
-      '<div class="catalog-editor-fields">' + fields(item) + '</div>';
+    return '<header class="catalog-editor-panel-head direct-editor-head">' +
+        '<div class="direct-editor-copy">' +
+          '<span class="eyebrow">' + labels[selection.type] + '</span>' +
+          inlineText('title', item.title || item.id || labels[selection.type], 'direct-editor-title', 'Titolo', true) +
+          inlineText('description', item.description || '', 'direct-editor-description', 'Aggiungi una descrizione…') +
+        '</div>' +
+        '<div class="toolbar-actions">' + add + del + '</div>' +
+      '</header>' +
+      '<div class="direct-editor-body">' + fields(item) + '</div>';
   }
 
   function fields(item) {
     if (selection.type === 'catalog') {
-      return text('Titolo', 'title', item.title) +
+      return compactSettings(
+        'Impostazioni catalogo',
         text('Slug', 'slug', item.slug) +
-        md('Descrizione', 'description', item.description) +
         text('Tag', 'tags', (item.tags || []).join(', '), 'Separati da virgola') +
-        toggle('API pubblica', 'api.publicRead', item.api?.publicRead === true, 'Indipendente dalla pubblicazione in Home: espone in sola lettura i contenuti consentiti tramite /api/v1.') +
-        mediaLibrary();
+        toggle('API pubblica', 'api.publicRead', item.api?.publicRead === true, 'Indipendente dalla pubblicazione in Home.')
+      ) + mediaLibrary();
     }
+
     if (selection.type === 'library') {
-      return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description) + apiPolicy(item);
+      return compactSettings(
+        'Impostazioni libreria',
+        text('Slug', 'slug', item.slug) + apiPolicy(item)
+      );
     }
+
     if (selection.type === 'lesson') {
-      return text('Titolo', 'title', item.title) +
-        text('Slug', 'slug', item.slug) +
-        md('Descrizione', 'description', item.description) +
-        apiPolicy(item) +
-        lessonSources(item);
+      return compactSettings(
+        'Impostazioni lezione',
+        text('Slug', 'slug', item.slug) + apiPolicy(item)
+      ) + lessonSources(item);
     }
-    return text('Titolo', 'title', item.title) + text('ID', 'id', item.id) +
-      '<label class="editor-field"><span>Minuti stimati</span><input type="number" min="0" data-field="estimatedMinutes" value="' + (Number(item.estimatedMinutes) || 0) + '"></label>' +
-      md('Riassunto', 'summary', item.summary) + md('Perché serve', 'why', item.why) +
-      textarea('Obiettivi', 'learningGoals', (item.learningGoals || []).join('\n'), 'Uno per riga') +
-      textarea('Prerequisiti', 'prerequisites', (item.prerequisites || []).join('\n'), 'ID, uno per riga') +
-      textarea('Fonti del topic', 'topicSources', (item.sources || []).map(source => [source.ref || '', source.pages || '', source.note || ''].join(' | ')).join('\n'), 'Formato: source-id | pagine/slide | nota') +
-      apiPolicy(item) +
+
+    return '<section class="direct-topic-intro">' +
+        '<div class="direct-content-block">' +
+          '<span class="direct-content-label">Riassunto</span>' +
+          inlineText('summary', item.summary || '', 'direct-prose direct-summary', 'Scrivi un riassunto breve…') +
+        '</div>' +
+        '<div class="direct-content-block">' +
+          '<span class="direct-content-label">Perché serve</span>' +
+          inlineText('why', item.why || '', 'direct-prose', 'Spiega perché questo argomento è utile…') +
+        '</div>' +
+      '</section>' +
+      compactSettings(
+        'Dettagli argomento',
+        text('ID', 'id', item.id) +
+        '<label class="editor-field"><span>Minuti stimati</span><input type="number" min="0" data-field="estimatedMinutes" value="' + (Number(item.estimatedMinutes) || 0) + '"></label>' +
+        textarea('Obiettivi', 'learningGoals', (item.learningGoals || []).join('\n'), 'Uno per riga') +
+        textarea('Prerequisiti', 'prerequisites', (item.prerequisites || []).join('\n'), 'ID, uno per riga') +
+        textarea('Fonti del topic', 'topicSources', (item.sources || []).map(source => [source.ref || '', source.pages || '', source.note || ''].join(' | ')).join('\n'), 'source-id | pagine/slide | nota') +
+        apiPolicy(item)
+      ) +
       sections(item);
+  }
+
+  function inlineText(key, value, className, placeholder, singleLine = false) {
+    return '<div class="' + className + ' direct-editable' + (!String(value || '').trim() ? ' is-empty' : '') + '"' +
+      ' contenteditable="plaintext-only"' +
+      ' spellcheck="true"' +
+      ' data-inline-field="' + attr(key) + '"' +
+      (singleLine ? ' data-inline-single="true"' : '') +
+      ' data-placeholder="' + attr(placeholder || 'Scrivi qui…') + '">' +
+      esc(value || '') +
+      '</div>';
+  }
+
+  function inlineSectionText(index, key, value, className, placeholder, singleLine = false) {
+    return '<div class="' + className + ' direct-editable' + (!String(value || '').trim() ? ' is-empty' : '') + '"' +
+      ' contenteditable="plaintext-only"' +
+      ' spellcheck="true"' +
+      ' data-inline-field="section:' + index + ':' + attr(key) + '"' +
+      (singleLine ? ' data-inline-single="true"' : '') +
+      ' data-placeholder="' + attr(placeholder || 'Scrivi qui…') + '">' +
+      esc(value || '') +
+      '</div>';
+  }
+
+  function compactSettings(title, body) {
+    return '<details class="editor-compact-settings">' +
+      '<summary><span>⚙</span><strong>' + esc(title) + '</strong><small>slug, ID, API e metadati</small></summary>' +
+      '<div class="catalog-editor-fields compact">' + body + '</div>' +
+    '</details>';
   }
 
   function text(label, key, value, hint) {
@@ -133,7 +186,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   function apiPolicy(item) {
     const raw = item.api && typeof item.api.publicRead === 'boolean' ? String(item.api.publicRead) : 'inherit';
-    return '<label class="editor-field"><span>Accesso API</span><select data-api-policy><option value="inherit"' + (raw === 'inherit' ? ' selected' : '') + '>Eredita</option><option value="true"' + (raw === 'true' ? ' selected' : '') + '>Pubblico</option><option value="false"' + (raw === 'false' ? ' selected' : '') + '>Privato</option></select><small>Eredita dal genitore oppure restringe questo livello. Un genitore privato blocca sempre i discendenti.</small></label>';
+    return '<label class="editor-field"><span>Accesso API</span><select data-api-policy><option value="inherit"' + (raw === 'inherit' ? ' selected' : '') + '>Eredita</option><option value="true"' + (raw === 'true' ? ' selected' : '') + '>Pubblico</option><option value="false"' + (raw === 'false' ? ' selected' : '') + '>Privato</option></select><small>Eredita dal genitore oppure restringe questo livello.</small></label>';
   }
 
   function lessonSources(lesson) {
@@ -197,49 +250,73 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   function sections(topic) {
     const list = topic.sections || [];
-    let html = '<div class="editor-field editor-field-wide"><div class="field-heading"><label>Sezioni</label><span>' + list.length + '</span></div><div class="editor-sections">';
+    let html = '<section class="direct-sections"><div class="direct-sections-head"><div><span class="eyebrow">Contenuto</span><h3>Sezioni</h3></div><span>' + list.length + '</span></div><div class="editor-sections direct">';
+
     list.forEach((section, i) => {
-      html += '<article class="editor-section-card"><div class="editor-section-head"><select data-section-type="' + i + '">';
+      html += '<article class="editor-section-card direct-section-card">' +
+        '<div class="direct-section-toolbar">' +
+          '<span class="direct-section-kind">' + esc(section.type || 'section') + '</span>' +
+          '<details class="section-options"><summary aria-label="Opzioni sezione">•••</summary><div class="section-options-popover">' +
+            '<label><span>Tipo</span><select data-section-type="' + i + '">';
+
       ['lead','concept','text','example','callout','formula','image','video','gallery','embed','flow','comparison','list','checkpoint'].forEach(type => {
         html += '<option value="' + type + '"' + (section.type === type ? ' selected' : '') + '>' + type + '</option>';
       });
-      html += '</select><button class="editor-mini-danger" type="button" data-delete-section="' + i + '">Elimina</button></div>';
+
+      html += '</select></label><button class="editor-mini-danger" type="button" data-delete-section="' + i + '">Elimina sezione</button></div></details></div>';
+
       if (section.type === 'checkpoint') {
-        html += text('Domanda', 'section:' + i + ':question', section.question || '') + md('Risposta', 'section:' + i + ':answer', section.answer || '');
+        html += '<div class="direct-checkpoint"><span class="direct-content-label">Checkpoint</span>' +
+          inlineSectionText(i, 'question', section.question || '', 'direct-section-question', 'Scrivi la domanda…') +
+          '<span class="direct-content-label answer">Risposta</span>' +
+          inlineSectionText(i, 'answer', section.answer || '', 'direct-section-body', 'Scrivi la risposta…') +
+        '</div>';
       } else if (section.type === 'formula') {
-        html += text('Titolo', 'section:' + i + ':title', section.title || '') + text('LaTeX', 'section:' + i + ':latex', section.latex || section.body || '') + md('Nota', 'section:' + i + ':note', section.note || '');
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo della formula', true) +
+          '<div class="formula-inline-settings">' + text('LaTeX', 'section:' + i + ':latex', section.latex || section.body || '') + '</div>' +
+          inlineSectionText(i, 'note', section.note || '', 'direct-section-body', 'Spiega la formula…');
       } else if (section.type === 'image') {
-        html += mediaRefSelect(section, i, 'image') +
-          text('URL immagine', 'section:' + i + ':url', section.url || section.src || '', 'Se non scegli un mediaRef, questo URL verrà registrato automaticamente nella libreria media') +
-          text('Titolo', 'section:' + i + ':title', section.title || '') +
-          text('Alt', 'section:' + i + ':alt', section.alt || '') +
-          text('Didascalia', 'section:' + i + ':caption', section.caption || '') +
-          text('Fonte originale', 'section:' + i + ':sourceUrl', section.sourceUrl || '') +
-          text('Credito', 'section:' + i + ':credit', section.credit || '') +
-          text('Licenza', 'section:' + i + ':license', section.license || '');
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo immagine', true) +
+          '<div class="media-direct-preview">' + mediaRefSelect(section, i, 'image') +
+            text('URL immagine', 'section:' + i + ':url', section.url || section.src || '', 'Oppure incolla un URL HTTPS') +
+          '</div>' +
+          inlineSectionText(i, 'caption', section.caption || '', 'direct-section-body', 'Didascalia…') +
+          compactSectionMeta(i, section, 'image');
       } else if (section.type === 'video') {
-        html += mediaRefSelect(section, i, 'video') +
-          text('URL video', 'section:' + i + ':url', section.url || '', 'YouTube, Vimeo o file video diretto HTTPS') +
-          text('Titolo', 'section:' + i + ':title', section.title || '') +
-          text('Didascalia', 'section:' + i + ':caption', section.caption || '') +
-          text('Thumbnail', 'section:' + i + ':thumbnailUrl', section.thumbnailUrl || '') +
-          text('Fonte originale', 'section:' + i + ':sourceUrl', section.sourceUrl || '') +
-          text('Autore / credito', 'section:' + i + ':credit', section.credit || '') +
-          text('Licenza', 'section:' + i + ':license', section.license || '');
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo video', true) +
+          '<div class="media-direct-preview">' + mediaRefSelect(section, i, 'video') +
+            text('URL video', 'section:' + i + ':url', section.url || '', 'YouTube, Vimeo o video HTTPS') +
+          '</div>' +
+          inlineSectionText(i, 'caption', section.caption || '', 'direct-section-body', 'Didascalia…') +
+          compactSectionMeta(i, section, 'video');
       } else if (section.type === 'gallery') {
-        html += text('Titolo', 'section:' + i + ':title', section.title || '') +
-          textarea('MediaRef', 'section:' + i + ':items', Array.isArray(section.items) ? section.items.map(item => typeof item === 'string' ? item : (item.mediaRef || item.url || '')).join('\n') : '', 'Uno per riga. Puoi usare ID della libreria media o URL HTTPS.') +
-          text('Didascalia', 'section:' + i + ':caption', section.caption || '');
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo galleria', true) +
+          '<details class="inline-meta-details"><summary>Media della galleria</summary>' +
+            textarea('MediaRef / URL', 'section:' + i + ':items', Array.isArray(section.items) ? section.items.map(item => typeof item === 'string' ? item : (item.mediaRef || item.url || '')).join('\n') : '', 'Uno per riga') +
+          '</details>' +
+          inlineSectionText(i, 'caption', section.caption || '', 'direct-section-body', 'Didascalia…');
       } else if (section.type === 'embed') {
-        html += text('Titolo', 'section:' + i + ':title', section.title || '') +
-          text('URL', 'section:' + i + ':url', section.url || '') +
-          md('Nota', 'section:' + i + ':body', section.body || '');
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo risorsa', true) +
+          '<details class="inline-meta-details"><summary>Link della risorsa</summary>' + text('URL', 'section:' + i + ':url', section.url || '') + '</details>' +
+          inlineSectionText(i, 'body', section.body || '', 'direct-section-body', 'Nota sulla risorsa…');
       } else {
-        html += text('Titolo', 'section:' + i + ':title', section.title || '') + md('Contenuto', 'section:' + i + ':body', section.body || '');
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo sezione', true) +
+          inlineSectionText(i, 'body', section.body || '', 'direct-section-body', 'Scrivi direttamente il contenuto…');
       }
+
       html += '</article>';
     });
-    return html + '</div></div>';
+
+    return html + '</div></section>';
+  }
+
+  function compactSectionMeta(index, section, type) {
+    return '<details class="inline-meta-details"><summary>Crediti e metadati</summary><div class="catalog-editor-fields compact">' +
+      (type === 'image' ? text('Alt text', 'section:' + index + ':alt', section.alt || '') : text('Thumbnail', 'section:' + index + ':thumbnailUrl', section.thumbnailUrl || '')) +
+      text('Fonte originale', 'section:' + index + ':sourceUrl', section.sourceUrl || '') +
+      text('Credito', 'section:' + index + ':credit', section.credit || '') +
+      text('Licenza', 'section:' + index + ':license', section.license || '') +
+    '</div></details>';
   }
 
   function bind() {
@@ -252,6 +329,37 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       };
       render();
     }));
+
+    container.querySelectorAll('[data-inline-field]').forEach(editable => {
+      const sync = () => {
+        const value = editable.innerText.replace(/\u00a0/g, ' ');
+        set(editable.dataset.inlineField, value);
+        editable.classList.toggle('is-empty', !value.trim());
+
+        if (editable.dataset.inlineField === 'title') {
+          const activeLabel = container.querySelector('.catalog-tree-item.active span:last-child');
+          if (activeLabel) activeLabel.textContent = value.trim() || 'Senza titolo';
+          const treeHeading = container.querySelector('.catalog-editor-tree-head strong');
+          if (selection.type === 'catalog' && treeHeading) treeHeading.textContent = value.trim() || 'Catalogo';
+        }
+
+        emit();
+      };
+
+      editable.addEventListener('input', sync);
+      editable.addEventListener('blur', sync);
+      editable.addEventListener('keydown', event => {
+        if (editable.dataset.inlineSingle === 'true' && event.key === 'Enter') {
+          event.preventDefault();
+          editable.blur();
+        }
+      });
+      editable.addEventListener('paste', event => {
+        event.preventDefault();
+        const plain = event.clipboardData?.getData('text/plain') || '';
+        document.execCommand('insertText', false, plain);
+      });
+    });
 
     container.querySelectorAll('[data-field]').forEach(input => input.addEventListener('input', () => {
       set(input.dataset.field, input.value);
