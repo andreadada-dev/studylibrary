@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/api/v1/schema/lesson",
+  "title": "StudyLibrary Lesson",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "slug",
+    "title",
+    "modules",
+    "topics",
+    "sources"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": [
+        "integer",
+        "number"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "publicRead": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "topicIds"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "topicIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "topics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "/api/v1/schema/topic"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
