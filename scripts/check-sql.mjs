@@ -103,13 +103,69 @@ function lexicalCheck(source) {
       continue;
     }
 
-    if (char === '$') {
+    if (char === '
+
+    if (char === '(' || char === '[') {
+      stack.push({ char, line });
+    } else if (char === ')' || char === ']') {
+      const expected = char === ')' ? '(' : '[';
+      const open = stack.pop();
+      if (!open || open.char !== expected) {
+        errors.push('Unbalanced ' + char + ' at line ' + line);
+      }
+    }
+
+    advance(char);
+  }
+
+  if (state === 'single-quote') errors.push('Unterminated single-quoted string near line ' + line);
+  if (state === 'dollar-quote') errors.push('Unterminated dollar quote ' + dollarTag + ' near line ' + line);
+  if (state === 'block-comment') errors.push('Unterminated block comment near line ' + line);
+
+  for (const open of stack.reverse()) {
+    errors.push('Unclosed ' + open.char + ' opened at line ' + open.line);
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+) {
       const match = source.slice(i).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
       if (match) {
         dollarTag = match[0];
         for (let count = 0; count < dollarTag.length; count += 1) advance(source[i]);
         state = 'dollar-quote';
         continue;
+      }
+
+      const prev = source[i - 1] || '';
+      const after = source[i + 1] || '';
+      if (/\s/.test(prev) || /[;\s]/.test(after) || i === 0) {
+        errors.push('Suspicious naked $ at line ' + line + '; PostgreSQL dollar quotes must be $ or $tag
+
+    if (char === '(' || char === '[') {
+      stack.push({ char, line });
+    } else if (char === ')' || char === ']') {
+      const expected = char === ')' ? '(' : '[';
+      const open = stack.pop();
+      if (!open || open.char !== expected) {
+        errors.push('Unbalanced ' + char + ' at line ' + line);
+      }
+    }
+
+    advance(char);
+  }
+
+  if (state === 'single-quote') errors.push('Unterminated single-quoted string near line ' + line);
+  if (state === 'dollar-quote') errors.push('Unterminated dollar quote ' + dollarTag + ' near line ' + line);
+  if (state === 'block-comment') errors.push('Unterminated block comment near line ' + line);
+
+  for (const open of stack.reverse()) {
+    errors.push('Unclosed ' + open.char + ' opened at line ' + open.line);
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+);
       }
     }
 
