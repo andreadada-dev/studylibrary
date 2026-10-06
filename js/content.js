@@ -130,7 +130,7 @@ export function catalogStats(catalog) {
     }
   }
 
-  return { libraries, lessons, topics, minutes };
+  return { libraries, lessons, topics, minutes, media: catalog?.media?.length || 0 };
 }
 
 export function validateCatalog(catalog) {
