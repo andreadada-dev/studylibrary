@@ -86,7 +86,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         '<div class="direct-editor-copy">' +
           '<span class="eyebrow">' + labels[selection.type] + '</span>' +
           inlineText('title', item.title || item.id || labels[selection.type], 'direct-editor-title', 'Titolo', true) +
-          inlineText('description', item.description || '', 'direct-editor-description', 'Aggiungi una descrizione…') +
+          (selection.type === 'topic' ? '' : inlineText('description', item.description || '', 'direct-editor-description', 'Aggiungi una descrizione…')) +
         '</div>' +
         '<div class="toolbar-actions">' + add + del + '</div>' +
       '</header>' +
