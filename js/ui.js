@@ -241,8 +241,18 @@ export function renderSection(section, context = null) {
     }
     case 'flow':
       return `<section class="lesson-section">${title}<div class="flow-diagram">${(section.nodes || []).map((n, idx) => `${idx ? '<span class="flow-arrow">→</span>' : ''}<div class="flow-node">${escapeHtml(typeof n === 'string' ? n : n.label)}</div>`).join('')}</div>${section.body ? paragraphs(section.body) : ''}</section>`;
-    case 'comparison':
-      return `<section class="lesson-section">${title}<div class="comparison"><div><h4>${escapeHtml(section.left?.title || '')}</h4><p>${escapeHtml(section.left?.body || '')}</p></div><div><h4>${escapeHtml(section.right?.title || '')}</h4><p>${escapeHtml(section.right?.body || '')}</p></div></div></section>`;
+    case 'comparison': {
+      const hasStructuredSides = Boolean(
+        section.left?.title || section.left?.body ||
+        section.right?.title || section.right?.body
+      );
+
+      if (!hasStructuredSides && section.body) {
+        return `<section class="lesson-section">${title}<div class="comparison comparison-body"><div>${paragraphs(section.body)}</div></div></section>`;
+      }
+
+      return `<section class="lesson-section">${title}<div class="comparison"><div><h4>${escapeHtml(section.left?.title || '')}</h4>${paragraphs(section.left?.body || '')}</div><div><h4>${escapeHtml(section.right?.title || '')}</h4>${paragraphs(section.right?.body || '')}</div></div></section>`;
+    }
     case 'checkpoint':
       return `<section class="checkpoint"><span class="label">Checkpoint</span><h3>${escapeHtml(section.question)}</h3><button class="button secondary" data-reveal>Mostra risposta</button><div class="checkpoint-answer">${paragraphs(section.answer)}</div></section>`;
     case 'list':
