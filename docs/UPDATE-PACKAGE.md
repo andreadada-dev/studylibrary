@@ -198,3 +198,58 @@ Quando chiedi a ChatGPT di aggiornare StudyLibrary puoi usare una richiesta del 
 > Leggi il context pubblico del mio catalogo StudyLibrary e le lezioni necessarie. Analizza queste nuove slide. Restituiscimi un file `studylibrary.update` basato sulla currentVersion corrente, aggiungendo soltanto le nuove lezioni/topic e le connessioni utili con ciò che esiste già.
 
 In questo modo il modello non deve rigenerare l'intero catalogo e il merge rimane verificabile.
+
+
+## Media negli update package
+
+Non è necessaria un'operazione separata per registrare immagini/video.
+
+Un `upsertTopic` può includere media inline:
+
+```json
+{
+  "op": "upsertTopic",
+  "library": "computer-vision",
+  "lesson": "lesson-04",
+  "value": {
+    "id": "gaussian-filter",
+    "title": "Gaussian Filter",
+    "summary": "...",
+    "why": "...",
+    "learningGoals": ["..."],
+    "estimatedMinutes": 10,
+    "prerequisites": ["convolution"],
+    "sections": [
+      {
+        "type": "image",
+        "url": "https://example.org/gaussian-kernel.png",
+        "alt": "Kernel gaussiano visualizzato come superficie 3D",
+        "caption": "I pesi diminuiscono allontanandosi dal centro.",
+        "sourceUrl": "https://example.org/source",
+        "license": "CC BY 4.0"
+      },
+      {
+        "type": "video",
+        "url": "https://www.youtube.com/watch?v=...",
+        "title": "Gaussian smoothing visualizzato",
+        "sourceUrl": "https://www.youtube.com/watch?v=..."
+      },
+      {
+        "type": "checkpoint",
+        "question": "...?",
+        "answer": "..."
+      }
+    ],
+    "connections": [],
+    "sources": [
+      {
+        "ref": "slides-04",
+        "pages": "8–13",
+        "note": "..."
+      }
+    ]
+  }
+}
+```
+
+Al salvataggio gli URL media vengono automaticamente estratti nel registry del catalogo e convertiti in `mediaRef`.
