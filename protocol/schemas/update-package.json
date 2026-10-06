@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/api/v1/schema/update-package",
+  "title": "StudyLibrary Update Package",
+  "type": "object",
+  "required": [
+    "kind",
+    "schemaVersion",
+    "catalog",
+    "baseVersion",
+    "operations"
+  ],
+  "properties": {
+    "kind": {
+      "const": "studylibrary.update"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalog": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "message": {
+      "type": "string",
+      "maxLength": 240
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "op"
+        ],
+        "properties": {
+          "op": {
+            "enum": [
+              "upsertLesson",
+              "removeLesson",
+              "upsertTopic",
+              "removeTopic",
+              "addConnection",
+              "removeConnection"
+            ]
+          },
+          "library": {
+            "type": "string"
+          },
+          "lesson": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "moduleTitle": {
+            "type": "string"
+          },
+          "value": {
+            "type": "object"
+          },
+          "connection": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}
