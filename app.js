@@ -432,9 +432,42 @@ function applyUpdatePackage(baseCatalog, update) {
   if (!operations.length) throw new Error('Il pacchetto non contiene operazioni.');
 
   const findLibraryForOp = op => {
-    const library = (catalog.libraries || []).find(item => item.slug === op.library || item.id === op.library);
-    if (!library) throw new Error('Libreria non trovata: ' + (op.library || ''));
-    return library;
+    const libraries = catalog.libraries || [];
+    const requested = String(op.library || '').trim();
+
+    let library = libraries.find(item => item.slug === requested || item.id === requested);
+    if (library) return library;
+
+    const normalizeKey = value => String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    const normalizedRequested = normalizeKey(requested);
+    if (normalizedRequested) {
+      library = libraries.find(item =>
+        normalizeKey(item.slug) === normalizedRequested ||
+        normalizeKey(item.id) === normalizedRequested ||
+        normalizeKey(item.title) === normalizedRequested
+      );
+      if (library) return library;
+    }
+
+    // Update package generated for a catalog with a single library:
+    // if the human-readable library name changed, the target is still unambiguous.
+    if (libraries.length === 1) return libraries[0];
+
+    const available = libraries
+      .map(item => item.slug || item.id || item.title)
+      .filter(Boolean)
+      .join(', ');
+    throw new Error(
+      'Libreria non trovata: ' + requested +
+      (available ? '. Disponibili: ' + available : '')
+    );
   };
 
   const findLessonForOp = op => {
