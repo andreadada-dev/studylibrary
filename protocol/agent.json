@@ -1,6 +1,6 @@
 {
   "protocol": "studylibrary",
-  "protocolVersion": "1.0",
+  "protocolVersion": "1.1",
   "title": "StudyLibrary Agent Protocol",
   "purpose": "Self-describing protocol for reading, auditing and updating structured study knowledge bases.",
   "hierarchy": [
@@ -17,6 +17,7 @@
     "Read /api/v1/catalogs/{catalog}/graph when cross-topic or cross-lesson connections matter.",
     "Fetch only the full lessons/topics needed for the requested change.",
     "Inspect the user's source material (slides, notes, PDFs) and keep source-derived claims distinguishable from external additions.",
+    "When useful, add images or videos as catalog media with provenance metadata and reference them from topic sections by mediaRef.",
     "Prefer a version-aware studylibrary.update package for incremental changes.",
     "Use the catalog currentVersion as baseVersion. Never overwrite blindly.",
     "After applying changes, re-run the audit and verify links, prerequisites, sources and checkpoints."
@@ -70,7 +71,7 @@
       "prerequisites",
       "intuition",
       "concept",
-      "example-visual-comparison-or-formula",
+      "example-media-visual-comparison-or-formula",
       "connections",
       "checkpoint",
       "sources"
@@ -82,7 +83,9 @@
       "Create explicit prerequisites only when they genuinely help the learning path.",
       "Add cross-lesson, cross-library or cross-catalog connections when useful.",
       "Keep checkpoint questions answerable from the topic content.",
-      "Preserve source identifiers and slide/page references."
+      "Preserve source identifiers and slide/page references.",
+      "Use relevant images/videos when they materially improve understanding; do not add decorative media.",
+      "For external media preserve sourceUrl, author/credit and license when known. Never invent license metadata."
     ]
   },
   "sourcePolicy": {
@@ -133,7 +136,45 @@
     "doNotRewriteUnrelatedContent": true,
     "minimizeReads": true,
     "useContextBeforeFullContent": true,
-    "useAuditBeforeAndAfterUpdate": true
+    "useAuditBeforeAndAfterUpdate": true,
+    "relevantMediaEnrichment": true,
+    "preserveMediaProvenance": true
   },
-  "expectedUserPrompt": "Use the StudyLibrary agent instructions from this URL, inspect the catalog agent/context/audit, then use the attached source material to prepare a version-aware update package."
+  "expectedUserPrompt": "Use the StudyLibrary agent instructions from this URL, inspect the catalog agent/context/audit, then use the attached source material to prepare a version-aware update package.",
+  "media": {
+    "registry": "catalog.media",
+    "supportedAssets": [
+      "image",
+      "video"
+    ],
+    "supportedSections": [
+      "image",
+      "video",
+      "gallery",
+      "embed"
+    ],
+    "preferredReference": "mediaRef",
+    "inlineLinksAllowed": true,
+    "automaticNormalization": "Inline image/video URLs are deduplicated into catalog.media when the catalog is saved.",
+    "videoProviders": [
+      "youtube",
+      "vimeo",
+      "direct",
+      "link"
+    ],
+    "provenance": [
+      "sourceUrl",
+      "author",
+      "credit",
+      "license",
+      "provider"
+    ],
+    "rules": [
+      "Prefer HTTPS URLs.",
+      "Images should have meaningful alt text.",
+      "Use YouTube/Vimeo embeds only through the renderer's trusted provider handling.",
+      "Generic external resources are links, never arbitrary iframes.",
+      "Do not claim a media license unless the source supports it."
+    ]
+  }
 }
