@@ -1063,7 +1063,7 @@ async function renderStudio() {
         '<textarea class="json-editor studio-json-advanced" data-json-editor spellcheck="false" aria-label="Editor JSON" hidden></textarea>' +
         '<input data-file type="file" accept="application/json,.json" hidden />' +
       '</section>' +
-      '<aside class="studio-side"><div data-validation></div><div data-preview></div><div class="schema-list"><div class="schema-item"><strong>Markdown</strong><span>Descrizioni, riassunti, spiegazioni e risposte supportano formattazione Markdown.</span></div><div class="schema-item"><strong>Struttura</strong><span>Usa la colonna a sinistra per spostarti tra catalogo, librerie, lezioni e argomenti.</span></div><div class="schema-item"><strong>JSON avanzato</strong><span>Per fonti, connessioni e proprietà speciali puoi sempre intervenire sul JSON completo.</span></div></div></aside>' +
+      '<aside class="studio-side"><div data-validation></div><div data-preview></div><div class="schema-list"><div class="schema-item"><strong>Markdown</strong><span>Descrizioni, riassunti, spiegazioni e risposte supportano formattazione Markdown.</span></div><div class="schema-item"><strong>Media</strong><span>Immagini e video via URL vengono registrati automaticamente nel catalogo e riutilizzati con mediaRef.</span></div><div class="schema-item"><strong>Struttura</strong><span>Usa la colonna a sinistra per spostarti tra catalogo, librerie, lezioni e argomenti.</span></div><div class="schema-item"><strong>JSON avanzato</strong><span>Per proprietà speciali puoi sempre intervenire sul JSON completo.</span></div></div></aside>' +
     '</div>' +
   '</div>';
 
@@ -1080,7 +1080,7 @@ async function renderStudio() {
       ? '<div class="validation ok">● Schema valido</div>'
       : '<div class="validation error">● ' + result.errors.length + ' problemi</div><p class="demo-note">' + result.errors.slice(0, 8).map(escapeHtml).join('<br>') + '</p>';
     const stats = catalogStats(value);
-    previewEl.innerHTML = '<span class="eyebrow">Anteprima</span><h2 class="preview-title">' + escapeHtml(value.title || 'Senza titolo') + '</h2><p class="preview-description">' + escapeHtml(value.description || '') + '</p><div class="tags">' + (value.tags || []).slice(0, 4).map(tag => '<span class="tag">' + escapeHtml(tag) + '</span>').join('') + '</div><p class="demo-note">' + stats.libraries + ' librerie · ' + stats.lessons + ' lezioni · ' + stats.topics + ' argomenti</p>';
+    previewEl.innerHTML = '<span class="eyebrow">Anteprima</span><h2 class="preview-title">' + escapeHtml(value.title || 'Senza titolo') + '</h2><p class="preview-description">' + escapeHtml(value.description || '') + '</p><div class="tags">' + (value.tags || []).slice(0, 4).map(tag => '<span class="tag">' + escapeHtml(tag) + '</span>').join('') + '</div><p class="demo-note">' + stats.libraries + ' librerie · ' + stats.lessons + ' lezioni · ' + stats.topics + ' argomenti · ' + stats.media + ' media</p>';
     return result;
   }
 
@@ -1200,6 +1200,7 @@ function emptyCatalogTemplate() {
     visibility: 'private',
     api: { publicRead: false },
     tags: [],
+    media: [],
     libraries: [
       {
         id: 'library-1',
