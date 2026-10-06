@@ -15,6 +15,7 @@ COPY --from=verify /src/robots.txt /usr/share/nginx/html/robots.txt
 COPY --from=verify /src/sitemap.xml /usr/share/nginx/html/sitemap.xml
 COPY --from=verify /src/js /usr/share/nginx/html/js
 COPY --from=verify /src/data /usr/share/nginx/html/data
+COPY --from=verify /src/protocol /usr/share/nginx/html/protocol
 COPY --from=verify /src/docker-entrypoint-study.sh /docker-entrypoint.d/40-studylibrary-config.sh
 
 RUN chmod +x /docker-entrypoint.d/40-studylibrary-config.sh
