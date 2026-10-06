@@ -15,6 +15,7 @@ Un utente può tenere il proprio catalogo privato oppure pubblicarlo nella Home.
 - **Universo della lezione**, della libreria, del catalogo e Universo totale.
 - Force graph fullscreen con ricerca, zoom, drag, focus e pannello nodo.
 - Editor visuale Markdown + JSON avanzato, import/export, salvataggio privato e pubblicazione.
+- Libreria media per immagini/video: URL inline auto-registrati, `mediaRef`, gallery, YouTube/Vimeo e provenienza delle fonti.
 - Knowledge API pubblica per cataloghi/librerie/lezioni/topic con controllo gerarchico.
 - Self-describing agent protocol su `/api/v1/agent` + audit automatico per catalogo.
 - Versioning automatico, cronologia, ripristino e diff degli import.
@@ -113,7 +114,7 @@ npm test
 npm run ci
 ```
 
-La repository include una GitHub Action che esegue automaticamente syntax check, validazione dei cataloghi JSON e test del modello Catalogo → Libreria → Lezione → Argomento.
+La repository include una GitHub Action che esegue automaticamente syntax check JavaScript, controllo lessicale delle migration SQL, validazione dei cataloghi JSON, test media/protocollo e build Docker/Nginx.
 
 Sono inoltre inclusi:
 
