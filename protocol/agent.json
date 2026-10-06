@@ -1,0 +1,139 @@
+{
+  "protocol": "studylibrary",
+  "protocolVersion": "1.0",
+  "title": "StudyLibrary Agent Protocol",
+  "purpose": "Self-describing protocol for reading, auditing and updating structured study knowledge bases.",
+  "hierarchy": [
+    "catalog",
+    "library",
+    "lesson",
+    "topic"
+  ],
+  "canonicalWorkflow": [
+    "Read /api/v1/agent first.",
+    "Read /api/v1/catalogs/{catalog}/agent to discover the current catalog version and useful endpoints.",
+    "Read /api/v1/catalogs/{catalog}/context to understand existing concepts before creating new ones.",
+    "Read /api/v1/catalogs/{catalog}/audit to see structural and didactic gaps.",
+    "Read /api/v1/catalogs/{catalog}/graph when cross-topic or cross-lesson connections matter.",
+    "Fetch only the full lessons/topics needed for the requested change.",
+    "Inspect the user's source material (slides, notes, PDFs) and keep source-derived claims distinguishable from external additions.",
+    "Prefer a version-aware studylibrary.update package for incremental changes.",
+    "Use the catalog currentVersion as baseVersion. Never overwrite blindly.",
+    "After applying changes, re-run the audit and verify links, prerequisites, sources and checkpoints."
+  ],
+  "endpoints": {
+    "bootstrap": "/api/v1/agent",
+    "wellKnown": "/.well-known/studylibrary.json",
+    "catalogs": "/api/v1/catalogs",
+    "catalog": "/api/v1/catalogs/{catalog}",
+    "catalogAgent": "/api/v1/catalogs/{catalog}/agent",
+    "context": "/api/v1/catalogs/{catalog}/context",
+    "audit": "/api/v1/catalogs/{catalog}/audit",
+    "graph": "/api/v1/catalogs/{catalog}/graph",
+    "versions": "/api/v1/catalogs/{catalog}/versions",
+    "version": "/api/v1/catalogs/{catalog}/versions/{version}",
+    "changes": "/api/v1/catalogs/{catalog}/changes/{version}",
+    "libraries": "/api/v1/catalogs/{catalog}/libraries",
+    "library": "/api/v1/catalogs/{catalog}/libraries/{library}",
+    "lessons": "/api/v1/catalogs/{catalog}/libraries/{library}/lessons",
+    "lesson": "/api/v1/catalogs/{catalog}/libraries/{library}/lessons/{lesson}",
+    "topics": "/api/v1/catalogs/{catalog}/libraries/{library}/lessons/{lesson}/topics",
+    "topic": "/api/v1/catalogs/{catalog}/libraries/{library}/lessons/{lesson}/topics/{topic}",
+    "write": "/api/v1/write"
+  },
+  "schemas": {
+    "catalog": "/api/v1/schema/catalog",
+    "lesson": "/api/v1/schema/lesson",
+    "topic": "/api/v1/schema/topic",
+    "updatePackage": "/api/v1/schema/update-package"
+  },
+  "publicationModel": {
+    "homeVisibility": "is_public / visibility controls whether a catalog appears in the public Home.",
+    "apiVisibility": "api.publicRead controls whether the catalog can be read from the public Knowledge API.",
+    "independent": true,
+    "inheritance": "Libraries, lessons and topics inherit API visibility unless they set api.publicRead. A private parent always hides descendants."
+  },
+  "topicRequirements": {
+    "requiredFields": [
+      "id",
+      "title",
+      "summary",
+      "why",
+      "learningGoals",
+      "sections",
+      "sources"
+    ],
+    "mustContainCheckpoint": true,
+    "mustHaveSource": true,
+    "recommendedDidacticOrder": [
+      "why-it-matters",
+      "prerequisites",
+      "intuition",
+      "concept",
+      "example-visual-comparison-or-formula",
+      "connections",
+      "checkpoint",
+      "sources"
+    ],
+    "guidance": [
+      "Do not turn slides into a verbatim transcription.",
+      "Build explanations progressively from intuition to formal detail.",
+      "Reuse an existing topic when the concept already exists instead of duplicating it.",
+      "Create explicit prerequisites only when they genuinely help the learning path.",
+      "Add cross-lesson, cross-library or cross-catalog connections when useful.",
+      "Keep checkpoint questions answerable from the topic content.",
+      "Preserve source identifiers and slide/page references."
+    ]
+  },
+  "sourcePolicy": {
+    "preserveProfessorTerminology": true,
+    "doNotInventSourceClaims": true,
+    "externalResearchAllowed": true,
+    "externalResearchMustBeDistinguished": true,
+    "preserveSlideOrPageReferences": true,
+    "ifSourceDoesNotSupportClaim": "Mark it as an external explanation/inference or omit it."
+  },
+  "connectionTypes": [
+    "requires",
+    "enables",
+    "uses",
+    "related",
+    "contrasts",
+    "motivates",
+    "applies-to"
+  ],
+  "updateStrategy": {
+    "preferred": "studylibrary.update",
+    "schema": "/api/v1/schema/update-package",
+    "supportedOperations": [
+      "upsertLesson",
+      "removeLesson",
+      "upsertTopic",
+      "removeTopic",
+      "addConnection",
+      "removeConnection"
+    ],
+    "concurrency": "Always use baseVersion equal to the catalog currentVersion from /agent. A mismatch means the update must be regenerated or manually reconciled.",
+    "importFlow": [
+      "validate baseVersion",
+      "apply operations to a copy",
+      "validate resulting catalog",
+      "show diff",
+      "ask user confirmation",
+      "save",
+      "create immutable new version"
+    ]
+  },
+  "agentPolicy": {
+    "preferExistingTopicsOverDuplicates": true,
+    "crossLessonConnections": true,
+    "crossLibraryConnections": true,
+    "crossCatalogConnections": true,
+    "doNotDeleteWithoutExplicitReason": true,
+    "doNotRewriteUnrelatedContent": true,
+    "minimizeReads": true,
+    "useContextBeforeFullContent": true,
+    "useAuditBeforeAndAfterUpdate": true
+  },
+  "expectedUserPrompt": "Use the StudyLibrary agent instructions from this URL, inspect the catalog agent/context/audit, then use the attached source material to prepare a version-aware update package."
+}
