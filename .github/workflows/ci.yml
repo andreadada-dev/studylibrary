@@ -24,4 +24,18 @@ jobs:
         run: docker build -t studylibrary-ci .
       - name: Validate runtime Nginx configuration
         run: |
-          docker run --rm             -e SUPABASE_URL=http://127.0.0.1:9             -e SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci             -e APP_URL=http://localhost             studylibrary-ci nginx -t
+          docker run --rm \
+            -e SUPABASE_URL=http://127.0.0.1:9 \
+            -e SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci \
+            -e APP_URL=http://localhost \
+            studylibrary-ci nginx -t
+      - name: Verify protocol files are shipped
+        run: |
+          docker run --rm studylibrary-ci sh -c '
+            test -f /usr/share/nginx/html/protocol/agent.json &&
+            test -f /usr/share/nginx/html/protocol/schemas/catalog.json &&
+            test -f /usr/share/nginx/html/protocol/schemas/lesson.json &&
+            test -f /usr/share/nginx/html/protocol/schemas/topic.json &&
+            test -f /usr/share/nginx/html/protocol/schemas/update-package.json
+          '
+
