@@ -1053,7 +1053,7 @@ async function renderStudio() {
 
   app.innerHTML = '<div class="studio-page">' +
     '<section class="studio-topbar">' +
-      '<div><span class="eyebrow">Editor</span><h1>Modifica il catalogo</h1><p class="demo-note">Editor visuale Markdown basato su EasyMDE. Il JSON resta disponibile come modalità avanzata.</p></div>' +
+      '<div><span class="eyebrow">Editor</span><h1>Modifica il catalogo</h1><p class="demo-note">Clicca direttamente su titoli, descrizioni e contenuti per modificarli. Slug, ID e impostazioni tecniche restano raccolti nei pannelli avanzati.</p></div>' +
       '<div class="toolbar-actions studio-save-actions"><input class="version-message-input" data-version-message maxlength="240" placeholder="Nota versione (opzionale)" aria-label="Nota versione"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa JSON</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva privato</button><button class="button accent" data-publish>Pubblica</button></div>' +
     '</section>' +
     '<div class="studio-tabs" role="tablist"><button class="active" type="button" data-studio-tab="visual">Visuale</button><button type="button" data-studio-tab="json">JSON avanzato</button></div>' +
