@@ -1,5 +1,4 @@
 import { mediaAssetId, detectMediaType, detectVideoProvider, videoThumbnailUrl } from './media.js';
-import { showModal, closeModal } from './ui.js';
 
 export function mountCatalogEditor(container, initialCatalog, options = {}) {
   let catalog = structuredClone(initialCatalog);
@@ -241,6 +240,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     let html = '<section class="compact-collection media-library-editor">' +
       '<div class="compact-collection-head media-collection-head"><div><span class="eyebrow">Media</span><h3>Libreria media</h3><p>Aggiungi immagini e video con una procedura guidata. Nessun elemento vuoto viene creato.</p></div>' +
       '<div class="media-library-actions"><button class="button secondary compact-add-button" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary compact-add-button" type="button" data-add-media="video">＋ Video</button></div></div>' +
+      '<div class="media-inline-wizard-slot" data-media-wizard-slot aria-live="polite"></div>' +
       '<div class="media-summary-grid">';
 
     assets.forEach((asset, index) => {
@@ -279,6 +279,9 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
   }
 
   function openMediaWizard(type, editIndex = null) {
+    const slot = container.querySelector('[data-media-wizard-slot]');
+    if (!slot) return;
+
     const editing = Number.isInteger(editIndex) && catalog.media?.[editIndex];
     const existing = editing ? catalog.media[editIndex] : null;
     const kind = type === 'video' ? 'video' : 'image';
@@ -296,46 +299,65 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       provider: existing?.provider || '',
       thumbnailUrl: existing?.thumbnailUrl || ''
     };
+
     let step = 0;
     const labels = kind === 'video'
       ? ['Link', 'Dettagli', 'Fonte']
       : ['Link', 'Dettagli', 'Accessibilità'];
 
-    const body =
-      '<div class="media-wizard" data-media-wizard>' +
-        '<div class="media-wizard-progress" aria-label="Avanzamento">' +
-          labels.map((label, index) =>
-            '<button type="button" class="media-wizard-dot' + (index === 0 ? ' active' : '') + '" data-wizard-dot="' + index + '" aria-label="' + esc(label) + '" aria-current="' + (index === 0 ? 'step' : 'false') + '"><span></span><small>' + esc(label) + '</small></button>'
-          ).join('') +
+    slot.innerHTML =
+      '<div class="media-inline-wizard-shell is-opening">' +
+        '<div class="media-inline-wizard-head">' +
+          '<div><span class="eyebrow">' + (editing ? 'Modifica' : 'Nuovo media') + '</span><h4>' +
+            (editing
+              ? (kind === 'video' ? 'Modifica video' : 'Modifica immagine')
+              : (kind === 'video' ? 'Aggiungi video' : 'Aggiungi immagine')) +
+          '</h4></div>' +
+          '<button type="button" class="media-inline-wizard-close" data-wizard-cancel aria-label="Annulla">×</button>' +
         '</div>' +
-        '<div class="media-wizard-viewport">' +
-          '<div class="media-wizard-track" data-wizard-track>' +
-            wizardLinkStep(kind, draft) +
-            wizardDetailsStep(kind, draft) +
-            wizardMetaStep(kind, draft) +
+        '<div class="media-wizard" data-media-wizard>' +
+          '<div class="media-wizard-progress" aria-label="Avanzamento">' +
+            labels.map((label, index) =>
+              '<button type="button" class="media-wizard-dot' + (index === 0 ? ' active' : '') + '" data-wizard-dot="' + index + '" aria-label="' + esc(label) + '" aria-current="' + (index === 0 ? 'step' : 'false') + '"><span></span><small>' + esc(label) + '</small></button>'
+            ).join('') +
           '</div>' +
-        '</div>' +
-        '<p class="media-wizard-error" data-wizard-error aria-live="polite"></p>' +
-        '<div class="media-wizard-footer">' +
-          '<button class="button secondary media-wizard-cancel" type="button" data-wizard-cancel>Annulla</button>' +
-          '<div class="media-wizard-nav">' +
-            '<button class="media-wizard-arrow" type="button" data-wizard-prev aria-label="Passaggio precedente">←</button>' +
-            '<button class="button media-wizard-next" type="button" data-wizard-next>Avanti →</button>' +
+          '<div class="media-wizard-viewport">' +
+            '<div class="media-wizard-track" data-wizard-track>' +
+              wizardLinkStep(kind, draft) +
+              wizardDetailsStep(kind, draft) +
+              wizardMetaStep(kind, draft) +
+            '</div>' +
+          '</div>' +
+          '<p class="media-wizard-error" data-wizard-error aria-live="polite"></p>' +
+          '<div class="media-wizard-footer">' +
+            '<button class="button secondary media-wizard-cancel" type="button" data-wizard-cancel>Annulla</button>' +
+            '<div class="media-wizard-nav">' +
+              '<button class="media-wizard-arrow" type="button" data-wizard-prev aria-label="Passaggio precedente">←</button>' +
+              '<button class="button media-wizard-next" type="button" data-wizard-next>Avanti →</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
       '</div>';
 
-    showModal(editing ? (kind === 'video' ? 'Modifica video' : 'Modifica immagine') : (kind === 'video' ? 'Aggiungi video' : 'Aggiungi immagine'), body, []);
+    const shell = slot.querySelector('.media-inline-wizard-shell');
+    const root = slot.querySelector('[data-media-wizard]');
+    if (!shell || !root) return;
 
-    const root = document.querySelector('[data-media-wizard]');
-    if (!root) return;
-    root.closest('.modal')?.classList.add('media-wizard-modal');
+    requestAnimationFrame(() => shell.classList.remove('is-opening'));
+    slot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     const track = root.querySelector('[data-wizard-track]');
     const error = root.querySelector('[data-wizard-error]');
     const prev = root.querySelector('[data-wizard-prev]');
     const next = root.querySelector('[data-wizard-next]');
     const dots = [...root.querySelectorAll('[data-wizard-dot]')];
+
+    const closeInlineWizard = () => {
+      shell.classList.add('is-closing');
+      window.setTimeout(() => {
+        if (slot.contains(shell)) slot.innerHTML = '';
+      }, 220);
+    };
 
     const syncDraft = () => {
       root.querySelectorAll('[data-wizard-field]').forEach(input => {
@@ -389,6 +411,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         dot.classList.toggle('done', index < step);
         dot.setAttribute('aria-current', active ? 'step' : 'false');
       });
+
       prev.disabled = step === 0;
       prev.classList.toggle('is-hidden', step === 0);
       next.textContent = step === labels.length - 1
@@ -412,7 +435,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     }));
 
     prev.addEventListener('click', () => go(step - 1));
-    root.querySelector('[data-wizard-cancel]').addEventListener('click', closeModal);
+    slot.querySelectorAll('[data-wizard-cancel]').forEach(button => button.addEventListener('click', closeInlineWizard));
 
     next.addEventListener('click', () => {
       if (step < labels.length - 1) {
@@ -434,7 +457,6 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       if (editing) catalog.media[editIndex] = draft;
       else catalog.media.push(draft);
 
-      closeModal();
       emit();
       render();
     });
