@@ -2428,3 +2428,263 @@ body.universe-mode .universe-legend-hint {
     width: min(250px, calc(100vw - 54px));
   }
 }
+
+
+/* Animated compact disclosures
+   Inspired by lightweight vanilla/CSS-grid accordion patterns:
+   keep secondary metadata closed and animate 0fr -> 1fr without measuring height. */
+.editor-disclosure {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--paper);
+  transition:
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    transform 220ms cubic-bezier(.22,1,.36,1);
+}
+.editor-disclosure:hover {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+}
+.editor-disclosure[data-open="true"] {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  box-shadow: 0 10px 32px rgba(28, 25, 60, .055);
+}
+.editor-disclosure-trigger {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 26px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.editor-disclosure-trigger:hover {
+  background: color-mix(in srgb, var(--accent-soft) 34%, transparent);
+}
+.editor-disclosure-trigger:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 52%, transparent);
+}
+.editor-disclosure-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.editor-disclosure-copy strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editor-disclosure-copy small {
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editor-disclosure-chevron {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  justify-self: end;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition:
+    transform 260ms cubic-bezier(.22,1,.36,1),
+    background 180ms ease,
+    color 180ms ease;
+}
+.editor-disclosure[data-open="true"] .editor-disclosure-chevron {
+  transform: rotate(180deg);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.editor-disclosure-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: .45;
+  transform: translateY(-5px);
+  transition:
+    grid-template-rows 280ms cubic-bezier(.22,1,.36,1),
+    opacity 180ms ease,
+    transform 280ms cubic-bezier(.22,1,.36,1);
+}
+.editor-disclosure-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.editor-disclosure[data-open="true"] .editor-disclosure-panel {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.editor-compact-settings {
+  background: color-mix(in srgb, var(--bg) 68%, var(--paper));
+}
+.editor-compact-settings .catalog-editor-fields.compact {
+  padding: 13px;
+  border-top: 1px solid var(--line);
+}
+
+.compact-collection {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+.compact-collection-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.compact-collection-head h3 {
+  margin: 4px 0 0;
+  font-size: 16px;
+  letter-spacing: -.025em;
+}
+.compact-collection-head p {
+  max-width: 610px;
+  margin: 5px 0 0;
+  color: var(--faint);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.compact-add-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+.compact-list {
+  display: grid;
+  gap: 8px;
+}
+.compact-empty {
+  padding: 18px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  color: var(--faint);
+  background: var(--bg);
+  font-size: 10px;
+  text-align: center;
+}
+.media-library-grid.compact-list,
+.lesson-source-list.compact-list {
+  gap: 8px;
+}
+.media-disclosure .editor-disclosure-copy strong::before,
+.source-disclosure .editor-disclosure-copy strong::before {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 7px;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  vertical-align: -4px;
+  font-size: 9px;
+}
+.media-disclosure.is-image .editor-disclosure-copy strong::before {
+  content: "▧";
+}
+.media-disclosure.is-video .editor-disclosure-copy strong::before {
+  content: "▶";
+}
+.source-disclosure .editor-disclosure-copy strong::before {
+  content: "↗";
+}
+.compact-fields {
+  margin: 0 12px 12px;
+  padding: 12px;
+  border: 0 !important;
+  border-top: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.media-editor-fields.compact-fields,
+.lesson-source-row.compact-fields {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+}
+.compact-delete-button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a65a5a;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.compact-delete-button:hover {
+  text-decoration: underline;
+}
+
+.inline-meta-disclosure {
+  margin-top: 10px;
+  background: var(--bg);
+  border-color: var(--line);
+}
+.inline-meta-disclosure .editor-disclosure-trigger {
+  padding: 9px 11px;
+}
+.inline-meta-disclosure .editor-disclosure-copy strong {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.inline-meta-disclosure .catalog-editor-fields.compact {
+  padding: 10px 11px 12px;
+  border-top: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-disclosure,
+  .editor-disclosure-panel,
+  .editor-disclosure-chevron {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .compact-collection-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .media-library-actions {
+    width: 100%;
+    margin: 0;
+  }
+  .compact-add-button {
+    flex: 1;
+  }
+  .media-editor-fields.compact-fields,
+  .lesson-source-row.compact-fields {
+    grid-template-columns: 1fr;
+  }
+  .editor-disclosure-trigger {
+    padding: 11px 12px;
+  }
+}
