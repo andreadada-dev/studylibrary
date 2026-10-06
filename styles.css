@@ -2120,3 +2120,311 @@ body.universe-mode .universe-legend-hint {
     grid-column: auto;
   }
 }
+
+
+/* Direct visual editing */
+.direct-editor-head {
+  margin-bottom: 18px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+.direct-editor-copy {
+  min-width: 0;
+  flex: 1;
+}
+.direct-editable {
+  position: relative;
+  outline: none;
+  border-radius: 8px;
+  transition: background .14s ease, box-shadow .14s ease;
+  cursor: text;
+}
+.direct-editable:hover {
+  background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
+}
+.direct-editable:focus {
+  background: var(--paper);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.direct-editable.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--faint);
+  pointer-events: none;
+}
+.direct-editor-title {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 120px;
+  margin-top: 7px;
+  padding: 2px 5px;
+  font-size: clamp(28px, 3.4vw, 42px);
+  line-height: 1.03;
+  font-weight: 800;
+  letter-spacing: -.055em;
+  color: var(--ink);
+}
+.direct-editor-description {
+  max-width: 760px;
+  min-height: 28px;
+  margin-top: 12px;
+  padding: 5px 6px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.direct-editor-body {
+  display: grid;
+  gap: 24px;
+}
+.direct-topic-intro {
+  display: grid;
+  gap: 18px;
+  padding-bottom: 8px;
+}
+.direct-content-block {
+  display: grid;
+  gap: 7px;
+}
+.direct-content-label {
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.direct-prose {
+  min-height: 42px;
+  padding: 9px 10px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.direct-summary {
+  font-size: 16px;
+  line-height: 1.65;
+  font-weight: 550;
+}
+
+.editor-compact-settings {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--bg) 70%, white);
+}
+.editor-compact-settings > summary {
+  display: grid;
+  grid-template-columns: 18px auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.editor-compact-settings > summary::-webkit-details-marker { display: none; }
+.editor-compact-settings > summary > span {
+  color: var(--faint);
+  font-size: 12px;
+}
+.editor-compact-settings > summary > strong {
+  font-size: 11px;
+}
+.editor-compact-settings > summary > small {
+  justify-self: end;
+  color: var(--faint);
+  font-size: 9px;
+}
+.editor-compact-settings[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+.catalog-editor-fields.compact {
+  padding: 13px;
+}
+.catalog-editor-fields.compact .editor-field {
+  margin: 0;
+}
+
+.direct-sections {
+  display: grid;
+  gap: 12px;
+}
+.direct-sections-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 2px;
+}
+.direct-sections-head h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  letter-spacing: -.025em;
+}
+.direct-sections-head > span {
+  color: var(--faint);
+  font-size: 10px;
+}
+.editor-sections.direct {
+  gap: 18px;
+}
+.editor-section-card.direct-section-card {
+  display: block;
+  position: relative;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+}
+.direct-section-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 22px;
+  margin-bottom: 10px;
+}
+.direct-section-kind {
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.section-options {
+  position: relative;
+}
+.section-options > summary {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 27px;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+.section-options > summary::-webkit-details-marker { display: none; }
+.section-options > summary:hover { background: var(--bg); }
+.section-options-popover {
+  position: absolute;
+  z-index: 30;
+  top: 34px;
+  right: 0;
+  width: 210px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 16px 44px rgba(20,21,28,.14);
+}
+.section-options-popover label {
+  display: grid;
+  gap: 5px;
+}
+.section-options-popover label > span {
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.section-options-popover select {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+}
+
+.direct-section-title {
+  min-height: 31px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 1px 0 8px;
+  padding: 3px 5px;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+.direct-section-body {
+  min-height: 52px;
+  padding: 7px 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.direct-section-question {
+  min-height: 34px;
+  padding: 5px 6px;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.direct-checkpoint {
+  display: grid;
+  gap: 7px;
+}
+.direct-checkpoint .direct-content-label.answer {
+  margin-top: 8px;
+}
+.formula-inline-settings,
+.media-direct-preview {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.inline-meta-details {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.inline-meta-details > summary {
+  padding: 10px 2px 4px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 750;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.inline-meta-details > .editor-field,
+.inline-meta-details > .catalog-editor-fields {
+  margin-top: 9px;
+}
+
+@media (max-width: 720px) {
+  .direct-editor-head {
+    gap: 14px;
+  }
+  .direct-editor-title {
+    font-size: 31px;
+  }
+  .editor-compact-settings > summary {
+    grid-template-columns: 18px 1fr;
+  }
+  .editor-compact-settings > summary > small {
+    display: none;
+  }
+  .editor-section-card.direct-section-card {
+    padding: 17px;
+  }
+  .formula-inline-settings,
+  .media-direct-preview {
+    grid-template-columns: 1fr;
+  }
+  .section-options-popover {
+    right: -4px;
+    width: min(250px, calc(100vw - 54px));
+  }
+}
