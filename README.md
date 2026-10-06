@@ -16,6 +16,7 @@ Un utente può tenere il proprio catalogo privato oppure pubblicarlo nella Home.
 - Force graph fullscreen con ricerca, zoom, drag, focus e pannello nodo.
 - Editor visuale Markdown + JSON avanzato, import/export, salvataggio privato e pubblicazione.
 - Knowledge API pubblica per cataloghi/librerie/lezioni/topic con controllo gerarchico.
+- Self-describing agent protocol su `/api/v1/agent` + audit automatico per catalogo.
 - Versioning automatico, cronologia, ripristino e diff degli import.
 - Google Login via Supabase.
 - Rating e commenti con Row Level Security.
@@ -58,6 +59,8 @@ Sono disponibili:
 Ogni salvataggio significativo crea automaticamente uno snapshot immutabile. Il ripristino crea una nuova versione senza cancellare la cronologia.
 
 Documentazione completa: `docs/API.md`.
+
+Per agent/AI il punto di ingresso canonico è `https://study.ddone.it/api/v1/agent` (anche `/.well-known/studylibrary.json`).
 
 Per aggiornamenti incrementali generati da AI/agent usa il formato version-aware descritto in `docs/UPDATE-PACKAGE.md`.
 
