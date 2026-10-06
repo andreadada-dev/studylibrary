@@ -349,8 +349,13 @@ async function importPersonalFiles(files) {
   }
 }
 
-async function importUpdatePackage(update, filename) {
-  const target = state.remoteCatalogs.find(item =>
+async function prepareUpdatePackageCandidate(update, filename) {
+  if (!state.user || !state.supabase) {
+    toast(isBackendConfigured() ? 'Accedi con Google per applicare un aggiornamento' : 'Configura Supabase per applicare un aggiornamento');
+    return null;
+  }
+
+  const findTarget = catalogs => (catalogs || []).find(item =>
     item?._db?.owner_id === state.user.id &&
     (
       item._db?.id === update.catalog ||
@@ -359,22 +364,28 @@ async function importUpdatePackage(update, filename) {
     )
   );
 
+  let target = findTarget(state.remoteCatalogs);
+  if (!target) {
+    const mine = await fetchMyCatalogs();
+    target = findTarget(mine);
+  }
+
   if (!target) {
     showModal(
       'Catalogo destinazione non trovato',
       '<p>Il pacchetto <strong>' + escapeHtml(filename) + '</strong> richiede il catalogo <code>' + escapeHtml(update.catalog || '') + '</code>.</p>',
       [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
     );
-    return 0;
+    return null;
   }
 
   if (update.baseVersion != null && Number(update.baseVersion) !== Number(target._db?.current_version || 1)) {
     showModal(
       'Conflitto di versione',
-      '<p>Il pacchetto è basato sulla versione <strong>v' + escapeHtml(update.baseVersion) + '</strong>, ma il catalogo è già alla <strong>v' + escapeHtml(target._db?.current_version || 1) + '</strong>.</p><p class="demo-note">Chiedi di rigenerare l’aggiornamento partendo dalla versione corrente per evitare di sovrascrivere modifiche recenti.</p>',
+      '<p>Il pacchetto è basato sulla versione <strong>v' + escapeHtml(update.baseVersion) + '</strong>, ma il catalogo è già alla <strong>v' + escapeHtml(target._db?.current_version || 1) + '</strong>.</p><p class="demo-note">Rigenera l’aggiornamento partendo dalla versione corrente per evitare di sovrascrivere modifiche recenti.</p>',
       [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
     );
-    return 0;
+    return null;
   }
 
   let candidate;
@@ -386,7 +397,7 @@ async function importUpdatePackage(update, filename) {
       '<p>' + escapeHtml(err.message) + '</p>',
       [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
     );
-    return 0;
+    return null;
   }
 
   const validation = validateCatalog(candidate);
@@ -396,9 +407,17 @@ async function importUpdatePackage(update, filename) {
       '<p>Il risultato non rispetta lo schema StudyLibrary.</p><p class="demo-note">' + validation.errors.slice(0, 10).map(escapeHtml).join('<br>') + '</p>',
       [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
     );
-    return 0;
+    return null;
   }
 
+  return { target, candidate };
+}
+
+async function importUpdatePackage(update, filename) {
+  const prepared = await prepareUpdatePackageCandidate(update, filename);
+  if (!prepared) return 0;
+
+  const { target, candidate } = prepared;
   const approved = await confirmCatalogImport(target, candidate, filename);
   if (!approved) return 0;
 
@@ -1178,6 +1197,7 @@ async function renderStudio() {
   setPageMeta('Editor', 'Modifica cataloghi, librerie, lezioni e argomenti con un editor visuale Markdown.');
   let draft = stripRuntimeForEditor(state.activeCatalog || emptyCatalogTemplate());
   let visualEditor = null;
+  let pendingUpdate = null;
 
   app.innerHTML = '<div class="studio-page">' +
     '<section class="studio-topbar">' +
@@ -1262,6 +1282,7 @@ async function renderStudio() {
   app.querySelector('[data-new]').addEventListener('click', () => {
     draft = emptyCatalogTemplate();
     state.activeCatalog = null;
+    pendingUpdate = null;
     rawEditor.value = JSON.stringify(draft, null, 2);
     mountVisual();
     validateAndPreview();
@@ -1272,15 +1293,57 @@ async function renderStudio() {
     const file = fileInput.files?.[0];
     if (!file) return;
     try {
-      draft = normalizeImportedCatalog(JSON.parse(await file.text()), file.name);
+      const parsed = JSON.parse(await file.text());
+
+      if (parsed?.kind === 'studylibrary.update') {
+        const prepared = await prepareUpdatePackageCandidate(parsed, file.name);
+        if (!prepared) return;
+
+        const { target, candidate } = prepared;
+        draft = candidate;
+        state.activeCatalog = target;
+        pendingUpdate = {
+          catalogId: target._db?.id || parsed.catalog,
+          baseVersion: Number(target._db?.current_version || parsed.baseVersion || 1)
+        };
+
+        rawEditor.value = JSON.stringify(draft, null, 2);
+        mountVisual();
+        validateAndPreview();
+
+        if (versionMessageInput) {
+          versionMessageInput.value = String(parsed.message || ('Pacchetto aggiornamento: ' + file.name)).slice(0, 240);
+        }
+
+        const diff = summarizeCatalogDiff(target, candidate);
+        showModal(
+          'Aggiornamento caricato nell’editor',
+          '<div class="import-diff">' +
+            '<p><strong>' + escapeHtml(file.name) + '</strong> è stato riconosciuto come pacchetto <code>studylibrary.update</code> per <strong>' + escapeHtml(target.title || 'catalogo') + '</strong>.</p>' +
+            '<div class="diff-stats">' +
+              '<span><strong>+' + diff.added + '</strong> aggiunti</span>' +
+              '<span><strong>~' + diff.changed + '</strong> modificati</span>' +
+              '<span><strong>−' + diff.removed + '</strong> rimossi</span>' +
+            '</div>' +
+            (diff.samples.length ? '<div class="diff-samples">' + diff.samples.slice(0, 8).map(item => '<code>' + escapeHtml(item) + '</code>').join('') + '</div>' : '') +
+            '<p class="demo-note">L’aggiornamento è solo caricato nell’editor: controllalo e poi usa Salva privato o Pubblica. Prima del salvataggio verrà ricontrollata la versione del catalogo.</p>' +
+          '</div>',
+          [{ label: 'Continua nell’editor', className: 'button', action: closeModal }]
+        );
+        return;
+      }
+
+      pendingUpdate = null;
+      draft = normalizeImportedCatalog(parsed, file.name);
       rawEditor.value = JSON.stringify(draft, null, 2);
       mountVisual();
       validateAndPreview();
       toast('JSON caricato nell’editor');
     } catch (err) {
       toast(err.message);
+    } finally {
+      fileInput.value = '';
     }
-    fileInput.value = '';
   });
 
   app.querySelector('[data-download]').addEventListener('click', () => {
@@ -1300,8 +1363,24 @@ async function renderStudio() {
     if (!result.ok) return toast('Correggi prima gli errori nello schema');
     if (!state.user || !state.supabase) return toast(isBackendConfigured() ? 'Accedi con Google per salvare' : 'Configura Supabase per salvare online');
     try {
+      if (pendingUpdate) {
+        const mineBeforeSave = await fetchMyCatalogs();
+        const current = mineBeforeSave.find(item =>
+          item?._db?.id === pendingUpdate.catalogId ||
+          item.slug === draft.slug ||
+          item.id === draft.id
+        );
+        if (!current) throw new Error('Catalogo destinazione non trovato prima del salvataggio');
+
+        const currentVersion = Number(current._db?.current_version || 1);
+        if (currentVersion !== Number(pendingUpdate.baseVersion)) {
+          throw new Error('Conflitto di versione: il catalogo è passato da v' + pendingUpdate.baseVersion + ' a v' + currentVersion + '. Ricarica il pacchetto prima di salvare.');
+        }
+      }
+
       const versionMessage = versionMessageInput?.value.trim() || (publish ? 'Pubblicazione dall’editor' : 'Salvataggio editor');
       await saveCatalog(draft, publish, versionMessage);
+      pendingUpdate = null;
       if (publish) await fetchPublicCatalogs();
       const mine = await fetchMyCatalogs();
       state.activeCatalog = mine.find(item => item.slug === draft.slug) || null;
