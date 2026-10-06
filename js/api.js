@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { state, isBackendConfigured } from './state.js';
+import { prepareCatalogMedia } from './media.js';
 
 export async function initBackend() {
   if (!isBackendConfigured()) return null;
@@ -127,7 +128,7 @@ function catalogIdentity(catalog) {
 export async function saveCatalog(catalog, publish = false, versionMessage = '') {
   if (!state.supabase || !state.user) throw new Error('Accedi per salvare o pubblicare');
 
-  const cleanCatalog = stripRuntimeFields(catalog);
+  const cleanCatalog = stripRuntimeFields(prepareCatalogMedia(catalog));
   cleanCatalog.visibility = publish ? 'public' : 'private';
 
   const payload = {
