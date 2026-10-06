@@ -276,7 +276,7 @@ function renderPersonalCatalogTree(catalog) {
       '<div><span class="eyebrow">' + escapeHtml(catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</span><h3>' + escapeHtml(catalog.title) + '</h3><p>' + escapeHtml(catalog.description || '') + '</p></div>' +
       '<div class="personal-catalog-actions"><a href="#/catalog/' + encodeURIComponent(ref) + '">Apri</a><a href="#/catalog/' + encodeURIComponent(ref) + '/universe">Universo</a><button type="button" data-edit-personal="' + escapeHtml(ref) + '">Modifica</button></div>' +
     '</header>' +
-    '<div class="personal-catalog-stats"><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span><span>' + stats.topics + ' argomenti</span><span>v' + (catalog._db?.current_version || 1) + '</span><span>API ' + (catalog._db?.api_public ? 'pubblica' : 'privata') + '</span></div>' +
+    '<div class="personal-catalog-stats"><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span><span>' + stats.topics + ' argomenti</span><span>' + stats.media + ' media</span><span>v' + (catalog._db?.current_version || 1) + '</span><span>API ' + (catalog._db?.api_public ? 'pubblica' : 'privata') + '</span></div>' +
     '<div class="personal-library-tree">' +
       (catalog.libraries || []).map(library =>
         '<section class="personal-library">' +
@@ -608,6 +608,7 @@ function normalizeImportedCatalog(value, filename = 'catalogo.json') {
       language: 'it',
       visibility: 'private',
       tags: [],
+    media: [],
       libraries: [{
         id: base + '-library',
         slug: base,
@@ -671,6 +672,7 @@ async function renderCatalog(catalogSlug) {
         '<div><strong>' + stats.libraries + '</strong><span>librerie</span></div>' +
         '<div><strong>' + stats.lessons + '</strong><span>lezioni</span></div>' +
         '<div><strong>' + stats.topics + '</strong><span>argomenti</span></div>' +
+        '<div><strong>' + stats.media + '</strong><span>media</span></div>' +
         '<div><strong>' + (catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</strong><span>Home</span></div>' +
         '<div><strong>' + (catalog._db?.api_public ? 'Pubblica' : 'Privata') + '</strong><span>API</span></div>' +
         '<div><strong>v' + (catalog._db?.current_version || 1) + '</strong><span>versione</span></div>' +
