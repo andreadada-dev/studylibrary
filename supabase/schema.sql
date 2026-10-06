@@ -1424,6 +1424,109 @@ begin
 end;
 $$;
 
+create or replace function public.api_context(p_catalog jsonb)
+returns jsonb
+language plpgsql
+immutable
+as $
+declare
+  filtered jsonb := public.api_filter_catalog(p_catalog);
+  library jsonb;
+  lesson jsonb;
+  topic jsonb;
+  media_asset jsonb;
+  libraries jsonb := '[]'::jsonb;
+  lessons jsonb;
+  topics jsonb;
+  media jsonb := '[]'::jsonb;
+begin
+  for library in
+    select value from jsonb_array_elements(coalesce(filtered->'libraries', '[]'::jsonb))
+  loop
+    lessons := '[]'::jsonb;
+
+    for lesson in
+      select value from jsonb_array_elements(coalesce(library->'lessons', '[]'::jsonb))
+    loop
+      topics := '[]'::jsonb;
+
+      for topic in
+        select value from jsonb_array_elements(coalesce(lesson->'topics', '[]'::jsonb))
+      loop
+        topics := topics || jsonb_build_array(
+          jsonb_strip_nulls(jsonb_build_object(
+            'id', topic->'id',
+            'title', topic->'title',
+            'summary', topic->'summary',
+            'why', topic->'why',
+            'estimatedMinutes', topic->'estimatedMinutes',
+            'prerequisites', coalesce(topic->'prerequisites', '[]'::jsonb),
+            'connections', coalesce(topic->'connections', '[]'::jsonb),
+            'mediaRefs', coalesce((
+              select jsonb_agg(distinct ref)
+              from (
+                select sec.value->>'mediaRef' as ref
+                from jsonb_array_elements(coalesce(topic->'sections', '[]'::jsonb)) as sec(value)
+                where btrim(coalesce(sec.value->>'mediaRef', '')) <> ''
+              ) refs
+            ), '[]'::jsonb)
+          ))
+        );
+      end loop;
+
+      lessons := lessons || jsonb_build_array(
+        jsonb_strip_nulls(jsonb_build_object(
+          'id', lesson->'id',
+          'slug', lesson->'slug',
+          'title', lesson->'title',
+          'description', lesson->'description',
+          'topics', topics
+        ))
+      );
+    end loop;
+
+    libraries := libraries || jsonb_build_array(
+      jsonb_strip_nulls(jsonb_build_object(
+        'id', library->'id',
+        'slug', library->'slug',
+        'title', library->'title',
+        'description', library->'description',
+        'lessons', lessons
+      ))
+    );
+  end loop;
+
+  for media_asset in
+    select value from jsonb_array_elements(coalesce(filtered->'media', '[]'::jsonb))
+  loop
+    media := media || jsonb_build_array(
+      jsonb_strip_nulls(jsonb_build_object(
+        'id', media_asset->'id',
+        'type', media_asset->'type',
+        'title', media_asset->'title',
+        'caption', media_asset->'caption',
+        'url', media_asset->'url',
+        'sourceUrl', media_asset->'sourceUrl',
+        'author', media_asset->'author',
+        'credit', media_asset->'credit',
+        'license', media_asset->'license',
+        'provider', media_asset->'provider'
+      ))
+    );
+  end loop;
+
+  return jsonb_strip_nulls(jsonb_build_object(
+    'id', filtered->'id',
+    'slug', filtered->'slug',
+    'title', filtered->'title',
+    'description', filtered->'description',
+    'tags', coalesce(filtered->'tags', '[]'::jsonb),
+    'libraries', libraries,
+    'media', media
+  ));
+end;
+$;
+
 create or replace function public.studylibrary_catalog_stats(p_catalog jsonb)
 returns jsonb
 language plpgsql
