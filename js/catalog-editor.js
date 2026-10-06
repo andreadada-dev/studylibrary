@@ -1,4 +1,5 @@
 import { mediaAssetId, detectMediaType, detectVideoProvider, videoThumbnailUrl } from './media.js';
+import { showModal, closeModal } from './ui.js';
 
 export function mountCatalogEditor(container, initialCatalog, options = {}) {
   let catalog = structuredClone(initialCatalog);
@@ -238,43 +239,271 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
   function mediaLibrary() {
     const assets = catalog.media || [];
     let html = '<section class="compact-collection media-library-editor">' +
-      '<div class="compact-collection-head"><div><span class="eyebrow">Media</span><h3>Libreria media</h3><p>Immagini e video restano compatti. Apri solo il media che vuoi modificare.</p></div>' +
+      '<div class="compact-collection-head media-collection-head"><div><span class="eyebrow">Media</span><h3>Libreria media</h3><p>Aggiungi immagini e video con una procedura guidata. Nessun elemento vuoto viene creato.</p></div>' +
       '<div class="media-library-actions"><button class="button secondary compact-add-button" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary compact-add-button" type="button" data-add-media="video">＋ Video</button></div></div>' +
-      '<div class="media-library-grid compact-list">';
+      '<div class="media-summary-grid">';
 
     assets.forEach((asset, index) => {
       const title = asset.title || asset.id || ('Media ' + (index + 1));
       const typeLabel = asset.type === 'video' ? 'Video' : 'Immagine';
+      const thumb = editorMediaThumbnail(asset);
       const meta = [typeLabel, compactUrl(asset.url), asset.license || ''].filter(Boolean).join(' · ');
-      const body = '<div class="media-editor-fields compact-fields">' +
-        '<label><span>Tipo</span><select data-media-field="' + index + ':type"><option value="image"' + (asset.type === 'image' ? ' selected' : '') + '>Immagine</option><option value="video"' + (asset.type === 'video' ? ' selected' : '') + '>Video</option></select></label>' +
-        '<label><span>ID</span><input data-media-field="' + index + ':id" value="' + attr(asset.id || '') + '"></label>' +
-        '<label class="wide"><span>URL media</span><input data-media-field="' + index + ':url" value="' + attr(asset.url || '') + '" placeholder="https://..."></label>' +
-        '<label><span>Titolo</span><input data-media-field="' + index + ':title" value="' + attr(asset.title || '') + '"></label>' +
-        '<label><span>Provider</span><input data-media-field="' + index + ':provider" value="' + attr(asset.provider || '') + '" placeholder="youtube, vimeo, wikipedia..."></label>' +
-        '<label class="wide"><span>Didascalia</span><input data-media-field="' + index + ':caption" value="' + attr(asset.caption || '') + '"></label>' +
-        '<label class="wide"><span>Alt text</span><input data-media-field="' + index + ':alt" value="' + attr(asset.alt || '') + '" placeholder="Descrizione accessibile dell’immagine"></label>' +
-        '<label class="wide"><span>Fonte originale</span><input data-media-field="' + index + ':sourceUrl" value="' + attr(asset.sourceUrl || '') + '" placeholder="https://pagina-della-fonte..."></label>' +
-        '<label><span>Autore / credito</span><input data-media-field="' + index + ':author" value="' + attr(asset.author || asset.credit || '') + '"></label>' +
-        '<label><span>Licenza</span><input data-media-field="' + index + ':license" value="' + attr(asset.license || '') + '" placeholder="CC BY 4.0, unknown..."></label>' +
-        '<label class="wide"><span>Thumbnail video</span><input data-media-field="' + index + ':thumbnailUrl" value="' + attr(asset.thumbnailUrl || '') + '" placeholder="opzionale"></label>' +
-        '<button class="compact-delete-button" type="button" data-delete-media="' + index + '">Elimina media</button>' +
-      '</div>';
 
-      html += disclosure(
-        'media:' + (asset.id || index),
-        title,
-        meta || typeLabel,
-        body,
-        'media-disclosure ' + (asset.type === 'video' ? 'is-video' : 'is-image')
-      );
+      html += '<article class="media-summary-card">' +
+        '<button class="media-summary-main" type="button" data-edit-media="' + index + '">' +
+          '<span class="media-summary-thumb ' + (asset.type === 'video' ? 'is-video' : 'is-image') + '">' +
+            (thumb
+              ? '<img src="' + attr(thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
+              : '<span aria-hidden="true">' + (asset.type === 'video' ? '▶' : '▧') + '</span>') +
+          '</span>' +
+          '<span class="media-summary-copy"><strong>' + esc(title) + '</strong><small>' + esc(meta || typeLabel) + '</small></span>' +
+          '<span class="media-summary-edit">Modifica</span>' +
+        '</button>' +
+        '<button class="media-summary-delete" type="button" data-delete-media="' + index + '" aria-label="Elimina ' + attr(title) + '">×</button>' +
+      '</article>';
     });
 
     if (!assets.length) {
-      html += '<div class="compact-empty">Nessun media. Aggiungine uno solo quando serve davvero alla spiegazione.</div>';
+      html += '<div class="compact-empty">Nessun media. Usa “+ Immagine” o “+ Video”.</div>';
     }
 
     return html + '</div></section>';
+  }
+
+  function editorMediaThumbnail(asset) {
+    const raw = asset?.type === 'video'
+      ? (asset.thumbnailUrl || videoThumbnailUrl(asset.url || ''))
+      : (asset?.url || '');
+    const value = String(raw || '').trim();
+    return /^(?:https:\/\/|data:image\/|\/(?!\/))/i.test(value) ? value : '';
+  }
+
+  function openMediaWizard(type, editIndex = null) {
+    const editing = Number.isInteger(editIndex) && catalog.media?.[editIndex];
+    const existing = editing ? catalog.media[editIndex] : null;
+    const kind = type === 'video' ? 'video' : 'image';
+    const draft = {
+      id: existing?.id || '',
+      type: kind,
+      url: existing?.url || '',
+      title: existing?.title || '',
+      caption: existing?.caption || '',
+      alt: existing?.alt || '',
+      sourceUrl: existing?.sourceUrl || '',
+      credit: existing?.credit || existing?.author || '',
+      author: existing?.author || existing?.credit || '',
+      license: existing?.license || '',
+      provider: existing?.provider || '',
+      thumbnailUrl: existing?.thumbnailUrl || ''
+    };
+    let step = 0;
+    const labels = kind === 'video'
+      ? ['Link', 'Dettagli', 'Fonte']
+      : ['Link', 'Dettagli', 'Accessibilità'];
+
+    const body =
+      '<div class="media-wizard" data-media-wizard>' +
+        '<div class="media-wizard-progress" aria-label="Avanzamento">' +
+          labels.map((label, index) =>
+            '<button type="button" class="media-wizard-dot' + (index === 0 ? ' active' : '') + '" data-wizard-dot="' + index + '" aria-label="' + esc(label) + '" aria-current="' + (index === 0 ? 'step' : 'false') + '"><span></span><small>' + esc(label) + '</small></button>'
+          ).join('') +
+        '</div>' +
+        '<div class="media-wizard-viewport">' +
+          '<div class="media-wizard-track" data-wizard-track>' +
+            wizardLinkStep(kind, draft) +
+            wizardDetailsStep(kind, draft) +
+            wizardMetaStep(kind, draft) +
+          '</div>' +
+        '</div>' +
+        '<p class="media-wizard-error" data-wizard-error aria-live="polite"></p>' +
+        '<div class="media-wizard-footer">' +
+          '<button class="button secondary media-wizard-cancel" type="button" data-wizard-cancel>Annulla</button>' +
+          '<div class="media-wizard-nav">' +
+            '<button class="media-wizard-arrow" type="button" data-wizard-prev aria-label="Passaggio precedente">←</button>' +
+            '<button class="button media-wizard-next" type="button" data-wizard-next>Avanti →</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    showModal(editing ? (kind === 'video' ? 'Modifica video' : 'Modifica immagine') : (kind === 'video' ? 'Aggiungi video' : 'Aggiungi immagine'), body, []);
+
+    const root = document.querySelector('[data-media-wizard]');
+    if (!root) return;
+    root.closest('.modal')?.classList.add('media-wizard-modal');
+
+    const track = root.querySelector('[data-wizard-track]');
+    const error = root.querySelector('[data-wizard-error]');
+    const prev = root.querySelector('[data-wizard-prev]');
+    const next = root.querySelector('[data-wizard-next]');
+    const dots = [...root.querySelectorAll('[data-wizard-dot]')];
+
+    const syncDraft = () => {
+      root.querySelectorAll('[data-wizard-field]').forEach(input => {
+        draft[input.dataset.wizardField] = input.value.trim();
+      });
+      if (draft.url) {
+        const inferred = detectMediaType(draft.url, kind);
+        draft.type = inferred || kind;
+        if (kind === 'video') {
+          draft.provider = draft.provider || detectVideoProvider(draft.url);
+          draft.thumbnailUrl = draft.thumbnailUrl || videoThumbnailUrl(draft.url);
+        }
+      }
+    };
+
+    const validateStep = current => {
+      syncDraft();
+      error.textContent = '';
+
+      if (current === 0) {
+        if (!draft.url) {
+          error.textContent = 'Inserisci il link del ' + (kind === 'video' ? 'video.' : 'media.');
+          root.querySelector('[data-wizard-field="url"]')?.focus();
+          return false;
+        }
+        if (!/^(?:https:\/\/|data:image\/|\/(?!\/))/i.test(draft.url)) {
+          error.textContent = 'Usa un URL HTTPS valido.';
+          root.querySelector('[data-wizard-field="url"]')?.focus();
+          return false;
+        }
+      }
+
+      if (current === 2 && kind === 'image' && !draft.alt) {
+        error.textContent = 'Aggiungi un testo alternativo per l’immagine.';
+        root.querySelector('[data-wizard-field="alt"]')?.focus();
+        return false;
+      }
+
+      return true;
+    };
+
+    const go = target => {
+      target = Math.max(0, Math.min(labels.length - 1, target));
+      if (target > step && !validateStep(step)) return;
+
+      step = target;
+      track.style.transform = 'translateX(-' + (step * 100) + '%)';
+      dots.forEach((dot, index) => {
+        const active = index === step;
+        dot.classList.toggle('active', active);
+        dot.classList.toggle('done', index < step);
+        dot.setAttribute('aria-current', active ? 'step' : 'false');
+      });
+      prev.disabled = step === 0;
+      prev.classList.toggle('is-hidden', step === 0);
+      next.textContent = step === labels.length - 1
+        ? (editing ? 'Salva' : 'Aggiungi')
+        : 'Avanti →';
+
+      window.setTimeout(() => {
+        root.querySelector('.media-wizard-step:nth-child(' + (step + 1) + ') input')?.focus();
+      }, 220);
+    };
+
+    root.querySelectorAll('[data-wizard-field]').forEach(input => input.addEventListener('input', () => {
+      draft[input.dataset.wizardField] = input.value;
+      error.textContent = '';
+      updateWizardPreview(root, kind, draft);
+    }));
+
+    dots.forEach(dot => dot.addEventListener('click', () => {
+      const target = Number(dot.dataset.wizardDot);
+      if (target <= step + 1) go(target);
+    }));
+
+    prev.addEventListener('click', () => go(step - 1));
+    root.querySelector('[data-wizard-cancel]').addEventListener('click', closeModal);
+
+    next.addEventListener('click', () => {
+      if (step < labels.length - 1) {
+        go(step + 1);
+        return;
+      }
+
+      if (!validateStep(step)) return;
+      syncDraft();
+
+      draft.id = existing?.id || mediaAssetId(kind, draft.url);
+      draft.type = kind;
+      if (kind === 'video') {
+        draft.provider = draft.provider || detectVideoProvider(draft.url);
+        draft.thumbnailUrl = draft.thumbnailUrl || videoThumbnailUrl(draft.url);
+      }
+
+      catalog.media ||= [];
+      if (editing) catalog.media[editIndex] = draft;
+      else catalog.media.push(draft);
+
+      closeModal();
+      emit();
+      render();
+    });
+
+    updateWizardPreview(root, kind, draft);
+    go(0);
+  }
+
+  function wizardLinkStep(kind, draft) {
+    return '<section class="media-wizard-step">' +
+      '<span class="eyebrow">Passaggio 1 di 3</span>' +
+      '<h3>' + (kind === 'video' ? 'Dove si trova il video?' : 'Dove si trova l’immagine?') + '</h3>' +
+      '<p>Incolla il link. Il media verrà creato solo quando premi “Aggiungi”.</p>' +
+      '<label class="media-wizard-field"><span>Link</span><input type="url" inputmode="url" data-wizard-field="url" value="' + attr(draft.url) + '" placeholder="https://..."></label>' +
+      '<div class="media-wizard-preview" data-wizard-preview></div>' +
+    '</section>';
+  }
+
+  function wizardDetailsStep(kind, draft) {
+    return '<section class="media-wizard-step">' +
+      '<span class="eyebrow">Passaggio 2 di 3</span>' +
+      '<h3>Come vuoi presentarlo?</h3>' +
+      '<p>Titolo e didascalia restano brevi e visibili nella lezione.</p>' +
+      '<label class="media-wizard-field"><span>Titolo <small>opzionale</small></span><input data-wizard-field="title" value="' + attr(draft.title) + '" placeholder="' + (kind === 'video' ? 'Es. Convoluzione spiegata visivamente' : 'Es. Pinhole camera model') + '"></label>' +
+      '<label class="media-wizard-field"><span>Didascalia <small>opzionale</small></span><textarea rows="3" data-wizard-field="caption" placeholder="Una frase che spiega cosa osservare">' + esc(draft.caption) + '</textarea></label>' +
+    '</section>';
+  }
+
+  function wizardMetaStep(kind, draft) {
+    return '<section class="media-wizard-step">' +
+      '<span class="eyebrow">Passaggio 3 di 3</span>' +
+      '<h3>' + (kind === 'image' ? 'Accessibilità e fonte' : 'Fonte e crediti') + '</h3>' +
+      '<p>Completa solo ciò che conosci. Non inventare autore o licenza.</p>' +
+      (kind === 'image'
+        ? '<label class="media-wizard-field"><span>Testo alternativo</span><input data-wizard-field="alt" value="' + attr(draft.alt) + '" placeholder="Descrivi cosa mostra l’immagine"></label>'
+        : '<label class="media-wizard-field"><span>Thumbnail <small>opzionale</small></span><input type="url" data-wizard-field="thumbnailUrl" value="' + attr(draft.thumbnailUrl) + '" placeholder="Automatica per YouTube"></label>') +
+      '<div class="media-wizard-field-row">' +
+        '<label class="media-wizard-field"><span>Pagina fonte <small>opzionale</small></span><input type="url" data-wizard-field="sourceUrl" value="' + attr(draft.sourceUrl) + '" placeholder="https://..."></label>' +
+        '<label class="media-wizard-field"><span>Autore / credito <small>opzionale</small></span><input data-wizard-field="author" value="' + attr(draft.author) + '" placeholder="Nome o organizzazione"></label>' +
+      '</div>' +
+      '<label class="media-wizard-field"><span>Licenza <small>opzionale</small></span><input data-wizard-field="license" value="' + attr(draft.license) + '" placeholder="Es. CC BY 4.0"></label>' +
+    '</section>';
+  }
+
+  function updateWizardPreview(root, kind, draft) {
+    const preview = root.querySelector('[data-wizard-preview]');
+    if (!preview) return;
+
+    const url = String(draft.url || '').trim();
+    if (!url) {
+      preview.innerHTML = '<span class="media-wizard-preview-placeholder">' + (kind === 'video' ? '▶' : '▧') + '</span><small>L’anteprima apparirà qui</small>';
+      return;
+    }
+
+    const safe = /^(?:https:\/\/|data:image\/|\/(?!\/))/i.test(url);
+    if (!safe) {
+      preview.innerHTML = '<small>URL non valido</small>';
+      return;
+    }
+
+    if (kind === 'image') {
+      preview.innerHTML = '<img src="' + attr(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">';
+      return;
+    }
+
+    const thumb = draft.thumbnailUrl || videoThumbnailUrl(url);
+    preview.innerHTML = thumb
+      ? '<img src="' + attr(thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="media-wizard-play">▶</span>'
+      : '<span class="media-wizard-preview-placeholder">▶</span><small>' + esc(compactUrl(url) || 'Video') + '</small>';
   }
 
   function compactUrl(value) {
@@ -496,49 +725,15 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     }));
 
     container.querySelectorAll('[data-add-media]').forEach(button => button.addEventListener('click', () => {
-      catalog.media ||= [];
-      const type = button.dataset.addMedia === 'video' ? 'video' : 'image';
-      const id = type + '-' + (catalog.media.length + 1);
-      catalog.media.push({
-        id,
-        type,
-        url: '',
-        title: type === 'video' ? 'Nuovo video' : 'Nuova immagine',
-        caption: '',
-        alt: '',
-        sourceUrl: '',
-        credit: '',
-        author: '',
-        license: '',
-        provider: '',
-        thumbnailUrl: ''
-      });
-      openDisclosures.add('media:' + id);
-      emit();
-      render();
+      openMediaWizard(button.dataset.addMedia === 'video' ? 'video' : 'image');
     }));
 
-    container.querySelectorAll('[data-media-field]').forEach(input => {
-      const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
-      input.addEventListener(eventName, () => {
-        const [indexText, field] = input.dataset.mediaField.split(':');
-        const asset = catalog.media?.[Number(indexText)];
-        if (!asset) return;
-        asset[field] = input.value;
-        if (field === 'url' && input.value) {
-          const inferred = detectMediaType(input.value, asset.type);
-          if (inferred) asset.type = inferred;
-          if (asset.type === 'video') {
-            asset.provider = asset.provider || detectVideoProvider(input.value);
-            asset.thumbnailUrl = asset.thumbnailUrl || videoThumbnailUrl(input.value);
-          }
-          if (!asset.id || /^media-\d+$/.test(asset.id) || /^(image|video)-\d+$/.test(asset.id)) {
-            asset.id = mediaAssetId(asset.type, input.value);
-          }
-        }
-        emit();
-      });
-    });
+    container.querySelectorAll('[data-edit-media]').forEach(button => button.addEventListener('click', () => {
+      const index = Number(button.dataset.editMedia);
+      const asset = catalog.media?.[index];
+      if (!asset) return;
+      openMediaWizard(asset.type === 'video' ? 'video' : 'image', index);
+    }));
 
     container.querySelectorAll('[data-delete-media]').forEach(button => button.addEventListener('click', () => {
       const index = Number(button.dataset.deleteMedia);
