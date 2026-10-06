@@ -119,3 +119,18 @@ La Home e la Knowledge API hanno visibilità indipendente.
 Il proxy Nginx usa soltanto `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`, già presenti in Coolify. Non aggiungere service-role key al container.
 
 Per la scrittura esterna usare `POST /api/v1/write` con un JWT Supabase dell'utente proprietario e `p_base_version` per optimistic concurrency.
+
+
+### Agent protocol
+
+Verificare anche:
+
+```text
+GET https://study.ddone.it/api/v1/agent
+GET https://study.ddone.it/.well-known/studylibrary.json
+GET https://study.ddone.it/api/v1/schema/update-package
+GET https://study.ddone.it/api/v1/catalogs/{api-public-catalog-id}/agent
+GET https://study.ddone.it/api/v1/catalogs/{api-public-catalog-id}/audit
+```
+
+Il catalog agent deve mostrare la stessa `currentVersion` del database. L'audit non deve includere contenuti nascosti da `api.publicRead = false`.
