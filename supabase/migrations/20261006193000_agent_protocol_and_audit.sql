@@ -81,7 +81,7 @@ create or replace function public.api_context(p_catalog jsonb)
 returns jsonb
 language plpgsql
 immutable
-as $
+as $api_context$
 declare
   filtered jsonb := public.api_filter_catalog(p_catalog);
   library jsonb;
@@ -178,7 +178,7 @@ begin
     'media', media
   ));
 end;
-$;
+$api_context$;
 
 create or replace function public.studylibrary_catalog_stats(p_catalog jsonb)
 returns jsonb
