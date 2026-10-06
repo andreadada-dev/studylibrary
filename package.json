@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check app.js && node --check js/api.js && node --check js/content.js && node --check js/graph.js && node --check js/state.js && node --check js/ui.js",
+    "check": "node --check app.js && node --check js/api.js && node --check js/catalog-editor.js && node --check js/content.js && node --check js/graph.js && node --check js/state.js && node --check js/ui.js",
     "validate": "node scripts/validate-content.mjs",
     "test": "node --test",
     "ci": "npm run check && npm run validate && npm test"
