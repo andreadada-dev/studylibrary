@@ -1,3 +1,5 @@
+import { mediaAssetId, detectMediaType, detectVideoProvider, videoThumbnailUrl } from './media.js';
+
 export function mountCatalogEditor(container, initialCatalog, options = {}) {
   let catalog = structuredClone(initialCatalog);
   let selection = { type: 'catalog', li: null, lj: null, ti: null };
@@ -90,7 +92,8 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         text('Slug', 'slug', item.slug) +
         md('Descrizione', 'description', item.description) +
         text('Tag', 'tags', (item.tags || []).join(', '), 'Separati da virgola') +
-        toggle('API pubblica', 'api.publicRead', item.api?.publicRead === true, 'Indipendente dalla pubblicazione in Home: espone in sola lettura i contenuti consentiti tramite /api/v1.');
+        toggle('API pubblica', 'api.publicRead', item.api?.publicRead === true, 'Indipendente dalla pubblicazione in Home: espone in sola lettura i contenuti consentiti tramite /api/v1.') +
+        mediaLibrary();
     }
     if (selection.type === 'library') {
       return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description) + apiPolicy(item);
@@ -128,12 +131,51 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     return '<label class="editor-field"><span>Accesso API</span><select data-api-policy><option value="inherit"' + (raw === 'inherit' ? ' selected' : '') + '>Eredita</option><option value="true"' + (raw === 'true' ? ' selected' : '') + '>Pubblico</option><option value="false"' + (raw === 'false' ? ' selected' : '') + '>Privato</option></select><small>Eredita dal genitore oppure restringe questo livello. Un genitore privato blocca sempre i discendenti.</small></label>';
   }
 
+  function mediaLibrary() {
+    const assets = catalog.media || [];
+    let html = '<div class="editor-field editor-field-wide media-library-editor">' +
+      '<div class="field-heading"><label>Libreria media</label><span>' + assets.length + '</span></div>' +
+      '<p class="editor-help">Immagini e video inseriti nei topic vengono normalizzati qui al salvataggio. Puoi anche registrarli manualmente e poi usare il mediaRef nelle sezioni.</p>' +
+      '<div class="media-library-actions"><button class="button secondary" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary" type="button" data-add-media="video">＋ Video</button></div>' +
+      '<div class="media-library-grid">';
+
+    assets.forEach((asset, index) => {
+      html += '<article class="media-editor-card">' +
+        '<div class="media-editor-card-head"><strong>' + esc(asset.title || asset.id || ('Media ' + (index + 1))) + '</strong><button type="button" data-delete-media="' + index + '">Elimina</button></div>' +
+        '<div class="media-editor-fields">' +
+          '<label><span>Tipo</span><select data-media-field="' + index + ':type"><option value="image"' + (asset.type === 'image' ? ' selected' : '') + '>Immagine</option><option value="video"' + (asset.type === 'video' ? ' selected' : '') + '>Video</option></select></label>' +
+          '<label><span>ID</span><input data-media-field="' + index + ':id" value="' + attr(asset.id || '') + '"></label>' +
+          '<label class="wide"><span>URL media</span><input data-media-field="' + index + ':url" value="' + attr(asset.url || '') + '" placeholder="https://..."></label>' +
+          '<label><span>Titolo</span><input data-media-field="' + index + ':title" value="' + attr(asset.title || '') + '"></label>' +
+          '<label><span>Provider</span><input data-media-field="' + index + ':provider" value="' + attr(asset.provider || '') + '" placeholder="youtube, vimeo, wikipedia..."></label>' +
+          '<label class="wide"><span>Didascalia</span><input data-media-field="' + index + ':caption" value="' + attr(asset.caption || '') + '"></label>' +
+          '<label class="wide"><span>Alt text</span><input data-media-field="' + index + ':alt" value="' + attr(asset.alt || '') + '" placeholder="Descrizione accessibile dell’immagine"></label>' +
+          '<label class="wide"><span>Fonte originale</span><input data-media-field="' + index + ':sourceUrl" value="' + attr(asset.sourceUrl || '') + '" placeholder="https://pagina-della-fonte..."></label>' +
+          '<label><span>Autore / credito</span><input data-media-field="' + index + ':author" value="' + attr(asset.author || asset.credit || '') + '"></label>' +
+          '<label><span>Licenza</span><input data-media-field="' + index + ':license" value="' + attr(asset.license || '') + '" placeholder="CC BY 4.0, unknown..."></label>' +
+          '<label class="wide"><span>Thumbnail video</span><input data-media-field="' + index + ':thumbnailUrl" value="' + attr(asset.thumbnailUrl || '') + '" placeholder="opzionale"></label>' +
+        '</div>' +
+      '</article>';
+    });
+
+    return html + '</div></div>';
+  }
+
+  function mediaRefSelect(section, index, expectedType) {
+    const assets = (catalog.media || []).filter(asset => !expectedType || asset.type === expectedType);
+    const current = section.mediaRef || '';
+    return '<label class="editor-field"><span>Media del catalogo</span><select data-field="section:' + index + ':mediaRef">' +
+      '<option value="">URL diretto / auto-registra</option>' +
+      assets.map(asset => '<option value="' + attr(asset.id) + '"' + (current === asset.id ? ' selected' : '') + '>' + esc(asset.title || asset.id) + '</option>').join('') +
+      '</select><small>Se lasci vuoto e incolli un URL, al salvataggio viene creato automaticamente un mediaRef riutilizzabile.</small></label>';
+  }
+
   function sections(topic) {
     const list = topic.sections || [];
     let html = '<div class="editor-field editor-field-wide"><div class="field-heading"><label>Sezioni</label><span>' + list.length + '</span></div><div class="editor-sections">';
     list.forEach((section, i) => {
       html += '<article class="editor-section-card"><div class="editor-section-head"><select data-section-type="' + i + '">';
-      ['lead','concept','text','example','callout','formula','image','flow','comparison','list','checkpoint'].forEach(type => {
+      ['lead','concept','text','example','callout','formula','image','video','gallery','embed','flow','comparison','list','checkpoint'].forEach(type => {
         html += '<option value="' + type + '"' + (section.type === type ? ' selected' : '') + '>' + type + '</option>';
       });
       html += '</select><button class="editor-mini-danger" type="button" data-delete-section="' + i + '">Elimina</button></div>';
@@ -142,7 +184,31 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       } else if (section.type === 'formula') {
         html += text('Titolo', 'section:' + i + ':title', section.title || '') + text('LaTeX', 'section:' + i + ':latex', section.latex || section.body || '') + md('Nota', 'section:' + i + ':note', section.note || '');
       } else if (section.type === 'image') {
-        html += text('URL immagine', 'section:' + i + ':src', section.src || '') + text('Alt', 'section:' + i + ':alt', section.alt || '') + text('Didascalia', 'section:' + i + ':caption', section.caption || '');
+        html += mediaRefSelect(section, i, 'image') +
+          text('URL immagine', 'section:' + i + ':url', section.url || section.src || '', 'Se non scegli un mediaRef, questo URL verrà registrato automaticamente nella libreria media') +
+          text('Titolo', 'section:' + i + ':title', section.title || '') +
+          text('Alt', 'section:' + i + ':alt', section.alt || '') +
+          text('Didascalia', 'section:' + i + ':caption', section.caption || '') +
+          text('Fonte originale', 'section:' + i + ':sourceUrl', section.sourceUrl || '') +
+          text('Credito', 'section:' + i + ':credit', section.credit || '') +
+          text('Licenza', 'section:' + i + ':license', section.license || '');
+      } else if (section.type === 'video') {
+        html += mediaRefSelect(section, i, 'video') +
+          text('URL video', 'section:' + i + ':url', section.url || '', 'YouTube, Vimeo o file video diretto HTTPS') +
+          text('Titolo', 'section:' + i + ':title', section.title || '') +
+          text('Didascalia', 'section:' + i + ':caption', section.caption || '') +
+          text('Thumbnail', 'section:' + i + ':thumbnailUrl', section.thumbnailUrl || '') +
+          text('Fonte originale', 'section:' + i + ':sourceUrl', section.sourceUrl || '') +
+          text('Autore / credito', 'section:' + i + ':credit', section.credit || '') +
+          text('Licenza', 'section:' + i + ':license', section.license || '');
+      } else if (section.type === 'gallery') {
+        html += text('Titolo', 'section:' + i + ':title', section.title || '') +
+          textarea('MediaRef', 'section:' + i + ':items', Array.isArray(section.items) ? section.items.map(item => typeof item === 'string' ? item : (item.mediaRef || item.url || '')).join('\n') : '', 'Uno per riga. Puoi usare ID della libreria media o URL HTTPS.') +
+          text('Didascalia', 'section:' + i + ':caption', section.caption || '');
+      } else if (section.type === 'embed') {
+        html += text('Titolo', 'section:' + i + ':title', section.title || '') +
+          text('URL', 'section:' + i + ':url', section.url || '') +
+          md('Nota', 'section:' + i + ':body', section.body || '');
       } else {
         html += text('Titolo', 'section:' + i + ':title', section.title || '') + md('Contenuto', 'section:' + i + ':body', section.body || '');
       }
@@ -184,6 +250,72 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       emit();
     });
 
+    container.querySelectorAll('[data-add-media]').forEach(button => button.addEventListener('click', () => {
+      catalog.media ||= [];
+      const type = button.dataset.addMedia === 'video' ? 'video' : 'image';
+      const id = type + '-' + (catalog.media.length + 1);
+      catalog.media.push({
+        id,
+        type,
+        url: '',
+        title: type === 'video' ? 'Nuovo video' : 'Nuova immagine',
+        caption: '',
+        alt: '',
+        sourceUrl: '',
+        credit: '',
+        author: '',
+        license: '',
+        provider: '',
+        thumbnailUrl: ''
+      });
+      emit();
+      render();
+    }));
+
+    container.querySelectorAll('[data-media-field]').forEach(input => {
+      const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
+      input.addEventListener(eventName, () => {
+        const [indexText, field] = input.dataset.mediaField.split(':');
+        const asset = catalog.media?.[Number(indexText)];
+        if (!asset) return;
+        asset[field] = input.value;
+        if (field === 'url' && input.value) {
+          const inferred = detectMediaType(input.value, asset.type);
+          if (inferred) asset.type = inferred;
+          if (asset.type === 'video') {
+            asset.provider = asset.provider || detectVideoProvider(input.value);
+            asset.thumbnailUrl = asset.thumbnailUrl || videoThumbnailUrl(input.value);
+          }
+          if (!asset.id || /^media-\d+$/.test(asset.id) || /^(image|video)-\d+$/.test(asset.id)) {
+            asset.id = mediaAssetId(asset.type, input.value);
+          }
+        }
+        emit();
+      });
+    });
+
+    container.querySelectorAll('[data-delete-media]').forEach(button => button.addEventListener('click', () => {
+      const index = Number(button.dataset.deleteMedia);
+      const asset = catalog.media?.[index];
+      if (!asset) return;
+      const ref = asset.id;
+      catalog.media.splice(index, 1);
+      for (const library of catalog.libraries || []) {
+        for (const lesson of library.lessons || []) {
+          for (const topic of lesson.topics || []) {
+            for (const section of topic.sections || []) {
+              if (section.mediaRef === ref) section.mediaRef = '';
+              if (section.type === 'gallery' && Array.isArray(section.items)) {
+                section.items = section.items.filter(item => item !== ref && item?.mediaRef !== ref);
+              }
+            }
+          }
+        }
+      }
+      emit();
+      render();
+    }));
+
     container.querySelectorAll('[data-section-type]').forEach(select => select.addEventListener('change', () => {
       const topic = selected();
       const section = topic?.sections?.[Number(select.dataset.sectionType)];
@@ -191,7 +323,10 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       const next = { type: select.value };
       if (select.value === 'checkpoint') Object.assign(next, { question: 'Domanda di verifica', answer: 'Risposta.' });
       else if (select.value === 'formula') Object.assign(next, { title: '', latex: '', note: '' });
-      else if (select.value === 'image') Object.assign(next, { src: '', alt: '', caption: '' });
+      else if (select.value === 'image') Object.assign(next, { mediaRef: '', url: '', alt: '', caption: '', sourceUrl: '', credit: '', license: '' });
+      else if (select.value === 'video') Object.assign(next, { mediaRef: '', url: '', title: '', caption: '', thumbnailUrl: '', sourceUrl: '', credit: '', license: '' });
+      else if (select.value === 'gallery') Object.assign(next, { title: '', items: [], caption: '' });
+      else if (select.value === 'embed') Object.assign(next, { title: '', url: '', body: '' });
       else Object.assign(next, { title: '', body: '' });
       Object.keys(section).forEach(key => delete section[key]);
       Object.assign(section, next);
@@ -290,7 +425,19 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     if (key.startsWith('section:')) {
       const parts = key.split(':');
       const section = item.sections?.[Number(parts[1])];
-      if (section) section[parts[2]] = value;
+      if (section) {
+        if (parts[2] === 'items') {
+          section.items = value.split(/\n+/).map(v => v.trim()).filter(Boolean);
+        } else {
+          section[parts[2]] = value;
+          if ((section.type === 'image' || section.type === 'video') && parts[2] === 'url' && value) {
+            if (section.type === 'video') {
+              section.provider ||= detectVideoProvider(value);
+              section.thumbnailUrl ||= videoThumbnailUrl(value);
+            }
+          }
+        }
+      }
       return;
     }
     if (selection.type === 'topic' && key === 'id') {
