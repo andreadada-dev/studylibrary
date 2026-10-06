@@ -3149,3 +3149,181 @@ body.universe-mode .universe-legend-hint {
     padding: 0 12px 12px;
   }
 }
+
+
+/* Compact anchored media dropdown */
+.media-collection-head {
+  align-items: flex-start;
+}
+.media-collection-copy {
+  min-width: 0;
+  flex: 1;
+}
+.media-collection-controls {
+  width: min(390px, 46vw);
+  display: grid;
+  justify-items: stretch;
+  align-self: start;
+}
+.media-collection-controls .media-library-actions {
+  justify-content: flex-end;
+  margin: 0;
+}
+.media-collection-controls .media-inline-wizard-slot {
+  width: 100%;
+  margin-top: 6px;
+}
+.media-collection-controls .media-inline-wizard-slot:empty {
+  margin-top: 0;
+}
+.media-collection-controls .media-inline-wizard-shell {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(31, 28, 63, .055);
+}
+.media-collection-controls .media-inline-wizard-head {
+  padding: 9px 11px 5px;
+}
+.media-collection-controls .media-inline-wizard-head .eyebrow {
+  font-size: 8px;
+  letter-spacing: .09em;
+}
+.media-collection-controls .media-inline-wizard-head .eyebrow::before {
+  width: 13px;
+}
+.media-collection-controls .media-inline-wizard-head h4 {
+  margin-top: 2px;
+  font-size: 13px;
+}
+.media-collection-controls .media-inline-wizard-close {
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  font-size: 15px;
+}
+.media-collection-controls .media-wizard {
+  padding: 0 11px 10px;
+}
+.media-collection-controls .media-wizard-progress {
+  margin: 0 0 10px;
+}
+.media-collection-controls .media-wizard-dot {
+  gap: 3px;
+}
+.media-collection-controls .media-wizard-dot small {
+  font-size: 7px;
+}
+.media-collection-controls .media-wizard-dot > span {
+  width: 9px;
+  height: 9px;
+}
+.media-collection-controls .media-wizard-dot::before {
+  top: 4px;
+}
+.media-collection-controls .media-wizard-step {
+  padding: 0 1px 2px;
+}
+.media-collection-controls .media-wizard-step .eyebrow {
+  font-size: 8px;
+}
+.media-collection-controls .media-wizard-step .eyebrow::before {
+  width: 13px;
+}
+.media-collection-controls .media-wizard-step h3 {
+  margin: 5px 0 4px;
+  font-size: 15px;
+}
+.media-collection-controls .media-wizard-step > p {
+  margin-bottom: 10px;
+  font-size: 9px;
+  line-height: 1.42;
+}
+.media-collection-controls .media-wizard-field {
+  gap: 4px;
+  margin-top: 8px;
+}
+.media-collection-controls .media-wizard-field > span {
+  font-size: 8px;
+}
+.media-collection-controls .media-wizard-field input,
+.media-collection-controls .media-wizard-field textarea {
+  padding: 8px 9px;
+  border-radius: 9px;
+  font-size: 10px;
+}
+.media-collection-controls .media-wizard-field textarea {
+  min-height: 58px;
+}
+.media-collection-controls .media-wizard-field-row {
+  gap: 7px;
+}
+.media-collection-controls .media-wizard-preview {
+  min-height: 70px;
+  margin-top: 9px;
+  border-radius: 10px;
+}
+.media-collection-controls .media-wizard-preview img {
+  max-height: 100px;
+}
+.media-collection-controls .media-wizard-preview-placeholder {
+  width: 34px;
+  height: 34px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.media-collection-controls .media-wizard-preview small {
+  padding: 0 8px 7px;
+  font-size: 8px;
+}
+.media-collection-controls .media-wizard-error {
+  min-height: 14px;
+  margin-top: 5px !important;
+  font-size: 8px !important;
+}
+.media-collection-controls .media-wizard-footer {
+  margin-top: 2px;
+  padding-top: 9px;
+}
+.media-collection-controls .media-wizard-footer .button,
+.media-collection-controls .media-wizard-arrow {
+  min-height: 31px;
+  height: 31px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 9px;
+}
+.media-collection-controls .media-wizard-arrow {
+  width: 31px;
+  padding: 0;
+}
+.media-collection-controls .media-wizard-next {
+  min-width: 78px;
+}
+.media-summary-grid {
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .media-collection-head {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .media-collection-controls {
+    width: min(390px, 100%);
+    justify-self: end;
+  }
+}
+
+@media (max-width: 720px) {
+  .media-collection-controls {
+    width: 100%;
+    justify-self: stretch;
+  }
+  .media-collection-controls .media-library-actions {
+    justify-content: stretch;
+  }
+  .media-collection-controls .media-library-actions .compact-add-button {
+    flex: 1;
+  }
+}
