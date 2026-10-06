@@ -76,7 +76,8 @@ test('fixture catalog validates', () => {
     libraries: 1,
     lessons: 1,
     topics: 2,
-    minutes: 20
+    minutes: 20,
+    media: 0
   });
 });
 
