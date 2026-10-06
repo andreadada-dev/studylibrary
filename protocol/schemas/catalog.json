@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/api/v1/schema/catalog",
+  "title": "StudyLibrary Catalog",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "slug",
+    "title",
+    "description",
+    "libraries"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": [
+        "integer",
+        "number"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "language": {
+      "type": "string"
+    },
+    "visibility": {
+      "enum": [
+        "private",
+        "public"
+      ]
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "publicRead": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string"
+      }
+    },
+    "libraries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "slug",
+          "title",
+          "lessons"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "api": {
+            "type": "object",
+            "properties": {
+              "publicRead": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": true
+          },
+          "lessons": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "/api/v1/schema/lesson"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
