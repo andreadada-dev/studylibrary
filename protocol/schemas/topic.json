@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/api/v1/schema/topic",
+  "title": "StudyLibrary Topic",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "summary",
+    "why",
+    "learningGoals",
+    "sections",
+    "sources"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "why": {
+      "type": "string",
+      "minLength": 1
+    },
+    "estimatedMinutes": {
+      "type": [
+        "integer",
+        "number"
+      ],
+      "minimum": 0
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "publicRead": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "learningGoals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "lead",
+              "concept",
+              "text",
+              "example",
+              "callout",
+              "formula",
+              "image",
+              "flow",
+              "comparison",
+              "list",
+              "checkpoint"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "target"
+        ],
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "requires",
+              "enables",
+              "uses",
+              "related",
+              "contrasts",
+              "motivates",
+              "applies-to"
+            ]
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "pages": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "At least one section should have type=checkpoint. This semantic rule is enforced by StudyLibrary validation."
+    }
+  ],
+  "additionalProperties": true
+}
