@@ -751,3 +751,202 @@ grant execute on function public.studylibrary_catalog_audit(text) to anon, authe
 
 revoke all on function public.studylibrary_catalog_agent(text) from public;
 grant execute on function public.studylibrary_catalog_agent(text) to anon, authenticated;
+
+
+-- Validate direct API writes server-side too; browser validation is not a security boundary.
+create or replace function public.studylibrary_catalog_json_errors(p_catalog jsonb)
+returns text[]
+language plpgsql
+immutable
+as $$
+declare
+  errors text[] := '{}';
+  library jsonb;
+  lesson jsonb;
+  topic jsonb;
+begin
+  if p_catalog is null or jsonb_typeof(p_catalog) <> 'object' then
+    return array['Catalog must be a JSON object'];
+  end if;
+
+  if btrim(coalesce(p_catalog->>'slug', '')) = '' then
+    errors := array_append(errors, 'Catalog slug is required');
+  end if;
+  if btrim(coalesce(p_catalog->>'title', '')) = '' then
+    errors := array_append(errors, 'Catalog title is required');
+  end if;
+  if char_length(coalesce(p_catalog->>'title', '')) > 160 then
+    errors := array_append(errors, 'Catalog title exceeds 160 characters');
+  end if;
+  if char_length(coalesce(p_catalog->>'description', '')) > 4000 then
+    errors := array_append(errors, 'Catalog description exceeds 4000 characters');
+  end if;
+  if octet_length(p_catalog::text) > 5242880 then
+    errors := array_append(errors, 'Catalog JSON exceeds 5 MB');
+  end if;
+  if jsonb_typeof(p_catalog->'libraries') <> 'array'
+     or jsonb_array_length(coalesce(p_catalog->'libraries', '[]'::jsonb)) = 0 then
+    errors := array_append(errors, 'Catalog must contain at least one library');
+    return errors;
+  end if;
+
+  for library in
+    select value from jsonb_array_elements(coalesce(p_catalog->'libraries', '[]'::jsonb))
+  loop
+    if btrim(coalesce(library->>'slug', '')) = '' then
+      errors := array_append(errors, 'Library slug is required');
+    end if;
+    if btrim(coalesce(library->>'title', '')) = '' then
+      errors := array_append(errors, 'Library title is required');
+    end if;
+    if jsonb_typeof(library->'lessons') <> 'array'
+       or jsonb_array_length(coalesce(library->'lessons', '[]'::jsonb)) = 0 then
+      errors := array_append(errors, 'Library ' || coalesce(library->>'slug', '?') || ' must contain at least one lesson');
+      continue;
+    end if;
+
+    for lesson in
+      select value from jsonb_array_elements(coalesce(library->'lessons', '[]'::jsonb))
+    loop
+      if btrim(coalesce(lesson->>'slug', '')) = '' then
+        errors := array_append(errors, 'Lesson slug is required');
+      end if;
+      if btrim(coalesce(lesson->>'title', '')) = '' then
+        errors := array_append(errors, 'Lesson title is required');
+      end if;
+      if jsonb_typeof(lesson->'modules') <> 'array'
+         or jsonb_array_length(coalesce(lesson->'modules', '[]'::jsonb)) = 0 then
+        errors := array_append(errors, 'Lesson ' || coalesce(lesson->>'slug', '?') || ' must contain modules');
+      end if;
+      if jsonb_typeof(lesson->'topics') <> 'array'
+         or jsonb_array_length(coalesce(lesson->'topics', '[]'::jsonb)) = 0 then
+        errors := array_append(errors, 'Lesson ' || coalesce(lesson->>'slug', '?') || ' must contain topics');
+        continue;
+      end if;
+
+      for topic in
+        select value from jsonb_array_elements(coalesce(lesson->'topics', '[]'::jsonb))
+      loop
+        if btrim(coalesce(topic->>'id', '')) = '' then
+          errors := array_append(errors, 'Topic id is required');
+        end if;
+        if btrim(coalesce(topic->>'title', '')) = '' then
+          errors := array_append(errors, 'Topic title is required');
+        end if;
+        if btrim(coalesce(topic->>'summary', '')) = '' then
+          errors := array_append(errors, 'Topic ' || coalesce(topic->>'id', '?') || ' summary is required');
+        end if;
+        if btrim(coalesce(topic->>'why', '')) = '' then
+          errors := array_append(errors, 'Topic ' || coalesce(topic->>'id', '?') || ' why is required');
+        end if;
+        if jsonb_typeof(topic->'sources') <> 'array'
+           or jsonb_array_length(coalesce(topic->'sources', '[]'::jsonb)) = 0 then
+          errors := array_append(errors, 'Topic ' || coalesce(topic->>'id', '?') || ' must contain at least one source');
+        end if;
+        if jsonb_typeof(topic->'sections') <> 'array'
+           or not exists (
+             select 1
+             from jsonb_array_elements(coalesce(topic->'sections', '[]'::jsonb)) section_value
+             where section_value->>'type' = 'checkpoint'
+           ) then
+          errors := array_append(errors, 'Topic ' || coalesce(topic->>'id', '?') || ' must contain a checkpoint');
+        end if;
+      end loop;
+    end loop;
+  end loop;
+
+  return errors;
+end;
+$$;
+
+create or replace function public.studylibrary_api_write(
+  p_catalog_id uuid,
+  p_base_version integer,
+  p_message text,
+  p_catalog jsonb,
+  p_publish boolean default null,
+  p_api_public boolean default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_row public.catalogs%rowtype;
+  next_api_public boolean;
+  next_publish boolean;
+  validation_errors text[];
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  select c.* into current_row
+  from public.catalogs c
+  where c.id = p_catalog_id
+    and c.owner_id = auth.uid()
+  for update;
+
+  if not found then
+    raise exception 'catalog_not_found';
+  end if;
+
+  if p_base_version is not null and p_base_version <> current_row.current_version then
+    raise exception 'version_conflict: current version is %', current_row.current_version;
+  end if;
+
+  validation_errors := public.studylibrary_catalog_json_errors(p_catalog);
+  if cardinality(validation_errors) > 0 then
+    raise exception 'invalid_catalog: %', array_to_string(validation_errors[1:least(cardinality(validation_errors), 12)], '; ');
+  end if;
+
+  if p_catalog->>'slug' is distinct from current_row.slug then
+    raise exception 'slug_mismatch: expected %', current_row.slug;
+  end if;
+
+  next_publish := coalesce(p_publish, current_row.is_public);
+  next_api_public := coalesce(
+    p_api_public,
+    case
+      when jsonb_typeof(p_catalog #> '{api,publicRead}') = 'boolean'
+        then (p_catalog #>> '{api,publicRead}')::boolean
+      else current_row.api_public
+    end
+  );
+
+  p_catalog := p_catalog || jsonb_build_object(
+    'visibility', case when next_publish then 'public' else 'private' end,
+    'api', coalesce(p_catalog->'api', '{}'::jsonb) || jsonb_build_object('publicRead', next_api_public)
+  );
+
+  update public.catalogs
+  set
+    title = p_catalog->>'title',
+    description = coalesce(p_catalog->>'description', ''),
+    tags = coalesce(
+      array(select jsonb_array_elements_text(coalesce(p_catalog->'tags', '[]'::jsonb))),
+      '{}'::text[]
+    ),
+    is_public = next_publish,
+    api_public = next_api_public,
+    catalog_json = p_catalog,
+    version_message = left(coalesce(nullif(trim(p_message), ''), 'Aggiornamento API'), 240)
+  where id = p_catalog_id;
+
+  select c.* into current_row from public.catalogs c where c.id = p_catalog_id;
+
+  return jsonb_build_object(
+    'catalogId', current_row.id,
+    'version', current_row.current_version,
+    'updatedAt', current_row.updated_at,
+    'apiPublic', current_row.api_public,
+    'published', current_row.is_public
+  );
+end;
+$$;
+
+revoke all on function public.studylibrary_catalog_json_errors(jsonb) from public, anon, authenticated;
+revoke all on function public.studylibrary_api_write(uuid, integer, text, jsonb, boolean, boolean) from public;
+revoke all on function public.studylibrary_api_write(uuid, integer, text, jsonb, boolean, boolean) from anon;
+grant execute on function public.studylibrary_api_write(uuid, integer, text, jsonb, boolean, boolean) to authenticated;
