@@ -298,3 +298,126 @@ Quando il catalogo è salvato su Supabase, il database mantiene:
 - timestamp.
 
 Questo permette di continuare a usare JSON portabili senza inserire metadati runtime nel formato didattico.
+
+
+## Media: immagini e video
+
+Un catalogo può avere una libreria media riutilizzabile:
+
+```json
+{
+  "media": [
+    {
+      "id": "image-pinhole-model",
+      "type": "image",
+      "url": "https://example.org/pinhole.png",
+      "title": "Pinhole camera model",
+      "caption": "Geometria della proiezione prospettica",
+      "alt": "Schema di una camera pinhole con piano immagine",
+      "sourceUrl": "https://example.org/article",
+      "author": "Autore",
+      "license": "CC BY 4.0",
+      "provider": "Example"
+    },
+    {
+      "id": "video-color-spaces",
+      "type": "video",
+      "url": "https://www.youtube.com/watch?v=...",
+      "title": "Color spaces explained",
+      "caption": "Introduzione visuale agli spazi colore",
+      "sourceUrl": "https://www.youtube.com/watch?v=...",
+      "provider": "youtube"
+    }
+  ]
+}
+```
+
+Le sezioni dei topic possono poi referenziare i media:
+
+```json
+{
+  "type": "image",
+  "mediaRef": "image-pinhole-model",
+  "caption": "Osserva il rapporto fra punto 3D, centro ottico e piano immagine."
+}
+```
+
+```json
+{
+  "type": "video",
+  "mediaRef": "video-color-spaces"
+}
+```
+
+Sono inoltre supportate:
+
+```json
+{
+  "type": "gallery",
+  "title": "Confronto visuale",
+  "items": [
+    "image-rgb",
+    "image-hsv"
+  ]
+}
+```
+
+e risorse esterne non embeddabili:
+
+```json
+{
+  "type": "embed",
+  "title": "Demo interattiva",
+  "url": "https://example.org/demo",
+  "body": "Apri la demo e modifica i parametri."
+}
+```
+
+### URL diretto e auto-registrazione
+
+Per immagini e video puoi anche inserire direttamente l'URL:
+
+```json
+{
+  "type": "image",
+  "url": "https://example.org/diagram.png",
+  "alt": "Descrizione accessibile",
+  "sourceUrl": "https://example.org/source",
+  "license": "CC BY 4.0"
+}
+```
+
+Quando il catalogo viene salvato, StudyLibrary:
+
+1. genera un ID stabile dal tipo + URL;
+2. deduplica il media;
+3. lo aggiunge a `catalog.media`;
+4. sostituisce l'URL inline con `mediaRef`.
+
+Lo stesso avviene con URL inseriti nelle gallery.
+
+### Video
+
+Il renderer gestisce in modo specifico:
+
+- YouTube → embed privacy-enhanced `youtube-nocookie.com`;
+- Vimeo → player Vimeo;
+- URL diretti a video → elemento HTML `video`;
+- altri URL → link esterno con thumbnail quando disponibile.
+
+Non vengono creati iframe arbitrari da URL non riconosciuti.
+
+### Provenienza
+
+Per media trovati sul web, compilare quando possibile:
+
+- `sourceUrl`: pagina originale, non soltanto il file immagine;
+- `author` / `credit`;
+- `license`;
+- `provider`.
+
+Non inventare mai la licenza. Se non è verificabile, lasciala vuota oppure usa un valore esplicito come `unknown`.
+
+Le immagini devono avere un `alt` utile alla comprensione.
+
+L'audit API segnala media senza URL, immagini senza alt, media senza fonte/licenza e riferimenti `mediaRef` rotti.
