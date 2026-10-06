@@ -1901,3 +1901,222 @@ body.universe-mode .universe-legend-hint {
     width: 100%;
   }
 }
+
+
+/* Rich media */
+.media-block {
+  margin: 28px 0;
+}
+.lesson-image.media-block h3,
+.lesson-video.media-block h3 {
+  margin: 0 0 10px;
+}
+.lesson-image img,
+.media-gallery-item img,
+.video-link-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.lesson-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #0f1015;
+}
+.lesson-video-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.lesson-video-direct {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  border-radius: 16px;
+  background: #0f1015;
+}
+.lesson-video figcaption,
+.lesson-image figcaption {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.lesson-video figcaption a,
+.lesson-image figcaption a {
+  color: var(--accent);
+  font-weight: 700;
+}
+.video-link-card {
+  min-height: 190px;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+  text-align: center;
+}
+.video-link-card img {
+  max-height: 420px;
+  object-fit: cover;
+}
+.video-link-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 23px;
+}
+.media-gallery {
+  margin: 30px 0;
+}
+.media-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.media-gallery-item {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.media-gallery-item img {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.media-gallery-item figcaption,
+.media-gallery-item strong {
+  display: block;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.media-gallery-item.video {
+  display: grid;
+  place-items: center;
+  min-height: 170px;
+}
+.media-gallery-caption {
+  color: var(--muted);
+  font-size: 11px;
+}
+.external-resource {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg);
+}
+.external-resource-link {
+  display: inline-flex;
+  margin-top: 8px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Media/source editor */
+.editor-help {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.media-library-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.media-library-grid,
+.lesson-source-list {
+  display: grid;
+  gap: 12px;
+}
+.media-editor-card,
+.lesson-source-row {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--bg);
+}
+.media-editor-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.media-editor-card-head strong {
+  font-size: 12px;
+}
+.media-editor-card-head button,
+.lesson-source-row > button {
+  border: 0;
+  background: transparent;
+  color: #a65a5a;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.media-editor-fields,
+.lesson-source-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+}
+.media-editor-fields label,
+.lesson-source-row label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.media-editor-fields label.wide,
+.lesson-source-row label.wide {
+  grid-column: 1 / -1;
+}
+.media-editor-fields span,
+.lesson-source-row span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.media-editor-fields input,
+.media-editor-fields select,
+.lesson-source-row input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+}
+.lesson-source-row > button {
+  justify-self: start;
+}
+
+@media (max-width: 720px) {
+  .media-gallery-grid,
+  .media-editor-fields,
+  .lesson-source-row {
+    grid-template-columns: 1fr;
+  }
+  .media-editor-fields label.wide,
+  .lesson-source-row label.wide {
+    grid-column: auto;
+  }
+}
