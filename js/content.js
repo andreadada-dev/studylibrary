@@ -146,6 +146,20 @@ export function validateCatalog(catalog) {
   if (String(catalog?.description || '').length > 4000) errors.push('Catalogo: description supera 4000 caratteri');
   if (Array.isArray(catalog?.tags) && catalog.tags.length > 20) errors.push('Catalogo: massimo 20 tag');
 
+  const mediaIds = new Set();
+  if (catalog?.media !== undefined && !Array.isArray(catalog.media)) {
+    errors.push('Catalogo: media deve essere un array');
+  }
+  for (const [mediaIndex, asset] of (catalog?.media || []).entries()) {
+    const label = 'Media ' + (asset?.id || mediaIndex + 1);
+    if (!asset?.id) errors.push(label + ': manca id');
+    if (asset?.id && mediaIds.has(asset.id)) errors.push('Media id duplicato: ' + asset.id);
+    if (asset?.id) mediaIds.add(asset.id);
+    if (!['image', 'video'].includes(asset?.type)) errors.push(label + ': type deve essere image o video');
+    if (!isAllowedMediaUrl(asset?.url)) errors.push(label + ': URL non valido o non consentito');
+    if (asset?.type === 'image' && !String(asset?.alt || '').trim()) errors.push(label + ': aggiungi alt text');
+  }
+
   try {
     const bytes = new TextEncoder().encode(JSON.stringify(catalog)).length;
     if (bytes > 5 * 1024 * 1024) errors.push('Catalogo: il JSON supera il limite di 5 MB');
@@ -178,7 +192,7 @@ export function validateCatalog(catalog) {
       if (lesson.slug && lessonSlugs.has(lesson.slug)) errors.push(label + ': slug duplicato');
       lessonSlugs.add(lesson.slug);
 
-      const lessonValidation = validateLesson(lesson);
+      const lessonValidation = validateLesson(lesson, mediaIds);
       errors.push(...lessonValidation.errors.map(error => label + ': ' + error));
     }
   }
@@ -186,7 +200,7 @@ export function validateCatalog(catalog) {
   return { ok: errors.length === 0, errors };
 }
 
-export function validateLesson(lesson) {
+export function validateLesson(lesson, mediaIds = new Set()) {
   const errors = [];
   if (!Array.isArray(lesson?.topics) || !lesson.topics.length) errors.push('topics deve contenere almeno un argomento');
   if (!Array.isArray(lesson?.modules) || !lesson.modules.length) errors.push('modules deve contenere almeno un modulo');
@@ -209,6 +223,45 @@ export function validateLesson(lesson) {
 
     if (!Array.isArray(topic.sources) || !topic.sources.length) {
       errors.push('Topic ' + (topic.id || index + 1) + ': aggiungi almeno una fonte');
+    }
+
+    for (const [sectionIndex, section] of (topic.sections || []).entries()) {
+      const sectionLabel = 'Topic ' + (topic.id || index + 1) + ', sezione ' + (sectionIndex + 1);
+
+      if (section?.type === 'image' || section?.type === 'video') {
+        const hasRef = Boolean(section.mediaRef);
+        const inlineUrl = section.url || section.src || '';
+        if (!hasRef && !inlineUrl) errors.push(sectionLabel + ': mediaRef o URL richiesto');
+        if (hasRef && mediaIds.size && !mediaIds.has(section.mediaRef)) {
+          errors.push(sectionLabel + ': mediaRef sconosciuto ' + section.mediaRef);
+        }
+        if (inlineUrl && !isAllowedMediaUrl(inlineUrl)) {
+          errors.push(sectionLabel + ': URL media non valido o non consentito');
+        }
+        if (section.type === 'image' && !hasRef && !String(section.alt || '').trim()) {
+          errors.push(sectionLabel + ': aggiungi alt text');
+        }
+      }
+
+      if (section?.type === 'gallery') {
+        if (!Array.isArray(section.items) || !section.items.length) {
+          errors.push(sectionLabel + ': gallery deve contenere almeno un media');
+        } else {
+          for (const item of section.items) {
+            if (typeof item === 'string') {
+              if (mediaIds.size && !mediaIds.has(item)) errors.push(sectionLabel + ': mediaRef sconosciuto ' + item);
+            } else if (item?.mediaRef) {
+              if (mediaIds.size && !mediaIds.has(item.mediaRef)) errors.push(sectionLabel + ': mediaRef sconosciuto ' + item.mediaRef);
+            } else if (!isAllowedMediaUrl(item?.url || item?.src)) {
+              errors.push(sectionLabel + ': elemento gallery non valido');
+            }
+          }
+        }
+      }
+
+      if (section?.type === 'embed' && !isAllowedMediaUrl(section.url)) {
+        errors.push(sectionLabel + ': URL embed non valido o non consentito');
+      }
     }
   }
 
@@ -390,4 +443,14 @@ export function universeHref({ catalogSlug = null, librarySlug = null, lessonSlu
   if (librarySlug) href += '/library/' + encodeURIComponent(librarySlug);
   if (lessonSlug) href += '/lesson/' + encodeURIComponent(lessonSlug);
   return href + '/universe';
+}
+
+
+function isAllowedMediaUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  if (/^https:\/\//i.test(text)) return true;
+  if (/^\/(?!\/)/.test(text) || /^\.\.?\//.test(text)) return true;
+  if (/^data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml)[;,]/i.test(text)) return true;
+  return false;
 }
