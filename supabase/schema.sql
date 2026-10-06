@@ -2049,14 +2049,29 @@ begin
   loop
     if btrim(coalesce(media_asset->>'id', '')) = '' then
       errors := array_append(errors, 'Media id is required');
+    elsif (media_asset->>'id') = any(media_ids) then
+      errors := array_append(errors, 'Duplicate media id ' || (media_asset->>'id'));
     else
       media_ids := array_append(media_ids, media_asset->>'id');
     end if;
+
     if coalesce(media_asset->>'type', '') not in ('image', 'video') then
       errors := array_append(errors, 'Media type must be image or video');
     end if;
+
     if btrim(coalesce(media_asset->>'url', '')) = '' then
       errors := array_append(errors, 'Media URL is required');
+    elsif not (
+      left(lower(media_asset->>'url'), 8) = 'https://'
+      or left(media_asset->>'url', 1) = '/'
+      or left(lower(media_asset->>'url'), 11) = 'data:image/'
+    ) then
+      errors := array_append(errors, 'Media URL must use HTTPS, a relative path, or a data:image URL');
+    end if;
+
+    if btrim(coalesce(media_asset->>'sourceUrl', '')) <> ''
+       and left(lower(media_asset->>'sourceUrl'), 8) <> 'https://' then
+      errors := array_append(errors, 'Media sourceUrl must use HTTPS');
     end if;
   end loop;
 
@@ -2139,6 +2154,17 @@ begin
             elsif btrim(coalesce(section->>'mediaRef', '')) = ''
                and btrim(coalesce(section->>'url', section->>'src', '')) = '' then
               errors := array_append(errors, 'Media section requires mediaRef or URL');
+            elsif btrim(coalesce(section->>'mediaRef', '')) = ''
+               and not (
+                 left(lower(coalesce(section->>'url', section->>'src', '')), 8) = 'https://'
+                 or left(coalesce(section->>'url', section->>'src', ''), 1) = '/'
+                 or left(lower(coalesce(section->>'url', section->>'src', '')), 11) = 'data:image/'
+               ) then
+              errors := array_append(errors, 'Inline media URL is not allowed');
+            end if;
+          elsif section->>'type' = 'embed' then
+            if left(lower(coalesce(section->>'url', '')), 8) <> 'https://' then
+              errors := array_append(errors, 'Embed URL must use HTTPS');
             end if;
           elsif section->>'type' = 'gallery' then
             for gallery_item in
