@@ -10,7 +10,7 @@ test('agent protocol is self-describing and version-aware', async () => {
   const agent = await readJson('protocol/agent.json');
 
   assert.equal(agent.protocol, 'studylibrary');
-  assert.equal(agent.protocolVersion, '1.0');
+  assert.equal(agent.protocolVersion, '1.1');
   assert.equal(agent.endpoints.bootstrap, '/api/v1/agent');
   assert.equal(agent.endpoints.catalogAgent, '/api/v1/catalogs/{catalog}/agent');
   assert.equal(agent.endpoints.audit, '/api/v1/catalogs/{catalog}/audit');
@@ -19,6 +19,8 @@ test('agent protocol is self-describing and version-aware', async () => {
   assert.ok(agent.canonicalWorkflow.some(step => step.includes('/audit')));
   assert.ok(agent.topicRequirements.mustContainCheckpoint);
   assert.ok(agent.sourcePolicy.doNotInventSourceClaims);
+  assert.deepEqual(agent.media.supportedAssets, ['image', 'video']);
+  assert.ok(agent.media.supportedSections.includes('gallery'));
 });
 
 test('machine schemas referenced by the agent exist and parse', async () => {
