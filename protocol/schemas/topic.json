@@ -76,11 +76,44 @@
               "callout",
               "formula",
               "image",
+              "video",
+              "gallery",
+              "embed",
               "flow",
               "comparison",
               "list",
               "checkpoint"
             ]
+          },
+          "mediaRef": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "src": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "credit": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array"
           }
         },
         "additionalProperties": true
