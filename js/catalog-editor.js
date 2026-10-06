@@ -4,6 +4,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
   let catalog = structuredClone(initialCatalog);
   let selection = { type: 'catalog', li: null, lj: null, ti: null };
   let editors = [];
+  const openDisclosures = new Set();
 
   render();
 
@@ -161,11 +162,26 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       '</div>';
   }
 
+  function disclosure(key, title, meta, body, className = '') {
+    const open = openDisclosures.has(key);
+    return '<section class="editor-disclosure ' + className + '" data-disclosure data-open="' + (open ? 'true' : 'false') + '">' +
+      '<button class="editor-disclosure-trigger" type="button" data-disclosure-toggle data-disclosure-key="' + attr(key) + '" aria-expanded="' + (open ? 'true' : 'false') + '">' +
+        '<span class="editor-disclosure-copy"><strong>' + esc(title) + '</strong>' +
+        (meta ? '<small>' + esc(meta) + '</small>' : '') + '</span>' +
+        '<span class="editor-disclosure-chevron" aria-hidden="true">⌄</span>' +
+      '</button>' +
+      '<div class="editor-disclosure-panel"><div class="editor-disclosure-panel-inner">' + body + '</div></div>' +
+    '</section>';
+  }
+
   function compactSettings(title, body) {
-    return '<details class="editor-compact-settings">' +
-      '<summary><span>⚙</span><strong>' + esc(title) + '</strong><small>slug, ID, API e metadati</small></summary>' +
-      '<div class="catalog-editor-fields compact">' + body + '</div>' +
-    '</details>';
+    return disclosure(
+      'settings:' + selection.type,
+      title,
+      'slug, ID, API e metadati',
+      '<div class="catalog-editor-fields compact">' + body + '</div>',
+      'editor-compact-settings'
+    );
   }
 
   function text(label, key, value, hint) {
@@ -191,52 +207,85 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   function lessonSources(lesson) {
     const sources = lesson.sources || [];
-    let html = '<div class="editor-field editor-field-wide lesson-sources-editor">' +
-      '<div class="field-heading"><label>Fonti della lezione</label><span>' + sources.length + '</span></div>' +
-      '<div class="media-library-actions"><button class="button secondary" type="button" data-add-source>＋ Fonte</button></div>' +
-      '<div class="lesson-source-list">';
+    let html = '<section class="compact-collection lesson-sources-editor">' +
+      '<div class="compact-collection-head"><div><span class="eyebrow">Fonti</span><h3>Fonti della lezione</h3><p>Aggiungi solo i riferimenti utili; i dettagli restano chiusi finché non servono.</p></div>' +
+      '<button class="button secondary compact-add-button" type="button" data-add-source>＋ Fonte</button></div>' +
+      '<div class="lesson-source-list compact-list">';
 
     sources.forEach((source, index) => {
-      html += '<article class="lesson-source-row">' +
+      const title = source.label || source.id || ('Fonte ' + (index + 1));
+      const meta = [source.type || 'fonte', compactUrl(source.url)].filter(Boolean).join(' · ');
+      const body = '<div class="lesson-source-row compact-fields">' +
         '<label><span>ID</span><input data-source-field="' + index + ':id" value="' + attr(source.id || '') + '"></label>' +
         '<label><span>Tipo</span><input data-source-field="' + index + ':type" value="' + attr(source.type || '') + '" placeholder="slides, book, web, video..."></label>' +
         '<label class="wide"><span>Etichetta</span><input data-source-field="' + index + ':label" value="' + attr(source.label || '') + '"></label>' +
         '<label class="wide"><span>URL</span><input data-source-field="' + index + ':url" value="' + attr(source.url || '') + '" placeholder="https://..."></label>' +
-        '<button type="button" data-delete-source="' + index + '">Elimina</button>' +
-      '</article>';
+        '<button class="compact-delete-button" type="button" data-delete-source="' + index + '">Elimina fonte</button>' +
+      '</div>';
+
+      html += disclosure(
+        'source:' + selection.li + ':' + selection.lj + ':' + (source.id || index),
+        title,
+        meta || 'Nessun dettaglio',
+        body,
+        'source-disclosure'
+      );
     });
 
-    return html + '</div></div>';
+    return html + '</div></section>';
   }
 
   function mediaLibrary() {
     const assets = catalog.media || [];
-    let html = '<div class="editor-field editor-field-wide media-library-editor">' +
-      '<div class="field-heading"><label>Libreria media</label><span>' + assets.length + '</span></div>' +
-      '<p class="editor-help">Immagini e video inseriti nei topic vengono normalizzati qui al salvataggio. Puoi anche registrarli manualmente e poi usare il mediaRef nelle sezioni.</p>' +
-      '<div class="media-library-actions"><button class="button secondary" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary" type="button" data-add-media="video">＋ Video</button></div>' +
-      '<div class="media-library-grid">';
+    let html = '<section class="compact-collection media-library-editor">' +
+      '<div class="compact-collection-head"><div><span class="eyebrow">Media</span><h3>Libreria media</h3><p>Immagini e video restano compatti. Apri solo il media che vuoi modificare.</p></div>' +
+      '<div class="media-library-actions"><button class="button secondary compact-add-button" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary compact-add-button" type="button" data-add-media="video">＋ Video</button></div></div>' +
+      '<div class="media-library-grid compact-list">';
 
     assets.forEach((asset, index) => {
-      html += '<article class="media-editor-card">' +
-        '<div class="media-editor-card-head"><strong>' + esc(asset.title || asset.id || ('Media ' + (index + 1))) + '</strong><button type="button" data-delete-media="' + index + '">Elimina</button></div>' +
-        '<div class="media-editor-fields">' +
-          '<label><span>Tipo</span><select data-media-field="' + index + ':type"><option value="image"' + (asset.type === 'image' ? ' selected' : '') + '>Immagine</option><option value="video"' + (asset.type === 'video' ? ' selected' : '') + '>Video</option></select></label>' +
-          '<label><span>ID</span><input data-media-field="' + index + ':id" value="' + attr(asset.id || '') + '"></label>' +
-          '<label class="wide"><span>URL media</span><input data-media-field="' + index + ':url" value="' + attr(asset.url || '') + '" placeholder="https://..."></label>' +
-          '<label><span>Titolo</span><input data-media-field="' + index + ':title" value="' + attr(asset.title || '') + '"></label>' +
-          '<label><span>Provider</span><input data-media-field="' + index + ':provider" value="' + attr(asset.provider || '') + '" placeholder="youtube, vimeo, wikipedia..."></label>' +
-          '<label class="wide"><span>Didascalia</span><input data-media-field="' + index + ':caption" value="' + attr(asset.caption || '') + '"></label>' +
-          '<label class="wide"><span>Alt text</span><input data-media-field="' + index + ':alt" value="' + attr(asset.alt || '') + '" placeholder="Descrizione accessibile dell’immagine"></label>' +
-          '<label class="wide"><span>Fonte originale</span><input data-media-field="' + index + ':sourceUrl" value="' + attr(asset.sourceUrl || '') + '" placeholder="https://pagina-della-fonte..."></label>' +
-          '<label><span>Autore / credito</span><input data-media-field="' + index + ':author" value="' + attr(asset.author || asset.credit || '') + '"></label>' +
-          '<label><span>Licenza</span><input data-media-field="' + index + ':license" value="' + attr(asset.license || '') + '" placeholder="CC BY 4.0, unknown..."></label>' +
-          '<label class="wide"><span>Thumbnail video</span><input data-media-field="' + index + ':thumbnailUrl" value="' + attr(asset.thumbnailUrl || '') + '" placeholder="opzionale"></label>' +
-        '</div>' +
-      '</article>';
+      const title = asset.title || asset.id || ('Media ' + (index + 1));
+      const typeLabel = asset.type === 'video' ? 'Video' : 'Immagine';
+      const meta = [typeLabel, compactUrl(asset.url), asset.license || ''].filter(Boolean).join(' · ');
+      const body = '<div class="media-editor-fields compact-fields">' +
+        '<label><span>Tipo</span><select data-media-field="' + index + ':type"><option value="image"' + (asset.type === 'image' ? ' selected' : '') + '>Immagine</option><option value="video"' + (asset.type === 'video' ? ' selected' : '') + '>Video</option></select></label>' +
+        '<label><span>ID</span><input data-media-field="' + index + ':id" value="' + attr(asset.id || '') + '"></label>' +
+        '<label class="wide"><span>URL media</span><input data-media-field="' + index + ':url" value="' + attr(asset.url || '') + '" placeholder="https://..."></label>' +
+        '<label><span>Titolo</span><input data-media-field="' + index + ':title" value="' + attr(asset.title || '') + '"></label>' +
+        '<label><span>Provider</span><input data-media-field="' + index + ':provider" value="' + attr(asset.provider || '') + '" placeholder="youtube, vimeo, wikipedia..."></label>' +
+        '<label class="wide"><span>Didascalia</span><input data-media-field="' + index + ':caption" value="' + attr(asset.caption || '') + '"></label>' +
+        '<label class="wide"><span>Alt text</span><input data-media-field="' + index + ':alt" value="' + attr(asset.alt || '') + '" placeholder="Descrizione accessibile dell’immagine"></label>' +
+        '<label class="wide"><span>Fonte originale</span><input data-media-field="' + index + ':sourceUrl" value="' + attr(asset.sourceUrl || '') + '" placeholder="https://pagina-della-fonte..."></label>' +
+        '<label><span>Autore / credito</span><input data-media-field="' + index + ':author" value="' + attr(asset.author || asset.credit || '') + '"></label>' +
+        '<label><span>Licenza</span><input data-media-field="' + index + ':license" value="' + attr(asset.license || '') + '" placeholder="CC BY 4.0, unknown..."></label>' +
+        '<label class="wide"><span>Thumbnail video</span><input data-media-field="' + index + ':thumbnailUrl" value="' + attr(asset.thumbnailUrl || '') + '" placeholder="opzionale"></label>' +
+        '<button class="compact-delete-button" type="button" data-delete-media="' + index + '">Elimina media</button>' +
+      '</div>';
+
+      html += disclosure(
+        'media:' + (asset.id || index),
+        title,
+        meta || typeLabel,
+        body,
+        'media-disclosure ' + (asset.type === 'video' ? 'is-video' : 'is-image')
+      );
     });
 
-    return html + '</div></div>';
+    if (!assets.length) {
+      html += '<div class="compact-empty">Nessun media. Aggiungine uno solo quando serve davvero alla spiegazione.</div>';
+    }
+
+    return html + '</div></section>';
+  }
+
+  function compactUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw);
+      return url.hostname.replace(/^www\./, '') + (url.pathname && url.pathname !== '/' ? url.pathname.slice(0, 34) : '');
+    } catch {
+      return raw.length > 42 ? raw.slice(0, 39) + '…' : raw;
+    }
   }
 
   function mediaRefSelect(section, index, expectedType) {
@@ -311,15 +360,32 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
   }
 
   function compactSectionMeta(index, section, type) {
-    return '<details class="inline-meta-details"><summary>Crediti e metadati</summary><div class="catalog-editor-fields compact">' +
-      (type === 'image' ? text('Alt text', 'section:' + index + ':alt', section.alt || '') : text('Thumbnail', 'section:' + index + ':thumbnailUrl', section.thumbnailUrl || '')) +
-      text('Fonte originale', 'section:' + index + ':sourceUrl', section.sourceUrl || '') +
-      text('Credito', 'section:' + index + ':credit', section.credit || '') +
-      text('Licenza', 'section:' + index + ':license', section.license || '') +
-    '</div></details>';
+    return disclosure(
+      'section-meta:' + selection.li + ':' + selection.lj + ':' + selection.ti + ':' + index,
+      'Crediti e metadati',
+      section.license || compactUrl(section.sourceUrl) || 'opzionali',
+      '<div class="catalog-editor-fields compact">' +
+        (type === 'image' ? text('Alt text', 'section:' + index + ':alt', section.alt || '') : text('Thumbnail', 'section:' + index + ':thumbnailUrl', section.thumbnailUrl || '')) +
+        text('Fonte originale', 'section:' + index + ':sourceUrl', section.sourceUrl || '') +
+        text('Credito', 'section:' + index + ':credit', section.credit || '') +
+        text('Licenza', 'section:' + index + ':license', section.license || '') +
+      '</div>',
+      'inline-meta-disclosure'
+    );
   }
 
   function bind() {
+    container.querySelectorAll('[data-disclosure-toggle]').forEach(button => button.addEventListener('click', () => {
+      const disclosureEl = button.closest('[data-disclosure]');
+      if (!disclosureEl) return;
+      const key = button.dataset.disclosureKey;
+      const nextOpen = disclosureEl.dataset.open !== 'true';
+      disclosureEl.dataset.open = String(nextOpen);
+      button.setAttribute('aria-expanded', String(nextOpen));
+      if (nextOpen) openDisclosures.add(key);
+      else openDisclosures.delete(key);
+    }));
+
     container.querySelectorAll('[data-select]').forEach(button => button.addEventListener('click', () => {
       selection = {
         type: button.dataset.select,
@@ -393,6 +459,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         id = 'source-' + next;
       }
       lesson.sources.push({ id, type: 'web', label: 'Nuova fonte', url: '' });
+      openDisclosures.add('source:' + selection.li + ':' + selection.lj + ':' + id);
       emit();
       render();
     });
@@ -446,6 +513,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         provider: '',
         thumbnailUrl: ''
       });
+      openDisclosures.add('media:' + id);
       emit();
       render();
     }));
