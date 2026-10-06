@@ -238,9 +238,13 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
   function mediaLibrary() {
     const assets = catalog.media || [];
     let html = '<section class="compact-collection media-library-editor">' +
-      '<div class="compact-collection-head media-collection-head"><div><span class="eyebrow">Media</span><h3>Libreria media</h3><p>Aggiungi immagini e video con una procedura guidata. Nessun elemento vuoto viene creato.</p></div>' +
-      '<div class="media-library-actions"><button class="button secondary compact-add-button" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary compact-add-button" type="button" data-add-media="video">＋ Video</button></div></div>' +
-      '<div class="media-inline-wizard-slot" data-media-wizard-slot aria-live="polite"></div>' +
+      '<div class="compact-collection-head media-collection-head">' +
+        '<div class="media-collection-copy"><span class="eyebrow">Media</span><h3>Libreria media</h3><p>Aggiungi immagini e video con una procedura guidata. Nessun elemento vuoto viene creato.</p></div>' +
+        '<div class="media-collection-controls">' +
+          '<div class="media-library-actions"><button class="button secondary compact-add-button" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary compact-add-button" type="button" data-add-media="video">＋ Video</button></div>' +
+          '<div class="media-inline-wizard-slot" data-media-wizard-slot aria-live="polite"></div>' +
+        '</div>' +
+      '</div>' +
       '<div class="media-summary-grid">';
 
     assets.forEach((asset, index) => {
