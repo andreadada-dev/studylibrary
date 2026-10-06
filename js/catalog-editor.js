@@ -99,13 +99,18 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description) + apiPolicy(item);
     }
     if (selection.type === 'lesson') {
-      return text('Titolo', 'title', item.title) + text('Slug', 'slug', item.slug) + md('Descrizione', 'description', item.description) + apiPolicy(item);
+      return text('Titolo', 'title', item.title) +
+        text('Slug', 'slug', item.slug) +
+        md('Descrizione', 'description', item.description) +
+        apiPolicy(item) +
+        lessonSources(item);
     }
     return text('Titolo', 'title', item.title) + text('ID', 'id', item.id) +
       '<label class="editor-field"><span>Minuti stimati</span><input type="number" min="0" data-field="estimatedMinutes" value="' + (Number(item.estimatedMinutes) || 0) + '"></label>' +
       md('Riassunto', 'summary', item.summary) + md('Perché serve', 'why', item.why) +
       textarea('Obiettivi', 'learningGoals', (item.learningGoals || []).join('\n'), 'Uno per riga') +
       textarea('Prerequisiti', 'prerequisites', (item.prerequisites || []).join('\n'), 'ID, uno per riga') +
+      textarea('Fonti del topic', 'topicSources', (item.sources || []).map(source => [source.ref || '', source.pages || '', source.note || ''].join(' | ')).join('\n'), 'Formato: source-id | pagine/slide | nota') +
       apiPolicy(item) +
       sections(item);
   }
@@ -129,6 +134,26 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
   function apiPolicy(item) {
     const raw = item.api && typeof item.api.publicRead === 'boolean' ? String(item.api.publicRead) : 'inherit';
     return '<label class="editor-field"><span>Accesso API</span><select data-api-policy><option value="inherit"' + (raw === 'inherit' ? ' selected' : '') + '>Eredita</option><option value="true"' + (raw === 'true' ? ' selected' : '') + '>Pubblico</option><option value="false"' + (raw === 'false' ? ' selected' : '') + '>Privato</option></select><small>Eredita dal genitore oppure restringe questo livello. Un genitore privato blocca sempre i discendenti.</small></label>';
+  }
+
+  function lessonSources(lesson) {
+    const sources = lesson.sources || [];
+    let html = '<div class="editor-field editor-field-wide lesson-sources-editor">' +
+      '<div class="field-heading"><label>Fonti della lezione</label><span>' + sources.length + '</span></div>' +
+      '<div class="media-library-actions"><button class="button secondary" type="button" data-add-source>＋ Fonte</button></div>' +
+      '<div class="lesson-source-list">';
+
+    sources.forEach((source, index) => {
+      html += '<article class="lesson-source-row">' +
+        '<label><span>ID</span><input data-source-field="' + index + ':id" value="' + attr(source.id || '') + '"></label>' +
+        '<label><span>Tipo</span><input data-source-field="' + index + ':type" value="' + attr(source.type || '') + '" placeholder="slides, book, web, video..."></label>' +
+        '<label class="wide"><span>Etichetta</span><input data-source-field="' + index + ':label" value="' + attr(source.label || '') + '"></label>' +
+        '<label class="wide"><span>URL</span><input data-source-field="' + index + ':url" value="' + attr(source.url || '') + '" placeholder="https://..."></label>' +
+        '<button type="button" data-delete-source="' + index + '">Elimina</button>' +
+      '</article>';
+    });
+
+    return html + '</div></div>';
   }
 
   function mediaLibrary() {
@@ -249,6 +274,51 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       if (!Object.keys(item.api).length) delete item.api;
       emit();
     });
+
+    container.querySelector('[data-add-source]')?.addEventListener('click', () => {
+      const lesson = selected();
+      lesson.sources ||= [];
+      let next = lesson.sources.length + 1;
+      let id = 'source-' + next;
+      while (lesson.sources.some(source => source.id === id)) {
+        next += 1;
+        id = 'source-' + next;
+      }
+      lesson.sources.push({ id, type: 'web', label: 'Nuova fonte', url: '' });
+      emit();
+      render();
+    });
+
+    container.querySelectorAll('[data-source-field]').forEach(input => input.addEventListener('input', () => {
+      const [indexText, field] = input.dataset.sourceField.split(':');
+      const lesson = selected();
+      const source = lesson?.sources?.[Number(indexText)];
+      if (!source) return;
+      const oldId = source.id;
+      source[field] = input.value;
+      if (field === 'id' && oldId !== input.value) {
+        for (const topic of lesson.topics || []) {
+          for (const ref of topic.sources || []) {
+            if (ref.ref === oldId) ref.ref = input.value;
+          }
+        }
+      }
+      emit();
+    }));
+
+    container.querySelectorAll('[data-delete-source]').forEach(button => button.addEventListener('click', () => {
+      const lesson = selected();
+      const index = Number(button.dataset.deleteSource);
+      const source = lesson?.sources?.[index];
+      if (!source) return;
+      const sourceId = source.id;
+      lesson.sources.splice(index, 1);
+      for (const topic of lesson.topics || []) {
+        topic.sources = (topic.sources || []).filter(ref => ref.ref !== sourceId);
+      }
+      emit();
+      render();
+    }));
 
     container.querySelectorAll('[data-add-media]').forEach(button => button.addEventListener('click', () => {
       catalog.media ||= [];
@@ -453,6 +523,12 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       });
     } else if (key === 'tags') item.tags = value.split(',').map(v => v.trim()).filter(Boolean);
     else if (key === 'learningGoals' || key === 'prerequisites') item[key] = value.split(/\n+/).map(v => v.trim()).filter(Boolean);
+    else if (key === 'topicSources') {
+      item.sources = value.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => {
+        const [ref = '', pages = '', ...noteParts] = line.split('|').map(part => part.trim());
+        return { ref, pages, note: noteParts.join(' | ') };
+      }).filter(source => source.ref);
+    }
     else if (key === 'estimatedMinutes') item[key] = Math.max(0, Number(value) || 0);
     else item[key] = value;
   }
