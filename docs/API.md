@@ -315,3 +315,20 @@ Il pacchetto include `baseVersion`, quindi StudyLibrary blocca automaticamente u
 ### Validazione delle scritture
 
 La validazione non è affidata soltanto al browser. `/api/v1/write` valida server-side struttura minima, limiti di dimensione, checkpoint e fonti prima di aggiornare il catalogo. Lo slug del catalogo è trattato come identità stabile e non può essere cambiato tramite l'endpoint di scrittura.
+
+
+## Media enrichment
+
+Il catalog JSON può contenere `catalog.media[]` con asset `image` e `video`.
+
+Gli agent dovrebbero:
+
+1. usare media solo quando migliorano davvero la spiegazione;
+2. preferire `mediaRef` per riutilizzare lo stesso asset;
+3. preservare `sourceUrl`, autore/credito e licenza quando verificabili;
+4. non inventare informazioni di licenza;
+5. usare alt text descrittivo per le immagini.
+
+È possibile inserire URL direttamente dentro sezioni `image`, `video` e `gallery`: al salvataggio il frontend li deduplica e li registra automaticamente in `catalog.media`.
+
+L'API pubblica restituisce soltanto gli asset media referenziati dai contenuti effettivamente API-public, evitando che un media usato esclusivamente in una lezione privata venga esposto dal registry del catalogo.
