@@ -1,6 +1,7 @@
 import { state, isBackendConfigured } from './state.js';
 import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, deleteAccount, getDiscussion, addComment, updateComment, deleteComment, reportContent, setRating } from './api.js';
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
+import { resolveMediaAsset, detectVideoProvider, videoEmbedUrl } from './media.js';
 
 export const escapeHtml = value => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -167,7 +168,7 @@ function paragraphs(body) {
   return source.split(/\n\n+/).filter(Boolean).map(p => `<p>${escapeHtml(p)}</p>`).join('');
 }
 
-export function renderSection(section) {
+export function renderSection(section, context = null) {
   const title = section.title ? `<h3>${escapeHtml(section.title)}</h3>` : '';
   switch (section.type) {
     case 'lead':
@@ -181,9 +182,62 @@ export function renderSection(section) {
     case 'formula':
       return `<section class="lesson-section">${title}<div class="formula"><span class="math">${escapeHtml(section.latex || section.body || '')}</span></div>${section.note ? `<p>${escapeHtml(section.note)}</p>` : ''}</section>`;
     case 'image': {
-      const src = safeUrl(section.src, { image: true });
-      if (!src) return `<figure class="lesson-image"><div class="image-fallback"><strong>Immagine non valida</strong><span>La sorgente usa un URL non consentito.</span></div></figure>`;
-      return `<figure class="lesson-image"><img src="${escapeHtml(src)}" alt="${escapeHtml(section.alt || '')}" loading="lazy" referrerpolicy="no-referrer" />${section.caption ? `<figcaption>${escapeHtml(section.caption)}${section.credit ? ` · ${escapeHtml(section.credit)}` : ''}</figcaption>` : ''}</figure>`;
+      const asset = resolveMediaAsset(context?.catalog, section);
+      const src = safeUrl(asset?.url || section.url || section.src, { image: true });
+      if (!src) return `<figure class="lesson-image"><div class="image-fallback"><strong>Immagine non valida</strong><span>Media mancante oppure URL non consentito.</span></div></figure>`;
+      const alt = section.alt || asset?.alt || section.title || asset?.title || '';
+      const caption = section.caption || asset?.caption || '';
+      const credit = section.credit || asset?.credit || asset?.author || '';
+      const sourceUrl = safeUrl(section.sourceUrl || asset?.sourceUrl || '');
+      const source = sourceUrl
+        ? ` <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer nofollow">fonte ↗</a>`
+        : '';
+      return `<figure class="lesson-image media-block">${section.title || asset?.title ? `<h3>${escapeHtml(section.title || asset?.title || '')}</h3>` : ''}<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" referrerpolicy="no-referrer" />${caption || credit || source ? `<figcaption>${escapeHtml(caption)}${credit ? ` · ${escapeHtml(credit)}` : ''}${source}</figcaption>` : ''}</figure>`;
+    }
+    case 'video': {
+      const asset = resolveMediaAsset(context?.catalog, section);
+      const url = safeUrl(asset?.url || section.url || '');
+      if (!url) return `<section class="lesson-section media-block"><div class="image-fallback"><strong>Video non valido</strong><span>Media mancante oppure URL non consentito.</span></div></section>`;
+
+      const titleText = section.title || asset?.title || 'Video';
+      const caption = section.caption || asset?.caption || '';
+      const credit = section.credit || asset?.credit || asset?.author || '';
+      const sourceUrl = safeUrl(section.sourceUrl || asset?.sourceUrl || '');
+      const provider = asset?.provider || section.provider || detectVideoProvider(url);
+      const embed = videoEmbedUrl(url);
+      const thumbnail = safeUrl(section.thumbnailUrl || asset?.thumbnailUrl || '', { image: true });
+
+      let player = '';
+      if (embed) {
+        player = `<div class="lesson-video-frame"><iframe src="${escapeHtml(embed)}" title="${escapeHtml(titleText)}" loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+      } else if (provider === 'direct') {
+        player = `<video class="lesson-video-direct" controls preload="metadata" playsinline${thumbnail ? ` poster="${escapeHtml(thumbnail)}"` : ''}><source src="${escapeHtml(url)}"></video>`;
+      } else {
+        player = `<a class="video-link-card" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer nofollow">${thumbnail ? `<img src="${escapeHtml(thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="video-link-icon">▶</span>'}<strong>Apri video ↗</strong></a>`;
+      }
+
+      const source = sourceUrl
+        ? ` · <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer nofollow">fonte ↗</a>`
+        : '';
+      return `<figure class="lesson-video media-block"><h3>${escapeHtml(titleText)}</h3>${player}${caption || credit || source ? `<figcaption>${escapeHtml(caption)}${credit ? ` · ${escapeHtml(credit)}` : ''}${source}</figcaption>` : ''}</figure>`;
+    }
+    case 'gallery': {
+      const items = (section.items || []).map(item => resolveMediaAsset(context?.catalog, item)).filter(Boolean);
+      if (!items.length) return `<section class="lesson-section media-block"><div class="image-fallback"><strong>Galleria vuota</strong><span>Aggiungi mediaRef validi alla galleria.</span></div></section>`;
+      return `<section class="lesson-section media-gallery">${title}<div class="media-gallery-grid">${items.map(asset => {
+        if (asset.type === 'video') {
+          const url = safeUrl(asset.url);
+          const thumb = safeUrl(asset.thumbnailUrl || '', { image: true });
+          return url ? `<a class="media-gallery-item video" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer nofollow">${thumb ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="video-link-icon">▶</span>'}<strong>${escapeHtml(asset.title || 'Video')}</strong></a>` : '';
+        }
+        const src = safeUrl(asset.url, { image: true });
+        return src ? `<figure class="media-gallery-item"><img src="${escapeHtml(src)}" alt="${escapeHtml(asset.alt || asset.title || '')}" loading="lazy" referrerpolicy="no-referrer">${asset.caption ? `<figcaption>${escapeHtml(asset.caption)}</figcaption>` : ''}</figure>` : '';
+      }).join('')}</div>${section.caption ? `<p class="media-gallery-caption">${escapeHtml(section.caption)}</p>` : ''}</section>`;
+    }
+    case 'embed': {
+      const url = safeUrl(section.url);
+      if (!url) return `<section class="lesson-section media-block">${title}<div class="image-fallback"><strong>Risorsa non valida</strong><span>URL non consentito.</span></div></section>`;
+      return `<section class="lesson-section external-resource">${title}${section.body ? paragraphs(section.body) : ''}<a class="external-resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer nofollow">Apri risorsa esterna ↗</a></section>`;
     }
     case 'flow':
       return `<section class="lesson-section">${title}<div class="flow-diagram">${(section.nodes || []).map((n, idx) => `${idx ? '<span class="flow-arrow">→</span>' : ''}<div class="flow-node">${escapeHtml(typeof n === 'string' ? n : n.label)}</div>`).join('')}</div>${section.body ? paragraphs(section.body) : ''}</section>`;
@@ -430,7 +484,7 @@ export function lessonTopicArticle(context, topic) {
       ((topic.learningGoals || []).length ? '<ul class="learning-goals">' + topic.learningGoals.map(goal => '<li>' + escapeHtml(goal) + '</li>').join('') + '</ul>' : '') +
     '</header>' +
     (topic.why ? '<aside class="callout"><h4>Perché ti serve</h4>' + paragraphs(topic.why) + '</aside>' : '') +
-    (topic.sections || []).map(renderSection).join('') +
+    (topic.sections || []).map(section => renderSection(section, context)).join('') +
     renderTopicSources(context, topic) +
     renderLessonConnections(context, topic) +
     '<nav class="lesson-nav">' +
