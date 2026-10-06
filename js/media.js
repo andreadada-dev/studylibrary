@@ -73,6 +73,10 @@ export function resolveMediaAsset(catalog, sectionOrRef) {
   if (ref) {
     const asset = (catalog?.media || []).find(item => item?.id === ref);
     if (asset) return normalizeAsset(asset);
+    if (/^(?:https:\/\/|\/(?!\/)|\.\.?\/)/i.test(ref)) {
+      const type = detectMediaType(ref, 'image') || 'image';
+      return normalizeAsset({ id: mediaAssetId(type, ref), type, url: ref });
+    }
   }
 
   if (sectionOrRef && typeof sectionOrRef === 'object') {
@@ -168,7 +172,15 @@ function normalizeSectionMedia(section, media) {
     const refs = [];
     for (const item of section.items || []) {
       if (typeof item === 'string') {
-        refs.push(item);
+        const raw = item.trim();
+        if (/^(?:https:\/\/|\/(?!\/)|\.\.?\/)/i.test(raw)) {
+          const type = detectMediaType(raw, 'image') || 'image';
+          const id = mediaAssetId(type, raw);
+          media.set(id, normalizeAsset({ id, type, url: raw }));
+          refs.push(id);
+        } else if (raw) {
+          refs.push(raw);
+        }
         continue;
       }
       const url = String(item?.url || item?.src || '').trim();
