@@ -763,40 +763,168 @@ function openCatalogApiModal(catalog, owner = false) {
 
   const base = location.origin + '/api/v1/catalogs/' + encodeURIComponent(catalogId);
   const currentVersion = catalog._db?.current_version || 1;
-  const endpoints = [
-    ['Istruzioni agent/AI', location.origin + '/api/v1/agent'],
-    ['Agent del catalogo', base + '/agent'],
-    ['Audit qualità', base + '/audit'],
-    ['Catalogo filtrato', base],
-    ['Context AI compatto', base + '/context'],
-    ['Grafo nodi/connessioni', base + '/graph'],
-    ['Cronologia versioni', base + '/versions'],
-    ['Cambiamenti da v' + currentVersion, base + '/changes/' + currentVersion]
+  const writeUrl = location.origin + '/api/v1/write';
+
+  const groups = [
+    {
+      title: 'Per agent / AI',
+      note: 'Da qui un agente capisce protocollo, stato del catalogo e cosa manca.',
+      endpoints: [
+        {
+          icon: '✦',
+          label: 'Istruzioni agent/AI',
+          description: 'Protocollo e regole StudyLibrary',
+          url: location.origin + '/api/v1/agent'
+        },
+        {
+          icon: '◎',
+          label: 'Agent del catalogo',
+          description: 'Versione, statistiche ed endpoint',
+          url: base + '/agent'
+        },
+        {
+          icon: '✓',
+          label: 'Audit qualità',
+          description: 'Problemi, warning e contenuti mancanti',
+          url: base + '/audit'
+        }
+      ]
+    },
+    {
+      title: 'Lettura',
+      note: 'Contenuto pubblico del catalogo, contesto compatto e grafo.',
+      endpoints: [
+        {
+          icon: 'C',
+          label: 'Catalogo filtrato',
+          description: 'JSON completo consentito dall’API',
+          url: base
+        },
+        {
+          icon: 'AI',
+          label: 'Context compatto',
+          description: 'Vista leggera pensata per modelli AI',
+          url: base + '/context'
+        },
+        {
+          icon: '⌘',
+          label: 'Grafo',
+          description: 'Nodi, prerequisiti e connessioni',
+          url: base + '/graph'
+        }
+      ]
+    },
+    {
+      title: 'Versioni',
+      note: 'Cronologia e differenze rispetto alla versione corrente.',
+      endpoints: [
+        {
+          icon: 'v',
+          label: 'Cronologia versioni',
+          description: 'Snapshot pubblici del catalogo',
+          url: base + '/versions'
+        },
+        {
+          icon: 'Δ',
+          label: 'Cambiamenti da v' + currentVersion,
+          description: 'Diff strutturale dalla versione corrente',
+          url: base + '/changes/' + currentVersion
+        }
+      ]
+    }
   ];
 
+  const allEndpoints = groups.flatMap(group => group.endpoints);
   const status = catalog._db?.api_public
-    ? '<span class="api-status on">API pubblica attiva</span>'
-    : '<span class="api-status off">API pubblica disattivata</span>';
+    ? '<span class="api-status on"><i></i>API pubblica attiva</span>'
+    : '<span class="api-status off"><i></i>API pubblica disattivata</span>';
 
-  const rows = endpoints.map(([label, url]) =>
-    '<div class="api-endpoint"><div><strong>' + escapeHtml(label) + '</strong><code>' + escapeHtml(url) + '</code></div><button type="button" data-copy-api="' + escapeHtml(url) + '">Copia</button></div>'
+  const groupHtml = groups.map(group =>
+    '<section class="api-group">' +
+      '<div class="api-group-head"><div><h3>' + escapeHtml(group.title) + '</h3><p>' + escapeHtml(group.note) + '</p></div></div>' +
+      '<div class="api-endpoint-grid">' +
+        group.endpoints.map(endpoint =>
+          '<article class="api-endpoint-card">' +
+            '<div class="api-endpoint-icon" aria-hidden="true">' + escapeHtml(endpoint.icon) + '</div>' +
+            '<div class="api-endpoint-main">' +
+              '<div class="api-endpoint-title"><strong>' + escapeHtml(endpoint.label) + '</strong><span>' + escapeHtml(endpoint.description) + '</span></div>' +
+              '<a class="api-endpoint-url" href="' + escapeHtml(endpoint.url) + '" target="_blank" rel="noopener noreferrer">' +
+                '<code>' + escapeHtml(endpoint.url) + '</code>' +
+              '</a>' +
+            '</div>' +
+            '<button class="api-copy-one" type="button" data-copy-api="' + escapeHtml(endpoint.url) + '" aria-label="Copia ' + escapeHtml(endpoint.label) + '">Copia</button>' +
+          '</article>'
+        ).join('') +
+      '</div>' +
+    '</section>'
   ).join('');
+
+  const disabledNotice = owner && !catalog._db?.api_public
+    ? '<div class="api-disabled-notice"><strong>API non ancora esposta</strong><span>Apri Modifica → Catalogo → API pubblica per rendere leggibili questi endpoint.</span></div>'
+    : '';
+
+  const copyAllText = [
+    'StudyLibrary Knowledge API',
+    'Catalogo: ' + (catalog.title || catalog.slug || catalogId),
+    'Catalog ID: ' + catalogId,
+    'Versione corrente: v' + currentVersion,
+    'API pubblica: ' + (catalog._db?.api_public ? 'attiva' : 'disattivata'),
+    '',
+    ...groups.flatMap(group => [
+      '[' + group.title + ']',
+      ...group.endpoints.map(endpoint => endpoint.label + ': ' + endpoint.url),
+      ''
+    ]),
+    '[Scrittura autenticata]',
+    'POST ' + writeUrl,
+    'Richiede Supabase access token e baseVersion.'
+  ].join('\n');
+
+  const copyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(copyAllText);
+      toast('Tutti gli endpoint copiati');
+    } catch {
+      toast('Copia non disponibile nel browser');
+    }
+  };
 
   showModal(
     'Knowledge API',
-    '<div class="api-modal">' + status +
-      '<p>La pubblicazione API è indipendente dalla Home. Librerie, lezioni e argomenti possono ereditare o restringere l’accesso. Il link “Istruzioni agent/AI” spiega automaticamente a un agente come leggere, controllare e aggiornare StudyLibrary.</p>' +
-      (owner && !catalog._db?.api_public ? '<p class="demo-note">Apri Modifica → Catalogo → API pubblica per abilitarla.</p>' : '') +
-      rows +
-      '<div class="api-write-note"><strong>Scrittura autenticata</strong><code>POST ' + escapeHtml(location.origin + '/api/v1/write') + '</code><span>Richiede un Supabase access token e baseVersion per evitare sovrascritture concorrenti.</span></div>' +
+    '<div class="api-modal">' +
+      '<header class="api-modal-intro">' +
+        '<div class="api-modal-title-row">' +
+          '<div><span class="eyebrow">Developer access</span><h3>' + escapeHtml(catalog.title || 'Catalogo') + '</h3></div>' +
+          '<div class="api-status-stack">' + status + '<span class="api-version-pill">v' + currentVersion + '</span></div>' +
+        '</div>' +
+        '<p>Usa questi endpoint per leggere il catalogo, controllarne la qualità e preparare aggiornamenti versionati. Per un agente, parti da <strong>Istruzioni agent/AI</strong>.</p>' +
+        disabledNotice +
+      '</header>' +
+      '<div class="api-groups">' + groupHtml + '</div>' +
+      '<section class="api-write-note">' +
+        '<div class="api-write-icon" aria-hidden="true">⌁</div>' +
+        '<div><strong>Scrittura autenticata</strong><code>POST ' + escapeHtml(writeUrl) + '</code><span>Richiede un Supabase access token e <code>baseVersion</code>; non è un endpoint pubblico anonimo.</span></div>' +
+      '</section>' +
     '</div>',
-    [{ label: 'Chiudi', className: 'button secondary', action: closeModal }]
+    [
+      { label: 'Chiudi', className: 'button secondary', action: closeModal },
+      { label: 'Copia tutto', className: 'button accent api-copy-all', action: copyAll }
+    ]
   );
+
+  const shell = document.querySelector('#modal-backdrop .modal');
+  shell?.classList.add('api-modal-shell');
 
   document.querySelectorAll('[data-copy-api]').forEach(button => button.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(button.dataset.copyApi);
-      toast('Endpoint copiato');
+      const old = button.textContent;
+      button.textContent = 'Copiato';
+      button.classList.add('copied');
+      window.setTimeout(() => {
+        button.textContent = old;
+        button.classList.remove('copied');
+      }, 1200);
     } catch {
       toast('Copia non disponibile nel browser');
     }
