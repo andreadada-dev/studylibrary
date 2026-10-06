@@ -104,10 +104,10 @@ begin
       into source_ids
       from jsonb_array_elements(coalesce(lesson->'sources', '[]'::jsonb));
 
-      select coalesce(array_agg(topic_id), '{}'::text[])
+      select coalesce(array_agg(topic_id_value), '{}'::text[])
       into module_topic_ids
       from jsonb_array_elements(coalesce(lesson->'modules', '[]'::jsonb)) module_value
-      cross join lateral jsonb_array_elements_text(coalesce(module_value->'topicIds', '[]'::jsonb)) topic_id;
+      cross join lateral jsonb_array_elements_text(coalesce(module_value->'topicIds', '[]'::jsonb)) topic_id(topic_id_value);
 
       -- Module references should always resolve to a topic in the lesson.
       for module in
@@ -205,8 +205,280 @@ begin
           ));
         end if;
 
-        if not (coalesce(topic->>'estimatedMinutes', '') ~ '^[0-9]+$')
-           or coalesce((topic->>'estimatedMinutes')::integer, 0) <= 0 then
+        if not (coalesce(topic->>'estimatedMinutes', '') ~ '^[0-9]+
+
+        select exists(
+          select 1
+          from jsonb_array_elements(coalesce(topic->'sections', '[]'::jsonb)) section_value
+          where section_value->>'type' in ('example', 'image', 'formula', 'flow', 'comparison', 'list')
+        ) into has_example;
+
+        if not has_example then
+          suggestions_count := suggestions_count + 1;
+          issues := issues || jsonb_build_array(jsonb_build_object(
+            'severity', 'suggestion', 'type', 'add-example-or-visual', 'path', topic_path,
+            'message', 'Valuta un esempio, visuale, formula, confronto o flow se migliora la comprensione.'
+          ));
+        end if;
+
+        for source in
+          select value from jsonb_array_elements(coalesce(topic->'sources', '[]'::jsonb))
+        loop
+          if btrim(coalesce(source->>'ref', '')) = '' then
+            errors_count := errors_count + 1;
+            topic_has_problem := true;
+            issues := issues || jsonb_build_array(jsonb_build_object(
+              'severity', 'error', 'type', 'missing-source-ref', 'path', topic_path,
+              'message', 'Una fonte del topic non ha il campo ref.'
+            ));
+          elsif cardinality(source_ids) > 0 and not ((source->>'ref') = any(source_ids)) then
+            errors_count := errors_count + 1;
+            topic_has_problem := true;
+            issues := issues || jsonb_build_array(jsonb_build_object(
+              'severity', 'error', 'type', 'unknown-source-ref', 'path', topic_path,
+              'message', 'La fonte ' || (source->>'ref') || ' non esiste tra le sources della lezione.'
+            ));
+          end if;
+
+          if btrim(coalesce(source->>'pages', '')) = '' then
+            warnings_count := warnings_count + 1;
+            topic_has_problem := true;
+            issues := issues || jsonb_build_array(jsonb_build_object(
+              'severity', 'warning', 'type', 'weak-source-location', 'path', topic_path,
+              'message', 'Una fonte non specifica slide/pagine.'
+            ));
+          end if;
+        end loop;
+
+        for prerequisite in
+          select value from jsonb_array_elements_text(coalesce(topic->'prerequisites', '[]'::jsonb))
+        loop
+          if position('/' in prerequisite) = 0 and not (prerequisite = any(topic_ids)) then
+            errors_count := errors_count + 1;
+            topic_has_problem := true;
+            issues := issues || jsonb_build_array(jsonb_build_object(
+              'severity', 'error', 'type', 'broken-prerequisite', 'path', topic_path,
+              'message', 'Prerequisito locale inesistente: ' || prerequisite || '.'
+            ));
+          end if;
+        end loop;
+
+        for connection in
+          select value from jsonb_array_elements(coalesce(topic->'connections', '[]'::jsonb))
+        loop
+          if btrim(coalesce(connection->>'target', '')) = '' then
+            errors_count := errors_count + 1;
+            topic_has_problem := true;
+            issues := issues || jsonb_build_array(jsonb_build_object(
+              'severity', 'error', 'type', 'missing-connection-target', 'path', topic_path,
+              'message', 'Una connessione non ha target.'
+            ));
+          elsif position('/' in (connection->>'target')) = 0
+            and not ((connection->>'target') = any(topic_ids)) then
+            warnings_count := warnings_count + 1;
+            topic_has_problem := true;
+            issues := issues || jsonb_build_array(jsonb_build_object(
+              'severity', 'warning', 'type', 'unresolved-local-connection', 'path', topic_path,
+              'message', 'Target locale della connessione non trovato: ' || (connection->>'target') || '.'
+            ));
+          end if;
+        end loop;
+
+        if not topic_has_problem then
+          complete_topics := complete_topics + 1;
+        end if;
+      end loop;
+    end loop;
+  end loop;
+
+  return jsonb_build_object(
+    'summary', jsonb_build_object(
+      'errors', errors_count,
+      'warnings', warnings_count,
+      'suggestions', suggestions_count,
+      'completeTopics', complete_topics,
+      'totalTopics', total_topics
+    ),
+    'issues', issues
+  );
+end;
+$$;
+
+create or replace function public.studylibrary_resolve_api_catalog(p_catalog_key text)
+returns public.catalogs
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  matches integer;
+  row_catalog public.catalogs%rowtype;
+begin
+  if p_catalog_key is null or btrim(p_catalog_key) = '' then
+    return null;
+  end if;
+
+  -- UUID is canonical and unambiguous.
+  begin
+    select c.* into row_catalog
+    from public.catalogs c
+    where c.api_public = true
+      and c.id = p_catalog_key::uuid
+    limit 1;
+
+    if found then
+      return row_catalog;
+    end if;
+  exception when invalid_text_representation then
+    null;
+  end;
+
+  select count(*)
+  into matches
+  from public.catalogs c
+  where c.api_public = true
+    and c.slug = p_catalog_key;
+
+  if matches <> 1 then
+    return null;
+  end if;
+
+  select c.* into row_catalog
+  from public.catalogs c
+  where c.api_public = true
+    and c.slug = p_catalog_key
+  limit 1;
+
+  return row_catalog;
+end;
+$$;
+
+create or replace function public.studylibrary_catalog_audit(catalog_key text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  row_catalog public.catalogs%rowtype;
+  filtered jsonb;
+begin
+  row_catalog := public.studylibrary_resolve_api_catalog(catalog_key);
+
+  if row_catalog.id is null then
+    return jsonb_build_object(
+      'error', 'catalog_not_found_or_ambiguous',
+      'hint', 'Use the API-public catalog UUID for a stable lookup.'
+    );
+  end if;
+
+  filtered := public.api_filter_catalog(row_catalog.catalog_json);
+
+  return jsonb_build_object(
+    'catalogId', row_catalog.id,
+    'slug', row_catalog.slug,
+    'title', row_catalog.title,
+    'version', row_catalog.current_version,
+    'auditedAt', now(),
+    'data', public.studylibrary_catalog_audit_json(filtered)
+  );
+end;
+$$;
+
+create or replace function public.studylibrary_catalog_agent(catalog_key text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  row_catalog public.catalogs%rowtype;
+  filtered jsonb;
+  audit jsonb;
+  stable_key text;
+begin
+  row_catalog := public.studylibrary_resolve_api_catalog(catalog_key);
+
+  if row_catalog.id is null then
+    return jsonb_build_object(
+      'error', 'catalog_not_found_or_ambiguous',
+      'hint', 'Use the API-public catalog UUID. Slugs are accepted only when unique.'
+    );
+  end if;
+
+  filtered := public.api_filter_catalog(row_catalog.catalog_json);
+  audit := public.studylibrary_catalog_audit_json(filtered);
+  stable_key := row_catalog.id::text;
+
+  return jsonb_build_object(
+    'protocol', 'studylibrary',
+    'protocolVersion', '1.0',
+    'instructions', '/api/v1/agent',
+    'schemas', jsonb_build_object(
+      'catalog', '/api/v1/schema/catalog',
+      'lesson', '/api/v1/schema/lesson',
+      'topic', '/api/v1/schema/topic',
+      'updatePackage', '/api/v1/schema/update-package'
+    ),
+    'catalog', jsonb_build_object(
+      'id', row_catalog.id,
+      'slug', row_catalog.slug,
+      'title', row_catalog.title,
+      'currentVersion', row_catalog.current_version,
+      'updatedAt', row_catalog.updated_at,
+      'apiPublic', row_catalog.api_public,
+      'homePublic', row_catalog.is_public
+    ),
+    'stats', public.studylibrary_catalog_stats(filtered),
+    'auditSummary', audit->'summary',
+    'endpoints', jsonb_build_object(
+      'self', '/api/v1/catalogs/' || stable_key || '/agent',
+      'catalog', '/api/v1/catalogs/' || stable_key,
+      'context', '/api/v1/catalogs/' || stable_key || '/context',
+      'audit', '/api/v1/catalogs/' || stable_key || '/audit',
+      'graph', '/api/v1/catalogs/' || stable_key || '/graph',
+      'versions', '/api/v1/catalogs/' || stable_key || '/versions',
+      'changes', '/api/v1/catalogs/' || stable_key || '/changes/{version}',
+      'libraries', '/api/v1/catalogs/' || stable_key || '/libraries',
+      'write', '/api/v1/write'
+    ),
+    'recommendedReadOrder', jsonb_build_array(
+      '/api/v1/agent',
+      '/api/v1/catalogs/' || stable_key || '/agent',
+      '/api/v1/catalogs/' || stable_key || '/context',
+      '/api/v1/catalogs/' || stable_key || '/audit',
+      '/api/v1/catalogs/' || stable_key || '/graph'
+    ),
+    'update', jsonb_build_object(
+      'preferredFormat', 'studylibrary.update',
+      'baseVersion', row_catalog.current_version,
+      'schema', '/api/v1/schema/update-package',
+      'rule', 'Do not generate an update against a different baseVersion.'
+    )
+  );
+end;
+$$;
+
+revoke all on function public.studylibrary_catalog_stats(jsonb) from public, anon, authenticated;
+revoke all on function public.studylibrary_catalog_audit_json(jsonb) from public, anon, authenticated;
+revoke all on function public.studylibrary_resolve_api_catalog(text) from public, anon, authenticated;
+
+revoke all on function public.studylibrary_catalog_audit(text) from public;
+grant execute on function public.studylibrary_catalog_audit(text) to anon, authenticated;
+
+revoke all on function public.studylibrary_catalog_agent(text) from public;
+grant execute on function public.studylibrary_catalog_agent(text) to anon, authenticated;
+) then
+          warnings_count := warnings_count + 1;
+          topic_has_problem := true;
+          issues := issues || jsonb_build_array(jsonb_build_object(
+            'severity', 'warning', 'type', 'missing-estimated-time', 'path', topic_path,
+            'message', 'Manca una stima di tempo utile per il topic.'
+          ));
+        elsif (topic->>'estimatedMinutes')::integer <= 0 then
           warnings_count := warnings_count + 1;
           topic_has_problem := true;
           issues := issues || jsonb_build_array(jsonb_build_object(
