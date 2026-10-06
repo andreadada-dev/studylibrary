@@ -3065,3 +3065,87 @@ body.universe-mode .universe-legend-hint {
     align-items: stretch;
   }
 }
+
+
+/* Inline media dropdown wizard */
+.media-inline-wizard-slot {
+  display: grid;
+  margin-top: 10px;
+}
+.media-inline-wizard-slot:empty {
+  margin-top: 0;
+}
+.media-inline-wizard-shell {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--paper) 96%, var(--accent-soft));
+  box-shadow: 0 14px 34px rgba(31, 28, 63, .06);
+  opacity: 1;
+  transform: translateY(0);
+  transform-origin: top;
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(.22,1,.36,1),
+    box-shadow 220ms ease;
+}
+.media-inline-wizard-shell.is-opening,
+.media-inline-wizard-shell.is-closing {
+  opacity: 0;
+  transform: translateY(-10px) scaleY(.985);
+  box-shadow: 0 4px 12px rgba(31, 28, 63, .02);
+}
+.media-inline-wizard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+.media-inline-wizard-head h4 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  letter-spacing: -.025em;
+}
+.media-inline-wizard-close {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.media-inline-wizard-close:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+.media-inline-wizard-shell .media-wizard {
+  padding: 0 16px 14px;
+}
+.media-inline-wizard-shell .media-wizard-progress {
+  margin-top: 0;
+}
+.media-inline-wizard-shell .media-wizard-preview {
+  min-height: 108px;
+}
+.media-inline-wizard-shell .media-wizard-footer {
+  margin-top: 4px;
+  padding-top: 12px;
+}
+.media-inline-wizard-shell .media-wizard-step {
+  padding-bottom: 2px;
+}
+
+@media (max-width: 720px) {
+  .media-inline-wizard-head {
+    padding: 12px 12px 8px;
+  }
+  .media-inline-wizard-shell .media-wizard {
+    padding: 0 12px 12px;
+  }
+}
