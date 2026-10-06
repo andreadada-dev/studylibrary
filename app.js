@@ -762,6 +762,9 @@ function openCatalogApiModal(catalog, owner = false) {
   const base = location.origin + '/api/v1/catalogs/' + encodeURIComponent(catalogId);
   const currentVersion = catalog._db?.current_version || 1;
   const endpoints = [
+    ['Istruzioni agent/AI', location.origin + '/api/v1/agent'],
+    ['Agent del catalogo', base + '/agent'],
+    ['Audit qualità', base + '/audit'],
     ['Catalogo filtrato', base],
     ['Context AI compatto', base + '/context'],
     ['Grafo nodi/connessioni', base + '/graph'],
@@ -780,7 +783,7 @@ function openCatalogApiModal(catalog, owner = false) {
   showModal(
     'Knowledge API',
     '<div class="api-modal">' + status +
-      '<p>La pubblicazione API è indipendente dalla Home. Librerie, lezioni e argomenti possono ereditare o sovrascrivere l’accesso.</p>' +
+      '<p>La pubblicazione API è indipendente dalla Home. Librerie, lezioni e argomenti possono ereditare o restringere l’accesso. Il link “Istruzioni agent/AI” spiega automaticamente a un agente come leggere, controllare e aggiornare StudyLibrary.</p>' +
       (owner && !catalog._db?.api_public ? '<p class="demo-note">Apri Modifica → Catalogo → API pubblica per abilitarla.</p>' : '') +
       rows +
       '<div class="api-write-note"><strong>Scrittura autenticata</strong><code>POST ' + escapeHtml(location.origin + '/api/v1/write') + '</code><span>Richiede un Supabase access token e baseVersion per evitare sovrascritture concorrenti.</span></div>' +
