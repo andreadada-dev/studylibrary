@@ -1,5 +1,52 @@
 # StudyLibrary Knowledge API v1
 
+## Agent bootstrap
+
+Prima di lavorare su StudyLibrary un agente può leggere:
+
+```text
+GET https://study.ddone.it/api/v1/agent
+```
+
+Alias standard:
+
+```text
+GET https://study.ddone.it/.well-known/studylibrary.json
+```
+
+Il documento è versionato insieme all'app e descrive:
+
+- gerarchia Catalogo → Libreria → Lezione → Topic;
+- endpoint disponibili;
+- schema dei JSON;
+- must-have didattici;
+- policy sulle fonti;
+- tipi di connessione;
+- workflow consigliato;
+- formato `studylibrary.update`;
+- regole di versioning e concorrenza.
+
+Per uno specifico catalogo API-public:
+
+```text
+GET /api/v1/catalogs/{catalog-id}/agent
+GET /api/v1/catalogs/{catalog-id}/audit
+```
+
+`/agent` restituisce currentVersion, statistiche, endpoint canonici, audit summary e l'ordine di lettura consigliato.
+
+`/audit` controlla automaticamente qualità strutturale e didattica dei contenuti esposti: fonti, checkpoint, obiettivi, collegamenti, prerequisiti, topic orfani e riferimenti rotti.
+
+Gli schema machine-readable sono disponibili in:
+
+```text
+/api/v1/schema/catalog
+/api/v1/schema/lesson
+/api/v1/schema/topic
+/api/v1/schema/update-package
+```
+
+
 StudyLibrary espone i cataloghi che il proprietario abilita esplicitamente all'API.
 
 La pubblicazione nella Home e la pubblicazione API sono indipendenti:
