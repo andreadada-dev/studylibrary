@@ -29,6 +29,29 @@ async function bootstrap() {
   });
   window.addEventListener('offline', () => toast('Sei offline. I contenuti locali restano disponibili.'));
   window.addEventListener('online', () => toast('Connessione ripristinata.'));
+  document.addEventListener('click', event => {
+    const card = event.target.closest?.('.catalog-folder-card');
+    if (!card) return;
+    if (!window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
+    if (event.detail === 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+    const href = card.getAttribute('href');
+    if (!href) return;
+
+    event.preventDefault();
+    if (card.classList.contains('touch-opening')) return;
+
+    document.querySelectorAll('.catalog-folder-card.touch-opening').forEach(other => {
+      if (other !== card) other.classList.remove('touch-opening');
+    });
+
+    card.classList.add('touch-opening');
+    window.setTimeout(() => {
+      if (href.startsWith('#')) location.hash = href;
+      else location.href = href;
+    }, 360);
+  });
+
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
