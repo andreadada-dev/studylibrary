@@ -3739,3 +3739,56 @@ body.universe-mode .universe-legend-hint {
   .save-action { min-height:38px; padding:0 10px; font-size:11px; }
   .save-icon { width:18px; height:18px; }
 }
+
+
+/* Header quick access: favorites + current resume bookmark */
+.top-saved-actions {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  margin:0 2px;
+}
+.topnav .top-saved-action {
+  width:38px;
+  height:38px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  color:var(--muted);
+  border:1px solid transparent;
+  transition:.16s ease;
+}
+.topnav .top-saved-action svg {
+  width:20px;
+  height:20px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.topnav .top-saved-action:hover {
+  color:var(--ink);
+  background:var(--paper);
+  border-color:var(--line);
+}
+.topnav .top-saved-action.favorites.active {
+  color:#dc3545;
+}
+.topnav .top-saved-action.favorites.active svg {
+  fill:currentColor;
+}
+.topnav .top-saved-action.bookmark.available {
+  color:var(--accent);
+  cursor:pointer;
+}
+.topnav .top-saved-action.bookmark.available svg {
+  fill:currentColor;
+}
+.topnav .top-saved-action.bookmark[aria-disabled="true"] {
+  opacity:.32;
+  cursor:default;
+  pointer-events:none;
+}
