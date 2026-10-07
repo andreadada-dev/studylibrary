@@ -4,7 +4,7 @@ import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, 
 import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
-import { renderHomeSavedSection, renderSavedPage, mountSaveControls } from './js/saved.js';
+import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
 let cleanupRoute = null;
@@ -54,6 +54,7 @@ function parseRoute() {
 async function safeRoute() {
   try {
     await route();
+    await refreshTopSavedActions();
     if (!document.body.classList.contains('universe-mode')) {
       app.focus({ preventScroll: true });
     }
