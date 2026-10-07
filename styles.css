@@ -4269,3 +4269,153 @@ body.universe-mode .universe-legend-hint {
   .catalog-folder-visual { width:132px; height:112px; }
   .catalog-folder-caption h3 { font-size:13px; }
 }
+
+
+/* Mobile catalog grid refinement */
+@media (max-width: 620px) {
+  .section-head {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:start;
+    gap:8px 12px;
+    margin-bottom:20px;
+  }
+  .section-head > div {
+    min-width:0;
+  }
+  .section-head h2 {
+    font-size:22px;
+    line-height:1.08;
+  }
+  .section-head p {
+    max-width:290px;
+    font-size:13px;
+    line-height:1.45;
+  }
+  .section-head > .tag {
+    align-self:start;
+    margin-top:2px;
+    white-space:nowrap;
+  }
+
+  .course-grid,
+  .personal-folder-grid {
+    width:100%;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    justify-content:stretch;
+    gap:24px 12px;
+  }
+
+  .catalog-folder-card {
+    width:100%;
+    min-width:0;
+    padding:2px 0 6px;
+  }
+
+  .catalog-folder-visual {
+    width:118px;
+    height:96px;
+    margin:0;
+  }
+
+  .catalog-folder-back,
+  .catalog-folder-front {
+    left:5%;
+    width:90%;
+    border-radius:10px 10px 14px 14px;
+  }
+
+  .catalog-folder-back {
+    bottom:10px;
+    height:61px;
+  }
+  .catalog-folder-back::before {
+    top:-12px;
+    width:42%;
+    height:19px;
+    border-radius:8px 10px 0 0;
+  }
+
+  .catalog-folder-front {
+    bottom:8px;
+    height:56px;
+    transform:none;
+  }
+
+  /* On touch screens keep a single clean lesson preview peeking out. */
+  .catalog-folder-preview-card {
+    display:none;
+    width:59px;
+    height:43px;
+    bottom:29px;
+    border-width:2px;
+    border-radius:7px;
+    opacity:1;
+    box-shadow:none;
+  }
+  .catalog-folder-preview-card:first-child {
+    display:block;
+    transform:translate(-50%, -15px) rotate(-4deg) scale(.9);
+  }
+  .catalog-folder-preview-title {
+    display:none;
+  }
+
+  .catalog-folder-caption {
+    width:100%;
+    min-height:48px;
+    gap:4px;
+    padding:0;
+    justify-items:start;
+  }
+  .catalog-folder-caption h3 {
+    font-size:13px;
+    line-height:1.2;
+    white-space:normal;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+  }
+  .catalog-folder-caption p {
+    font-size:8px;
+    gap:3px 6px;
+    line-height:1.3;
+  }
+  .catalog-folder-caption p span:first-child {
+    display:none;
+  }
+  .catalog-folder-caption p span:nth-child(2)::before {
+    display:none;
+  }
+  .catalog-folder-visibility {
+    display:none;
+  }
+
+  .catalog-folder-card:hover,
+  .catalog-folder-card:focus-visible {
+    transform:none;
+  }
+  .catalog-folder-card:hover .catalog-folder-front,
+  .catalog-folder-card:focus-visible .catalog-folder-front {
+    transform:none;
+  }
+  .catalog-folder-card:hover .catalog-folder-preview-card:first-child,
+  .catalog-folder-card:focus-visible .catalog-folder-preview-card:first-child {
+    transform:translate(-50%, -15px) rotate(-4deg) scale(.9);
+  }
+}
+
+@media (max-width: 380px) {
+  .course-grid,
+  .personal-folder-grid {
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:22px 10px;
+  }
+  .catalog-folder-visual {
+    width:108px;
+    height:90px;
+  }
+  .catalog-folder-caption h3 {
+    font-size:12px;
+  }
+}
