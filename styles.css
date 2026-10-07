@@ -4419,3 +4419,65 @@ body.universe-mode .universe-legend-hint {
     font-size:12px;
   }
 }
+
+
+/* Restore FolderPreview interaction on touch/mobile */
+@media (max-width: 620px) and (hover: none), (max-width: 620px) and (pointer: coarse) {
+  .catalog-folder-preview-card {
+    display:block;
+    opacity:0;
+    transition:
+      transform .34s cubic-bezier(.2,.8,.2,1),
+      opacity .18s ease;
+  }
+
+  .catalog-folder-preview-card:nth-child(n+4) {
+    display:none;
+  }
+
+  .catalog-folder-preview-card:nth-child(1) {
+    opacity:1;
+    transform:translate(-50%, -15px) rotate(-4deg) scale(.9);
+  }
+  .catalog-folder-preview-card:nth-child(2) {
+    opacity:.18;
+    transform:translate(-50%, -10px) rotate(1deg) scale(.84);
+  }
+  .catalog-folder-preview-card:nth-child(3) {
+    opacity:.08;
+    transform:translate(-50%, -6px) rotate(4deg) scale(.8);
+  }
+
+  .catalog-folder-card.touch-opening .catalog-folder-front {
+    transform:rotateX(-22deg) translateY(6px);
+  }
+
+  .catalog-folder-card.touch-opening .catalog-folder-preview-card:nth-child(1) {
+    opacity:1;
+    transform:translate(-92%, -38px) rotate(-10deg) scale(.94);
+  }
+  .catalog-folder-card.touch-opening .catalog-folder-preview-card:nth-child(2) {
+    opacity:1;
+    transform:translate(-50%, -52px) rotate(0deg) scale(1);
+  }
+  .catalog-folder-card.touch-opening .catalog-folder-preview-card:nth-child(3) {
+    opacity:1;
+    transform:translate(-8%, -38px) rotate(10deg) scale(.94);
+  }
+
+  .catalog-folder-card.touch-opening .catalog-folder-visual {
+    transform:translateY(2px) scale(.98);
+  }
+
+  .catalog-folder-card .catalog-folder-visual {
+    transition:transform .34s cubic-bezier(.2,.8,.2,1);
+  }
+}
+
+@media (max-width: 620px) and (prefers-reduced-motion: reduce) {
+  .catalog-folder-card.touch-opening .catalog-folder-front,
+  .catalog-folder-card.touch-opening .catalog-folder-preview-card,
+  .catalog-folder-card .catalog-folder-visual {
+    transition:none;
+  }
+}
