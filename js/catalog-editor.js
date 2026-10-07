@@ -99,6 +99,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       return compactSettings(
         'Impostazioni catalogo',
         text('Slug', 'slug', item.slug) +
+        colorPicker('Colore cartella', 'accent', item.accent || '#6157e7') +
         text('Tag', 'tags', (item.tags || []).join(', '), 'Separati da virgola') +
         toggle('API pubblica', 'api.publicRead', item.api?.publicRead === true, 'Indipendente dalla pubblicazione in Home.')
       ) + mediaLibrary();
@@ -186,6 +187,17 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   function text(label, key, value, hint) {
     return '<label class="editor-field"><span>' + esc(label) + '</span><input data-field="' + attr(key) + '" value="' + attr(value || '') + '">' + (hint ? '<small>' + esc(hint) + '</small>' : '') + '</label>';
+  }
+
+  function colorPicker(label, key, value) {
+    const color = /^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : '#6157e7';
+    return '<label class="editor-field editor-color-field"><span>' + esc(label) + '</span>' +
+      '<span class="editor-color-control">' +
+        '<input type="color" data-field="' + attr(key) + '" data-color-picker value="' + attr(color) + '" aria-label="' + esc(label) + '">' +
+        '<strong data-color-value>' + esc(color.toUpperCase()) + '</strong>' +
+      '</span>' +
+      '<small>Questo colore viene usato per la cartella del catalogo nella Home.</small>' +
+    '</label>';
   }
 
   function textarea(label, key, value, hint) {
@@ -684,6 +696,10 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
     container.querySelectorAll('[data-field]').forEach(input => input.addEventListener('input', () => {
       set(input.dataset.field, input.value);
+      if (input.matches('[data-color-picker]')) {
+        const value = input.closest('.editor-color-control')?.querySelector('[data-color-value]');
+        if (value) value.textContent = input.value.toUpperCase();
+      }
       emit();
     }));
 
