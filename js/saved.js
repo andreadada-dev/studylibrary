@@ -164,10 +164,19 @@ export async function mountSaveControls(context) {
   const wrap = document.createElement('div');
   wrap.className = 'save-actions';
   wrap.dataset.saveControls = '';
-  wrap.innerHTML = favoriteButton(meta) + (meta.type === 'topic' ? bookmarkButton(meta) : '');
+  const lessonMeta = meta.type === 'topic'
+    ? { ...context, type: 'lesson', entityKey: context.lesson.slug, title: context.lesson.title }
+    : null;
+  wrap.innerHTML =
+    (lessonMeta ? '<span class="save-scope">Lezione</span>' + favoriteButton(lessonMeta) + '<span class="save-scope">Argomento</span>' : '') +
+    favoriteButton(meta) +
+    (meta.type === 'topic' ? bookmarkButton(meta) : '');
   host.appendChild(wrap);
 
-  wrap.querySelector('[data-save-favorite]')?.addEventListener('click', event => toggleFavorite(meta, event.currentTarget));
+  const favoriteButtons = wrap.querySelectorAll('[data-save-favorite]');
+  if (lessonMeta && favoriteButtons[0]) favoriteButtons[0].addEventListener('click', event => toggleFavorite(lessonMeta, event.currentTarget));
+  const topicFavorite = lessonMeta ? favoriteButtons[1] : favoriteButtons[0];
+  topicFavorite?.addEventListener('click', event => toggleFavorite(meta, event.currentTarget));
   wrap.querySelector('[data-save-bookmark]')?.addEventListener('click', event => setBookmark(meta, event.currentTarget));
 }
 
