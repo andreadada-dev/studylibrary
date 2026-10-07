@@ -4105,3 +4105,169 @@ body.universe-mode .universe-legend-hint {
     transition:none;
   }
 }
+
+
+/* Compact catalog folder grid */
+.course-grid,
+.personal-folder-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(140px, 160px));
+  justify-content:start;
+  align-items:start;
+  gap:28px 24px;
+}
+
+.catalog-folder-card {
+  width:160px;
+  padding:4px 2px 8px;
+  border-radius:18px;
+  text-align:left;
+}
+
+.catalog-folder-visual {
+  width:145px;
+  height:122px;
+  margin:0;
+}
+
+.catalog-folder-back,
+.catalog-folder-front {
+  left:7%;
+  width:86%;
+  border-radius:12px 12px 17px 17px;
+}
+
+.catalog-folder-back {
+  bottom:13px;
+  height:78px;
+}
+.catalog-folder-back::before {
+  top:-15px;
+  width:44%;
+  height:24px;
+  border-radius:10px 12px 0 0;
+}
+
+.catalog-folder-front {
+  bottom:10px;
+  height:70px;
+}
+
+.catalog-folder-preview-card {
+  bottom:30px;
+  width:72px;
+  height:54px;
+  border-width:3px;
+  border-radius:8px;
+  transform:translate(-50%, 5px) scale(.78);
+}
+
+.catalog-folder-preview-title {
+  padding:12px 5px 4px;
+  font-size:6.5px;
+}
+
+.catalog-folder-card:hover .catalog-folder-front,
+.catalog-folder-card:focus-visible .catalog-folder-front {
+  transform:rotateX(-18deg) translateY(4px);
+}
+
+.catalog-folder-card:hover .catalog-folder-preview-card:nth-child(1),
+.catalog-folder-card:focus-visible .catalog-folder-preview-card:nth-child(1) {
+  transform:translate(-112%, -39px) rotate(-11deg) scale(.9);
+}
+.catalog-folder-card:hover .catalog-folder-preview-card:nth-child(2),
+.catalog-folder-card:focus-visible .catalog-folder-preview-card:nth-child(2) {
+  transform:translate(-76%, -53px) rotate(-5deg) scale(.96);
+}
+.catalog-folder-card:hover .catalog-folder-preview-card:nth-child(3),
+.catalog-folder-card:focus-visible .catalog-folder-preview-card:nth-child(3) {
+  transform:translate(-50%, -60px) rotate(1deg) scale(1);
+}
+.catalog-folder-card:hover .catalog-folder-preview-card:nth-child(4),
+.catalog-folder-card:focus-visible .catalog-folder-preview-card:nth-child(4) {
+  transform:translate(-22%, -53px) rotate(6deg) scale(.96);
+}
+.catalog-folder-card:hover .catalog-folder-preview-card:nth-child(5),
+.catalog-folder-card:focus-visible .catalog-folder-preview-card:nth-child(5) {
+  transform:translate(13%, -39px) rotate(11deg) scale(.9);
+}
+
+.catalog-folder-caption {
+  justify-items:start;
+  min-height:60px;
+  padding:0 2px;
+}
+.catalog-folder-caption h3 {
+  width:100%;
+  font-size:14px;
+}
+.catalog-folder-caption p {
+  justify-content:flex-start;
+  gap:3px 7px;
+  font-size:8px;
+}
+.catalog-folder-caption p span + span::before {
+  margin-right:7px;
+}
+.catalog-folder-visibility {
+  min-height:18px;
+  padding:0 6px;
+  font-size:7px;
+}
+
+/* Catalog color picker */
+.editor-color-field {
+  align-content:start;
+}
+.editor-color-control {
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.editor-color-control input[type="color"] {
+  width:48px;
+  height:36px;
+  padding:2px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--paper);
+  cursor:pointer;
+}
+.editor-color-control input[type="color"]::-webkit-color-swatch-wrapper {
+  padding:2px;
+}
+.editor-color-control input[type="color"]::-webkit-color-swatch {
+  border:0;
+  border-radius:7px;
+}
+.editor-color-control input[type="color"]::-moz-color-swatch {
+  border:0;
+  border-radius:7px;
+}
+.editor-color-control strong {
+  font-size:11px;
+  font-family:"SFMono-Regular", Consolas, monospace;
+  color:var(--muted);
+  letter-spacing:.02em;
+}
+
+@media (hover:none) {
+  .catalog-folder-preview-card:nth-child(1) { transform:translate(-88%, -27px) rotate(-7deg) scale(.78); }
+  .catalog-folder-preview-card:nth-child(2) { transform:translate(-64%, -35px) rotate(-3deg) scale(.82); }
+  .catalog-folder-preview-card:nth-child(3) { transform:translate(-50%, -40px) scale(.86); }
+  .catalog-folder-preview-card:nth-child(4) { transform:translate(-36%, -35px) rotate(3deg) scale(.82); }
+  .catalog-folder-preview-card:nth-child(5) { transform:translate(-12%, -27px) rotate(7deg) scale(.78); }
+}
+
+@media (max-width:720px) {
+  .course-grid,
+  .personal-folder-grid {
+    grid-template-columns:repeat(auto-fill, minmax(128px, 145px));
+    gap:24px 14px;
+  }
+  .catalog-folder-card { width:145px; }
+  .catalog-folder-visual { width:132px; height:112px; }
+  .catalog-folder-caption h3 { font-size:13px; }
+}
