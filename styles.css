@@ -3685,3 +3685,57 @@ body.universe-mode .universe-legend-hint {
   .collection-actions .save-actions { justify-content:flex-start; }
   .save-scope { width:100%; margin-top:3px; }
 }
+
+
+/* Compact reader save controls */
+.save-actions {
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  flex-wrap:nowrap;
+}
+.course-statline .save-actions {
+  grid-column:1 / -1;
+  padding-top:8px;
+}
+.save-action {
+  min-height:42px;
+  padding:0 15px;
+  gap:8px;
+  flex:0 0 auto;
+}
+.save-icon {
+  width:20px;
+  height:20px;
+  display:block;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  transition:fill .16s ease, color .16s ease, transform .16s ease;
+}
+.save-action.favorite.active {
+  color:#dc3545;
+  background:color-mix(in srgb, #dc3545 7%, var(--paper));
+  border-color:color-mix(in srgb, #dc3545 28%, var(--line));
+}
+.save-action.favorite.active .heart-icon {
+  fill:currentColor;
+}
+.save-action.bookmark.active {
+  color:var(--accent);
+  background:var(--accent-soft);
+  border-color:color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+.save-action.bookmark.active .bookmark-icon {
+  fill:currentColor;
+}
+.save-action:active .save-icon { transform:scale(.9); }
+
+@media (max-width: 620px) {
+  .save-actions { gap:6px; }
+  .save-action { min-height:38px; padding:0 10px; font-size:11px; }
+  .save-icon { width:18px; height:18px; }
+}
