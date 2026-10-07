@@ -4,6 +4,7 @@ import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, 
 import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
+import { renderHomeSavedSection, renderSavedPage, mountSaveControls } from './js/saved.js';
 
 const app = document.getElementById('app');
 let cleanupRoute = null;
@@ -73,6 +74,7 @@ async function route() {
   if (parts[0] === 'universe') return renderUniverse({});
   if (parts[0] === 'mine' && parts[1] === 'universe') return renderUniverse({ mineOnly: true });
   if (parts[0] === 'mine') return renderMyCatalogs();
+  if (parts[0] === 'saved') return renderSavedPage(app);
   if (parts[0] === 'studio') return renderStudio();
   if (parts[0] === 'privacy') return renderLegalPage('privacy');
   if (parts[0] === 'terms') return renderLegalPage('terms');
@@ -120,6 +122,7 @@ function setActiveNav(routeName, universeMode = false) {
     mine: '#/mine',
     universe: '#/universe',
     studio: '#/studio',
+    saved: '#/saved',
     catalog: '#/'
   };
   const activeHref = routeName === 'mine' ? '#/mine' : (universeMode ? '#/universe' : (map[routeName] || '#/'));
@@ -172,6 +175,8 @@ function renderHome() {
         '<div class="micro-feature"><span class="index">03</span><h3>Universo a più scale</h3><p>Puoi guardare una singola lezione, una libreria, un catalogo intero oppure tutto lo spazio pubblico.</p></div>' +
       '</section>' +
     '</div>';
+
+  renderHomeSavedSection(app);
 
   const input = app.querySelector('[data-course-search]');
   const grid = app.querySelector('[data-course-grid]');
@@ -736,6 +741,8 @@ async function renderCatalog(catalogSlug) {
       '<div id="discussion-root"></div>' +
     '</div>';
 
+  mountSaveControls({ catalog });
+
   app.querySelector('[data-edit-catalog]')?.addEventListener('click', () => {
     state.activeCatalog = catalog;
     location.hash = '#/studio';
@@ -1065,6 +1072,7 @@ async function renderLibrary(catalogSlug, librarySlug) {
       '<div id="discussion-root"></div>' +
     '</div>';
 
+  mountSaveControls({ catalog, library });
   await renderDiscussion('library', catalogRef(catalog) + '/' + library.slug);
 }
 
@@ -1118,6 +1126,7 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
     '</div>';
 
   wireReaderInteractions();
+  mountSaveControls({ catalog, library, lesson, topic });
   await renderDiscussion(
     'topic',
     catalogRef(catalog) + '/' + library.slug + '/' + lesson.slug + '/' + topic.id
