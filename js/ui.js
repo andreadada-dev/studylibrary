@@ -415,17 +415,89 @@ function showReportModal(targetKind, targetKey, commentId = null) {
   ]);
 }
 
+function lessonPreviewImage(catalog, lesson) {
+  const direct = safeUrl(
+    lesson?.coverImage || lesson?.coverUrl || lesson?.thumbnailUrl || lesson?.image || '',
+    { image: true }
+  );
+  if (direct) return direct;
+
+  for (const topic of lesson?.topics || []) {
+    for (const section of topic.sections || []) {
+      if (section?.type === 'image') {
+        const asset = resolveMediaAsset(catalog, section);
+        const src = safeUrl(asset?.url || section.url || section.src || '', { image: true });
+        if (src) return src;
+      }
+
+      if (section?.type === 'video') {
+        const asset = resolveMediaAsset(catalog, section);
+        const src = safeUrl(asset?.thumbnailUrl || section.thumbnailUrl || '', { image: true });
+        if (src) return src;
+      }
+
+      if (section?.type === 'gallery') {
+        for (const item of section.items || []) {
+          const asset = resolveMediaAsset(catalog, item);
+          const src = safeUrl(
+            asset?.type === 'video' ? asset?.thumbnailUrl : asset?.url,
+            { image: true }
+          );
+          if (src) return src;
+        }
+      }
+    }
+  }
+
+  return '';
+}
+
+function catalogPreviewLessons(catalog, limit = 5) {
+  const previews = [];
+  for (const library of catalog?.libraries || []) {
+    for (const lesson of library.lessons || []) {
+      previews.push({
+        title: lesson.title || 'Lezione',
+        library: library.title || '',
+        image: lessonPreviewImage(catalog, lesson)
+      });
+      if (previews.length >= limit) return previews;
+    }
+  }
+  return previews;
+}
+
+function catalogPreviewCard(item, index) {
+  const media = item.image
+    ? '<img src="' + escapeHtml(item.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer" />'
+    : '<div class="catalog-folder-preview-fallback"><span>' + escapeHtml(String(index + 1).padStart(2, '0')) + '</span></div>';
+
+  return '<div class="catalog-folder-preview-card" style="--preview-index:' + index + '">' +
+    media +
+    '<span class="catalog-folder-preview-title">' + escapeHtml(item.title) + '</span>' +
+  '</div>';
+}
+
 export function catalogCard(catalog) {
   const stats = catalogStats(catalog);
   const author = catalog._author?.display_name || (state.user && catalog._db?.owner_id === state.user.id ? 'Tu' : null) || catalog.university || (catalog._static ? 'Catalogo demo' : 'Community');
   const visibility = catalog.visibility === 'private' ? 'Privato' : 'Pubblico';
-  return '<a class="course-card catalog-card" href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '" style="--card-accent:' + safeColor(catalog.accent) + '">' +
-    '<div class="course-meta"><strong>' + escapeHtml(author) + '</strong><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span></div>' +
-    '<h3>' + escapeHtml(catalog.title) + '</h3>' +
-    '<p>' + escapeHtml(catalog.description || '') + '</p>' +
-    '<div class="course-footer">' +
-      '<div class="tags">' + (catalog.tags || []).slice(0,3).map(t => '<span class="tag">' + escapeHtml(t) + '</span>').join('') + '</div>' +
-      '<span class="rating-inline">' + escapeHtml(visibility) + ' · ' + stats.topics + ' argomenti</span>' +
+  const previews = catalogPreviewLessons(catalog);
+  const accent = safeColor(catalog.accent);
+  const href = '#/catalog/' + encodeURIComponent(catalogRef(catalog));
+
+  return '<a class="catalog-folder-card" href="' + href + '" style="--folder-accent:' + accent + '" aria-label="Apri il catalogo ' + escapeHtml(catalog.title) + '">' +
+    '<div class="catalog-folder-visual" aria-hidden="true">' +
+      '<div class="catalog-folder-back"></div>' +
+      '<div class="catalog-folder-preview-stack">' +
+        previews.map(catalogPreviewCard).join('') +
+      '</div>' +
+      '<div class="catalog-folder-front"></div>' +
+    '</div>' +
+    '<div class="catalog-folder-caption">' +
+      '<h3>' + escapeHtml(catalog.title) + '</h3>' +
+      '<p><span>' + escapeHtml(author) + '</span><span>' + stats.lessons + ' lezioni</span><span>' + stats.topics + ' argomenti</span></p>' +
+      '<span class="catalog-folder-visibility">' + escapeHtml(visibility) + '</span>' +
     '</div>' +
   '</a>';
 }
