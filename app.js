@@ -228,7 +228,7 @@ async function renderMyCatalogs() {
           ? '<aside class="catalog-notice"><strong>Accedi con Google</strong><p>Accedi per importare e gestire i tuoi cataloghi.</p></aside>'
           : '<section class="json-drop-zone" data-json-drop tabindex="0" role="button" aria-label="Importa file JSON"><div class="json-drop-icon">↓</div><div><strong>Trascina qui un file JSON</strong><span>oppure clicca per selezionarlo · catalogo singolo o export StudyLibrary</span></div><button class="button secondary" type="button" data-json-browse>Scegli file</button><input data-json-file type="file" accept="application/json,.json" multiple hidden></section>') +
       (state.user && catalogs.length
-        ? '<section class="personal-catalog-list"><div class="section-head"><div><h2>I tuoi cataloghi</h2><p>Apri direttamente librerie, lezioni o l’universo del singolo catalogo.</p></div><span class="tag">' + catalogs.length + ' cataloghi</span></div>' + catalogs.map(renderPersonalCatalogTree).join('') + '</section>'
+        ? '<section class="personal-catalog-list"><div class="section-head"><div><h2>I tuoi cataloghi</h2><p>Apri un catalogo: le anteprime mostrano le lezioni e, quando disponibili, le immagini presenti nei contenuti.</p></div><span class="tag">' + catalogs.length + ' cataloghi</span></div><div class="course-grid personal-folder-grid">' + catalogs.map(catalogCard).join('') + '</div></section>'
         : state.user
           ? '<div class="empty-state personal-empty"><h2>Il tuo spazio è vuoto</h2><p>Trascina qui sopra il primo JSON oppure crea un catalogo con l’editor.</p><a class="button accent" href="#/studio">Crea il primo catalogo</a></div>'
           : '') +
