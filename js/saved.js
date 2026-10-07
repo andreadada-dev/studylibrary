@@ -124,13 +124,22 @@ async function setBookmark(meta, button) {
   finally { button?.classList.remove('busy'); }
 }
 
-function favoriteButton(meta) {
+function heartIcon() {
+  return '<svg class="save-icon heart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg>';
+}
+
+function bookmarkIcon() {
+  return '<svg class="save-icon bookmark-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75A1.75 1.75 0 0 1 7.75 2h8.5A1.75 1.75 0 0 1 18 3.75V22l-6-3.75L6 22V3.75Z"/></svg>';
+}
+
+function favoriteButton(meta, label) {
   const catalogId = cloudCatalogId(meta.catalog);
   if (!catalogId) return '';
   const active = favoriteExists(meta.type, catalogId, meta.entityKey);
+  const text = label || ({ catalog: 'Catalogo', library: 'Libreria', lesson: 'Lezione', topic: 'Argomento' }[meta.type] || 'Preferito');
   return '<button type="button" class="save-action favorite' + (active ? ' active' : '') +
-    '" data-save-favorite aria-pressed="' + active + '" title="' + (active ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti') + '">' +
-    '<span aria-hidden="true">' + (active ? '♥' : '♡') + '</span><span>' + (active ? 'Nei preferiti' : 'Preferito') + '</span></button>';
+    '" data-save-favorite aria-pressed="' + active + '" title="' + (active ? 'Rimuovi ' + text.toLowerCase() + ' dai preferiti' : 'Aggiungi ' + text.toLowerCase() + ' ai preferiti') + '">' +
+    heartIcon() + '<span>' + text + '</span></button>';
 }
 
 function bookmarkButton(meta) {
@@ -140,8 +149,8 @@ function bookmarkButton(meta) {
     bookmarkFor(catalogId)?.lesson_key === meta.lesson.slug &&
     bookmarkFor(catalogId)?.library_key === meta.library.slug;
   return '<button type="button" class="save-action bookmark' + (active ? ' active' : '') +
-    '" data-save-bookmark aria-pressed="' + active + '" title="Usa come punto di ripresa">' +
-    '<span aria-hidden="true">🔖</span><span>' + (active ? 'Punto di ripresa' : 'Riprendi da qui') + '</span></button>';
+    '" data-save-bookmark aria-pressed="' + active + '" title="' + (active ? 'Rimuovi segnalibro' : 'Usa come punto di ripresa') + '">' +
+    bookmarkIcon() + '<span>Segnalibro</span></button>';
 }
 
 export async function mountSaveControls(context) {
@@ -168,8 +177,8 @@ export async function mountSaveControls(context) {
     ? { ...context, type: 'lesson', entityKey: context.lesson.slug, title: context.lesson.title }
     : null;
   wrap.innerHTML =
-    (lessonMeta ? '<span class="save-scope">Lezione</span>' + favoriteButton(lessonMeta) + '<span class="save-scope">Argomento</span>' : '') +
-    favoriteButton(meta) +
+    (lessonMeta ? favoriteButton(lessonMeta, 'Lezione') : '') +
+    favoriteButton(meta, meta.type === 'topic' ? 'Argomento' : undefined) +
     (meta.type === 'topic' ? bookmarkButton(meta) : '');
   host.appendChild(wrap);
 
