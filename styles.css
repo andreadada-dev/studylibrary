@@ -3792,3 +3792,52 @@ body.universe-mode .universe-legend-hint {
   cursor:default;
   pointer-events:none;
 }
+
+
+/* Saved shortcuts live with the account controls */
+.account-area {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  min-width:0;
+}
+.account-area .top-saved-actions {
+  flex:0 0 auto;
+  margin:0;
+}
+.account-area .top-saved-action {
+  width:38px;
+  height:38px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  color:var(--muted);
+  border:1px solid transparent;
+  transition:.16s ease;
+}
+.account-area .top-saved-action svg {
+  width:20px;
+  height:20px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.account-area .top-saved-action:hover {
+  color:var(--ink);
+  background:var(--paper);
+  border-color:var(--line);
+}
+.account-area .top-saved-action.favorites.active { color:#dc3545; }
+.account-area .top-saved-action.favorites.active svg { fill:currentColor; }
+.account-area .top-saved-action.bookmark.available { color:var(--accent); cursor:pointer; }
+.account-area .top-saved-action.bookmark.available svg { fill:currentColor; }
+.account-area .top-saved-action.bookmark[aria-disabled="true"] {
+  opacity:.32;
+  cursor:default;
+  pointer-events:none;
+}
