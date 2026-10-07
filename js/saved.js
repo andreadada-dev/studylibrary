@@ -258,6 +258,34 @@ function favoriteCard(item) {
     '</span><strong>' + escapeHtml(x.title) + '</strong><span>' + escapeHtml(x.subtitle) + '</span></a>';
 }
 
+export async function refreshTopSavedActions() {
+  const favoritesLink = document.querySelector('[data-top-favorites]');
+  const bookmarkLink = document.querySelector('[data-top-bookmark]');
+  if (!favoritesLink || !bookmarkLink) return;
+
+  favoritesLink.href = '#/saved';
+  bookmarkLink.classList.remove('available');
+  bookmarkLink.removeAttribute('href');
+  bookmarkLink.setAttribute('aria-disabled', 'true');
+  bookmarkLink.title = 'Nessun segnalibro in questo catalogo';
+
+  if (!state.user || !state.supabase) return;
+  try {
+    await loadSaved();
+    let catalogId = cloudCatalogId(state.activeCatalog);
+    let bookmark = catalogId ? bookmarkFor(catalogId) : null;
+    if (!bookmark) bookmark = (state.bookmarks || [])[0] || null;
+    const resolved = bookmark ? resolveBookmark(bookmark) : null;
+    if (!resolved) return;
+    bookmarkLink.href = resolved.href;
+    bookmarkLink.classList.add('available');
+    bookmarkLink.removeAttribute('aria-disabled');
+    bookmarkLink.title = 'Vai al segnalibro: ' + resolved.title;
+  } catch (err) {
+    console.warn('Top saved actions unavailable', err);
+  }
+}
+
 export async function renderHomeSavedSection(root) {
   if (!state.user || !state.supabase || !root) return;
   try {
