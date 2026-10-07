@@ -3642,3 +3642,46 @@ body.universe-mode .universe-legend-hint {
     padding: 12px 14px 14px;
   }
 }
+
+
+/* Saved study: one resume bookmark per catalog + cross-level favorites */
+.save-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.collection-actions .save-actions { width:100%; justify-content:flex-end; margin-top:4px; }
+.course-statline .save-actions { grid-column:1 / -1; padding-top:4px; }
+.save-scope { color:var(--faint); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-left:4px; }
+.save-action { min-height:38px; border:1px solid var(--line); background:var(--paper); color:var(--muted); border-radius:999px; padding:0 12px; display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-weight:700; font-size:12px; transition:.16s ease; }
+.save-action:hover { transform:translateY(-1px); border-color:var(--line-strong); color:var(--ink); }
+.save-action.active { background:var(--accent-soft); border-color:color-mix(in srgb, var(--accent) 30%, var(--line)); color:var(--accent); }
+.save-action.favorite span:first-child { font-size:18px; line-height:1; }
+.save-action.busy { opacity:.55; pointer-events:none; }
+
+.home-saved { margin:0 0 58px; padding:28px 0 8px; border-top:1px solid var(--line); }
+.home-saved + section { margin-top:8px; }
+.saved-favorites-head { margin-top:38px; }
+.text-link { color:var(--accent); font-size:13px; font-weight:750; }
+.resume-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.resume-card { min-height:176px; padding:20px; border-radius:20px; background:var(--ink); color:white; display:flex; flex-direction:column; align-items:flex-start; box-shadow:0 12px 36px rgba(23,24,32,.12); transition:.18s ease; }
+.resume-card:hover { transform:translateY(-3px); }
+.resume-card .saved-kind { color:#b9b4ff; }
+.resume-card strong { margin:20px 0 7px; font-size:21px; letter-spacing:-.025em; }
+.resume-card > span:not(.saved-kind) { color:rgba(255,255,255,.62); font-size:12px; line-height:1.45; }
+.resume-card em { margin-top:auto; padding-top:16px; font-size:12px; font-style:normal; font-weight:800; color:white; }
+.saved-kind { display:block; color:var(--accent); text-transform:uppercase; letter-spacing:.1em; font-size:9px; font-weight:850; }
+.saved-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.saved-card { min-height:126px; padding:17px; border:1px solid var(--line); border-radius:17px; background:var(--paper); display:flex; flex-direction:column; transition:.16s ease; }
+.saved-card:hover { transform:translateY(-2px); border-color:var(--line-strong); box-shadow:0 10px 28px rgba(20,21,28,.05); }
+.saved-card strong { margin:13px 0 6px; font-size:16px; letter-spacing:-.02em; }
+.saved-card > span:last-child { color:var(--muted); font-size:11px; line-height:1.4; }
+.saved-page .collection-hero { margin-bottom:34px; }
+.saved-library { margin-top:58px; }
+.saved-filter { display:flex; gap:7px; flex-wrap:wrap; margin:-8px 0 20px; }
+.saved-filter button { border:1px solid var(--line); background:var(--paper); color:var(--muted); min-height:34px; padding:0 12px; border-radius:999px; cursor:pointer; font-size:12px; font-weight:700; }
+.saved-filter button.active { background:var(--ink); border-color:var(--ink); color:white; }
+.saved-empty { padding:32px; border:1px dashed var(--line-strong); border-radius:18px; color:var(--muted); text-align:center; font-size:13px; }
+
+@media (max-width: 820px) {
+  .resume-grid, .saved-grid { grid-template-columns:1fr; }
+  .home-saved { margin-bottom:40px; }
+  .collection-actions .save-actions { justify-content:flex-start; }
+  .save-scope { width:100%; margin-top:3px; }
+}
