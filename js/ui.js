@@ -3,6 +3,9 @@ import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, deleteA
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 import { resolveMediaAsset, detectVideoProvider, videoEmbedUrl } from './media.js';
 import { createStudyBook } from './book-reader.js';
+import { getLessonNeighbors } from './study-navigation.js';
+
+let resumeBookAcrossLessons = false;
 
 export const escapeHtml = value => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -316,7 +319,6 @@ export function wireReaderInteractions() {
       } catch { enteredBrowserFullscreen=false; }
     }
     function leaveBookFullscreen() {
-      if (!enteredBrowserFullscreen) return;
       enteredBrowserFullscreen=false;
       if (document.fullscreenElement===document.documentElement) {
         document.exitFullscreen?.().catch(()=>{});
@@ -418,9 +420,18 @@ export function wireReaderInteractions() {
     });
     drawSize();
     drawFocus();
+    if (resumeBookAcrossLessons && document.body.classList.contains('reading-focus-mode')) {
+      resumeBookAcrossLessons = false;
+      void enableBook();
+    } else {
+      resumeBookAcrossLessons = false;
+    }
     reader._disposeBookReader = () => {
       disposed = true;
-      leaveBookFullscreen();
+      const continuesInReader = /^#\/catalog\/[^/]+\/library\/[^/]+\/lesson\/[^/]+(?:\/topic\/[^/]+)?$/.test(location.hash);
+      resumeBookAcrossLessons = Boolean(book?.active && continuesInReader &&
+        document.body.classList.contains('reading-focus-mode'));
+      if (!resumeBookAcrossLessons) leaveBookFullscreen();
       book?.destroy();
     };
   }
@@ -751,6 +762,7 @@ export function lessonReaderRail(context, activeTopicId) {
   const lesson = context.lesson;
   let i = 0;
   const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
+  const lessonNeighbors = getLessonNeighbors(context.catalog, context.library, lesson);
   return (lesson.modules || []).map(module =>
     '<section class="module-group">' +
       '<p class="module-title">' + escapeHtml(module.title) + '</p>' +
@@ -808,10 +820,22 @@ export function lessonTopicArticle(context, topic) {
       '<div class="reader-book-intro"><span>UN MODO DIVERSO DI STUDIARE</span><strong>Sfoglia le pagine</strong><p>Trascina l’angolo della carta oppure usa le frecce.</p></div>' +
       '<div class="reader-book-stage" data-book-stage aria-label="Pagine del libro 3D"></div>' +
       '<div class="reader-book-notice" data-book-status role="status" hidden></div>' +
-      '<div class="reader-book-nav" aria-label="Navigazione del libro">' +
-        '<button type="button" data-book-prev aria-label="Pagina precedente" disabled><span aria-hidden="true">←</span> Precedente</button>' +
+      '<nav class="reader-book-lesson-nav" aria-label="Cambia lezione">' +
+        (lessonNeighbors.previous ?
+          '<a data-book-lesson="previous" href="' + lessonNeighbors.previous.href + '" title="' +
+            escapeHtml(lessonNeighbors.previous.title) + '"><span class="book-lesson-overline">LEZIONE PRECEDENTE</span>' +
+            '<strong>← ' + escapeHtml(lessonNeighbors.previous.title) + '</strong></a>' :
+          '<span class="book-lesson-empty" aria-hidden="true"></span>') +
+        (lessonNeighbors.next ?
+          '<a data-book-lesson="next" href="' + lessonNeighbors.next.href + '" title="' +
+            escapeHtml(lessonNeighbors.next.title) + '"><span class="book-lesson-overline">LEZIONE SUCCESSIVA</span>' +
+            '<strong>' + escapeHtml(lessonNeighbors.next.title) + ' →</strong></a>' :
+          '<span class="book-lesson-empty" aria-hidden="true"></span>') +
+      '</nav>' +
+      '<div class="reader-book-nav" aria-label="Sfoglia le pagine">' +
+        '<button type="button" data-book-prev aria-label="Pagina precedente" disabled><span aria-hidden="true">←</span> Pagina prima</button>' +
         '<span data-book-count aria-live="polite">0 / 0</span>' +
-        '<button type="button" data-book-next aria-label="Pagina successiva" disabled>Successiva <span aria-hidden="true">→</span></button>' +
+        '<button type="button" data-book-next aria-label="Pagina successiva" disabled>Pagina dopo <span aria-hidden="true">→</span></button>' +
       '</div>' +
     '</section>' +
     '<header class="reader-header">' +
