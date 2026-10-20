@@ -300,7 +300,7 @@ test('book goes from lesson to lesson without leaving focus mode',async({page})=
     state.staticCatalogs.push(catalog);
     location.hash='#/catalog/book-sequence/library/fondamenti/lesson/l1/topic/inizio';
   });
-  await expect(page.locator('.reader-header .topic-title')).toContainText('Lezione 01');
+  await expect(page.locator('.reader > .reader-header .topic-title')).toContainText('Lezione 01');
   await page.locator('[data-reader-focus]').click();
   await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
   await expect(page.locator('[data-book-lesson="next"]')).toContainText('Lezione 02');
@@ -313,7 +313,7 @@ test('book goes from lesson to lesson without leaving focus mode',async({page})=
   expect(presentation.fontSize).toBeGreaterThanOrEqual(14);
   await page.locator('[data-book-lesson="next"]').click();
   await expect(page).toHaveURL(/\/lesson\/l2\/topic\/secondo$/);
-  await expect(page.locator('.reader-header .topic-title')).toContainText('Lezione 02');
+  await expect(page.locator('.reader > .reader-header .topic-title')).toContainText('Lezione 02');
   await expect(page.locator('body')).toHaveClass(/reading-focus-mode/);
   await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
   await expect(page.locator('[data-book-lesson="previous"]')).toContainText('Lezione 01');
