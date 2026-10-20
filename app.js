@@ -649,7 +649,10 @@ async function renderCatalog(catalogSlug) {
     catalog._db?.owner_id === state.user.id
   );
   const ownsCatalog = Boolean(catalog._static || ownsCloudCatalog);
-  const editLabel = ownsCatalog ? 'Modifica' : 'Apri copia nell’editor';
+  const editorActions = ownsCloudCatalog
+    ? '<a class="button accent" href="' + studioHref(catalog, null, null, null, 'library') + '">＋ Libreria</a>' +
+      '<a class="button secondary" href="' + studioHref(catalog) + '">Modifica catalogo</a>'
+    : '';
   const publishButton = ownsCloudCatalog
     ? '<button class="button ' + (catalog.visibility === 'private' ? 'accent' : 'secondary') + '" type="button" data-toggle-publish>' +
         (catalog.visibility === 'private' ? 'Pubblica in Home' : 'Rendi privato') +
@@ -672,7 +675,7 @@ async function renderCatalog(catalogSlug) {
     '<div class="page">' +
       '<header class="collection-hero">' +
         '<div><span class="eyebrow">Catalogo</span><h1>' + escapeHtml(catalog.title) + '</h1><p class="lede">' + escapeHtml(catalog.description || '') + '</p></div>' +
-        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo catalogo</a>' + publishButton + apiButton + versionsButton + reportButton + '<button class="button secondary" type="button" data-edit-catalog>' + editLabel + '</button>' + deleteButton + '</div>' +
+        '<div class="collection-actions">' + editorActions + '<a class="button secondary" href="' + universe + '">Universo catalogo</a>' + publishButton + apiButton + versionsButton + reportButton + deleteButton + '</div>' +
       '</header>' +
       '<div class="catalog-stats">' +
         '<div><strong>' + stats.libraries + '</strong><span>librerie</span></div>' +
@@ -691,11 +694,6 @@ async function renderCatalog(catalogSlug) {
     '</div>';
 
   mountSaveControls({ catalog });
-
-  app.querySelector('[data-edit-catalog]')?.addEventListener('click', () => {
-    state.activeCatalog = catalog;
-    location.hash = '#/studio';
-  });
 
   app.querySelector('[data-toggle-publish]')?.addEventListener('click', async () => {
     const makePublic = catalog.visibility === 'private';
@@ -1012,7 +1010,9 @@ async function renderLibrary(catalogSlug, librarySlug) {
       '<div class="breadcrumb"><a href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '">' + escapeHtml(catalog.title) + '</a><span>→</span><strong>' + escapeHtml(library.title) + '</strong></div>' +
       '<header class="collection-hero compact">' +
         '<div><span class="eyebrow">Libreria</span><h1>' + escapeHtml(library.title) + '</h1><p class="lede">' + escapeHtml(library.description || '') + '</p></div>' +
-        '<div class="collection-actions"><a class="button accent" href="' + universe + '">Universo libreria</a></div>' +
+        '<div class="collection-actions">' +
+          (canEditCatalog(catalog) ? '<a class="button accent" href="' + studioHref(catalog, library, null, null, 'lesson') + '">＋ Lezione</a><a class="button secondary" href="' + studioHref(catalog, library) + '">Modifica libreria</a>' : '') +
+          '<a class="button secondary" href="' + universe + '">Universo libreria</a></div>' +
       '</header>' +
       '<section class="lesson-list">' +
         '<div class="section-head"><div><h2>Lezioni</h2><p>Ordinate come il materiale del corso.</p></div><span class="tag">' + (library.lessons?.length || 0) + ' lezioni</span></div>' +
@@ -1060,6 +1060,11 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
           '<h1>' + escapeHtml(lesson.title) + '</h1>' +
           '<p class="summary">' + escapeHtml(lesson.description || '') + '</p>' +
           '<div class="progress-track" aria-label="Avanzamento nella lezione"><span style="--progress:' + progress + '%"></span></div>' +
+          (canEditCatalog(catalog) ? '<div class="lesson-editor-actions">' +
+            '<a class="button secondary" href="' + studioHref(catalog, library, lesson, topic) + '">Modifica questo argomento</a>' +
+            '<a class="button secondary" href="' + studioHref(catalog, library, lesson) + '">Modifica lezione</a>' +
+            '<a class="button accent" href="' + studioHref(catalog, library, lesson, null, 'topic') + '">＋ Argomento</a>' +
+          '</div>' : '') +
         '</div>' +
         '<div class="course-statline">' +
           '<div class="stat"><strong>' + ordered.length + '</strong><span>argomenti</span></div>' +
