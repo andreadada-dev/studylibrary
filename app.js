@@ -1,13 +1,14 @@
 import { state, isBackendConfigured } from './js/state.js';
 import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, fetchCatalogVersions, restoreCatalogVersion, deleteCatalog, reportContent, writeCatalogVersioned } from './js/api.js';
 import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref, catalogRef } from './js/content.js';
-import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
+import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, renderSection, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
 import { applyUpdatePackage } from './js/update-package.js';
 import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
 import { mountTopicProgress, trackStudyVisit } from './js/progress.js';
 import { searchStudyCatalogs } from './js/study-search.js';
+import { uploadStudyFile, validateStudyUpload } from './js/uploads.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
@@ -1308,7 +1309,8 @@ async function renderStudio(options = {}) {
     '</section>' +
     '<div class="studio-mode-bar"><div class="studio-tabs" role="tablist"><button class="active" type="button" data-studio-tab="visual">Visuale</button><button type="button" data-studio-tab="json">JSON avanzato</button></div>' +
       '<div class="studio-history-actions"><button class="button secondary" type="button" data-editor-undo disabled>↶ Annulla</button>' +
-      '<button class="button secondary" type="button" data-editor-redo disabled>↷ Ripristina</button></div></div>' +
+      '<button class="button secondary" type="button" data-editor-redo disabled>↷ Ripristina</button>' +
+      '<button class="button accent" type="button" data-toggle-preview aria-pressed="false">Anteprima lezione</button></div></div>' +
     '<div class="studio-workspace">' +
       '<section class="studio-main">' +
         '<div data-visual-editor></div>' +
@@ -1316,6 +1318,7 @@ async function renderStudio(options = {}) {
         '<input data-file type="file" accept="application/json,.json" hidden />' +
       '</section>' +
       '<aside class="studio-side">' +
+        '<section class="studio-live-preview" data-live-preview hidden></section>' +
         '<section class="studio-quickstart"><strong>Come modificare</strong><ol>' +
           '<li>Seleziona <b>catalogo, libreria, lezione o argomento</b> nella colonna Struttura.</li>' +
           '<li><b>Clicca sui titoli e sui testi</b> per riscriverli. Usa + per aggiungere contenuti.</li>' +
@@ -1334,6 +1337,814 @@ async function renderStudio(options = {}) {
   const previewEl = app.querySelector('[data-preview]');
   const fileInput = app.querySelector('[data-file]');
   const versionMessageInput = app.querySelector('[data-version-message]');
+  const livePreviewHost = app.querySelector('[data-live-preview]');
+  const livePreviewToggle = app.querySelector('[data-toggle-preview]');
+  function updateLivePreview() {
+    if (!livePreviewHost || livePreviewHost.hidden || !visualEditor) return;
+    const selection = visualEditor.getSelection();
+    const library = draft.libraries?.find(lib=>lib.slug===selection.library);
+    const lesson = library?.lessons?.find(item=>item.slug===selection.lesson);
+    const topic = lesson?.topics?.find(item=>item.id===selection.topic);
+    if (!topic) {
+      livePreviewHost.innerHTML = '<h3>Anteprima</h3><p>Seleziona un argomento nella Struttura per vedere come apparirà agli studenti.</p>';
+      return;
+    }
+    const content = '<header class="studio-preview-heading"><span class="eyebrow">Anteprima · ' +
+      escapeHtml(lesson.title || '') + '</span><h3>' + escapeHtml(topic.title || '') + '</h3>' +
+      '<p>' + escapeHtml(topic.summary || '') + '</p></header>' +
+      (topic.sections || []).map(section=>renderSection(section,{catalog:draft,library,lesson,topic})).join('');
+    livePreviewHost.innerHTML = '<div class="studio-rendered-preview">' +
+      (window.DOMPurify ? window.DOMPurify.sanitize(content) : content) + '</div>';
+    if (window.renderMathInElement) {
+      window.renderMathInElement(livePreviewHost,{
+        delimiters:[{left:'$',right:'$',display:true},{left:'
+
+  function validateAndPreview(value = draft) {
+    const result = validateCatalog(value);
+    validationEl.innerHTML = result.ok
+      ? '<div class="validation ok">● Schema valido</div>'
+      : '<div class="validation error">● ' + result.errors.length + ' problemi</div><p class="demo-note">' + result.errors.slice(0, 8).map(escapeHtml).join('<br>') + '</p>';
+    const stats = catalogStats(value);
+    previewEl.innerHTML = '<span class="eyebrow">Anteprima</span><h2 class="preview-title">' + escapeHtml(value.title || 'Senza titolo') + '</h2><p class="preview-description">' + escapeHtml(value.description || '') + '</p><div class="tags">' + (value.tags || []).slice(0, 4).map(tag => '<span class="tag">' + escapeHtml(tag) + '</span>').join('') + '</div><p class="demo-note">' + stats.libraries + ' librerie · ' + stats.lessons + ' lezioni · ' + stats.topics + ' argomenti · ' + stats.media + ' media</p>';
+    return result;
+  }
+
+  function mountVisual() {
+    const selectedBefore = visualEditor?.getSelection();
+    visualEditor?.destroy();
+    visualEditor = mountCatalogEditor(visualHost, draft, {
+      initialSelection: selectedBefore || initialSelection,
+      onChange(next) {
+        if (editorHistory.record(next)) {
+          draft = next;
+          validateAndPreview();
+          refreshEditorStatus();
+          updateLivePreview();
+        }
+      },
+      onSelect() { updateLivePreview(); },
+      onNotice(message) { toast(message); },
+      async onUpload(file) {
+        const kind = validateStudyUpload(file);
+        if (!window.confirm('Caricare "' + file.name + '" (' +
+            (kind.max / 1024 / 1024) + ' MB massimo)? Il file avrà un URL pubblico, anche se il catalogo è privato. Non caricare materiali riservati.')) {
+          throw new Error('Caricamento annullato.');
+        }
+        return uploadStudyFile(state.supabase,state.user.id,
+          String(editingCatalog?._db?.id || draft.id),file);
+      }
+    });
+    updateLivePreview();
+    if (initialAction) {
+      const action = initialAction;
+      initialAction = null;
+      const selector = {
+        library: '[data-add-library]',
+        lesson: '[data-add-lesson]',
+        topic: '[data-add-topic]'
+      }[action];
+      visualHost.querySelector(selector)?.click();
+    }
+  }
+
+  mountVisual();
+  validateAndPreview();
+  refreshEditorStatus();
+
+  function restoreHistory(next) {
+    if (!next) return;
+    draft = next;
+    rawEditor.value = JSON.stringify(draft, null, 2);
+    mountVisual();
+    validateAndPreview();
+    refreshEditorStatus();
+  }
+  app.querySelector('[data-editor-undo]')?.addEventListener('click', () => restoreHistory(editorHistory.undo()));
+  app.querySelector('[data-editor-redo]')?.addEventListener('click', () => restoreHistory(editorHistory.redo()));
+  const onEditorShortcut = event => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+    if (event.target.closest('input, textarea, [contenteditable], .CodeMirror')) return;
+    event.preventDefault();
+    restoreHistory(event.shiftKey ? editorHistory.redo() : editorHistory.undo());
+  };
+  document.addEventListener('keydown', onEditorShortcut);
+
+  app.querySelectorAll('[data-studio-tab]').forEach(button => button.addEventListener('click', () => {
+    const mode = button.dataset.studioTab;
+    if (mode === 'json') {
+      rawEditor.value = JSON.stringify(draft, null, 2);
+      rawEditor.hidden = false;
+      visualHost.hidden = true;
+    } else {
+      try {
+        if (!rawEditor.hidden) {
+          const parsed = JSON.parse(rawEditor.value);
+          if (editorHistory.record(parsed)) draft = parsed;
+          refreshEditorStatus();
+        }
+      } catch (err) {
+        toast('Il JSON contiene errori: ' + err.message);
+        return;
+      }
+      rawEditor.hidden = true;
+      visualHost.hidden = false;
+      mountVisual();
+      validateAndPreview();
+    }
+    app.querySelectorAll('[data-studio-tab]').forEach(tab => tab.classList.toggle('active', tab === button));
+  }));
+
+  let rawTimer;
+  rawEditor.addEventListener('input', () => {
+    clearTimeout(rawTimer);
+    rawTimer = setTimeout(() => {
+      try {
+        const parsed = JSON.parse(rawEditor.value);
+        if (editorHistory.record(parsed)) draft = parsed;
+        validateAndPreview();
+        refreshEditorStatus();
+      } catch (err) {
+        validationEl.innerHTML = '<div class="validation error">● JSON non valido</div><p class="demo-note">' + escapeHtml(err.message) + '</p>';
+      }
+    }, 180);
+  });
+
+  app.querySelector('[data-import]').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+
+      if (parsed?.kind === 'studylibrary.update') {
+        const prepared = await prepareUpdatePackageCandidate(parsed, file.name);
+        if (!prepared) return;
+
+        const { target, candidate } = prepared;
+        if (editingCatalog && target._db?.id !== editingCatalog._db?.id) {
+          throw new Error('Questo JSON aggiorna un altro catalogo. Importalo da “I miei cataloghi”.');
+        }
+        editingCatalog = target;
+        loadedVersion = target._db?.current_version || null;
+        draft = candidate;
+        state.activeCatalog = target;
+        pendingUpdate = {
+          catalogId: target._db?.id || parsed.catalog,
+          baseVersion: Number(target._db?.current_version || parsed.baseVersion || 1)
+        };
+
+        editorHistory.record(draft);
+        rawEditor.value = JSON.stringify(draft, null, 2);
+        mountVisual();
+        validateAndPreview();
+        refreshEditorStatus();
+
+        if (versionMessageInput) {
+          versionMessageInput.value = String(parsed.message || ('Pacchetto aggiornamento: ' + file.name)).slice(0, 240);
+        }
+
+        const diff = summarizeCatalogDiff(target, candidate);
+        showModal(
+          'Aggiornamento caricato nell’editor',
+          '<div class="import-diff">' +
+            '<p><strong>' + escapeHtml(file.name) + '</strong> è stato riconosciuto come pacchetto <code>studylibrary.update</code> per <strong>' + escapeHtml(target.title || 'catalogo') + '</strong>.</p>' +
+            '<div class="diff-stats">' +
+              '<span><strong>+' + diff.added + '</strong> aggiunti</span>' +
+              '<span><strong>~' + diff.changed + '</strong> modificati</span>' +
+              '<span><strong>−' + diff.removed + '</strong> rimossi</span>' +
+            '</div>' +
+            (diff.samples.length ? '<div class="diff-samples">' + diff.samples.slice(0, 8).map(item => '<code>' + escapeHtml(item) + '</code>').join('') + '</div>' : '') +
+            '<p class="demo-note">L’aggiornamento è solo caricato nell’editor: controllalo e poi usa Salva modifiche o Salva e pubblica. Prima del salvataggio verrà ricontrollata la versione del catalogo.</p>' +
+          '</div>',
+          [{ label: 'Continua nell’editor', className: 'button', action: closeModal }]
+        );
+        return;
+      }
+
+      pendingUpdate = null;
+      draft = normalizeImportedCatalog(parsed, file.name);
+      editorHistory.record(draft);
+      refreshEditorStatus();
+      rawEditor.value = JSON.stringify(draft, null, 2);
+      mountVisual();
+      validateAndPreview();
+      toast('JSON caricato nell’editor');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      fileInput.value = '';
+    }
+  });
+
+  app.querySelector('[data-download]').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (draft.slug || 'catalog') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  app.querySelector('[data-save]').addEventListener('click', () => saveDraft(false));
+  app.querySelector('[data-publish]').addEventListener('click', () => saveDraft(true));
+
+  async function saveDraft(publish) {
+    if (!rawEditor.hidden) {
+      try {
+        draft = JSON.parse(rawEditor.value);
+      } catch (err) {
+        return toast('Correggi il JSON prima di salvare: ' + err.message);
+      }
+    }
+    const result = validateAndPreview();
+    if (!result.ok) return toast('Correggi prima gli errori segnalati');
+    if (editingCatalog && draft.slug !== editingCatalog.slug) {
+      return toast('Lo slug identifica i link del catalogo. Per ora lascialo invariato nelle modifiche.');
+    }
+    if (!state.user || !state.supabase) return toast('Accedi con Google per salvare');
+
+    const buttons = [...app.querySelectorAll('[data-save], [data-publish]')];
+    buttons.forEach(button => { button.disabled = true; });
+    try {
+      // "Salva modifiche" must never unexpectedly make a public catalog private.
+      const shouldPublish = Boolean(publish || draft.visibility === 'public');
+      const versionMessage = versionMessageInput?.value.trim() ||
+        (publish ? 'Pubblicazione dall’editor' : 'Modifiche dall’editor');
+      const targetId = pendingUpdate?.catalogId || editingCatalog?._db?.id || null;
+      const baseVersion = pendingUpdate?.baseVersion || loadedVersion;
+      let resultSave;
+      if (targetId) {
+        resultSave = await writeCatalogVersioned(
+          targetId, Number(baseVersion), draft, versionMessage, shouldPublish
+        );
+      } else {
+        resultSave = await saveCatalog(draft, shouldPublish, versionMessage);
+      }
+      draft.visibility = shouldPublish ? 'public' : 'private';
+      await fetchPublicCatalogs();
+      const mine = await fetchMyCatalogs();
+      const updated = mine.find(item => item._db?.id === (resultSave?.catalogId || resultSave?.id)) ||
+        mine.find(item => item.slug === draft.slug) || null;
+      if (updated) {
+        editingCatalog = updated;
+        loadedVersion = Number(updated._db?.current_version || 1);
+        const saveButton = app.querySelector('[data-save]');
+        if (saveButton) saveButton.textContent = 'Salva modifiche';
+        const editorHeading = app.querySelector('.studio-heading h1');
+        if (editorHeading) editorHeading.textContent = updated.title;
+        state.activeCatalog = updated;
+        if (isNew) {
+          clearEditorDraft(localDraftKey);
+          localDraftKey = editorDraftKey(state.user.id, catalogRef(updated));
+          const editorRoute = '#/studio/catalog/' + encodeURIComponent(catalogRef(updated));
+          history.replaceState(null, '', location.pathname + location.search + editorRoute);
+        }
+        const backLink = app.querySelector('.studio-back');
+        if (backLink) {
+          backLink.href = '#/catalog/' + encodeURIComponent(catalogRef(updated));
+          backLink.textContent = '← Vai al catalogo';
+        }
+      }
+      pendingUpdate = null;
+      baseline = JSON.stringify(draft);
+      editorHistory.reset(draft);
+      clearEditorDraft(localDraftKey);
+      if (versionMessageInput) versionMessageInput.value = '';
+      refreshEditorStatus();
+      toast(shouldPublish ? 'Catalogo salvato e pubblicato' : 'Modifiche salvate');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      buttons.forEach(button => { button.disabled = false; });
+    }
+  }
+
+  cleanupRoute = () => {
+    clearTimeout(draftTimer);
+    persistLocalDraft();
+    document.removeEventListener('keydown', onEditorShortcut);
+    editorLeaveGuard = null;
+    visualEditor?.destroy();
+  };
+}
+
+function emptyCatalogTemplate() {
+  const stamp = Date.now();
+  const catalogSlug = 'catalog-' + stamp;
+  return {
+    schemaVersion: 2,
+    id: catalogSlug,
+    slug: catalogSlug,
+    title: 'Nuovo catalogo',
+    description: 'Descrivi il tuo spazio di studio.',
+    language: 'it',
+    visibility: 'private',
+    api: { publicRead: false },
+    tags: [],
+    media: [],
+    libraries: [
+      {
+        id: 'library-1',
+        slug: 'prima-libreria',
+        title: 'Prima libreria',
+        description: 'Per esempio: Computer Vision.',
+        lessons: [
+          {
+            schemaVersion: 1,
+            id: 'lesson-01',
+            slug: 'lezione-01',
+            title: 'Lezione 01',
+            description: 'Una lezione può corrispondere a una lezione del docente o a un gruppo di slide.',
+            modules: [
+              {
+                id: 'fondamenti',
+                title: 'Fondamenti',
+                topicIds: ['primo-argomento']
+              }
+            ],
+            topics: [
+              {
+                id: 'primo-argomento',
+                title: 'Primo argomento',
+                summary: 'Una spiegazione breve e concreta.',
+                why: 'Spiega perché serve.',
+                estimatedMinutes: 8,
+                prerequisites: [],
+                learningGoals: ['Capire l’idea centrale'],
+                sections: [
+                  { type: 'lead', body: 'Parti da un’intuizione semplice.' },
+                  { type: 'concept', title: 'Idea chiave', body: 'Costruisci il concetto progressivamente.' },
+                  { type: 'checkpoint', question: 'Qual è l’idea centrale?', answer: 'Scrivi una risposta verificabile.' }
+                ],
+                connections: [],
+                sources: [
+                  {
+                    ref: 'source-1',
+                    pages: '',
+                    note: 'Aggiungi una fonte reale.'
+                  }
+                ]
+              }
+            ],
+            sources: [
+              {
+                id: 'source-1',
+                type: 'slides',
+                label: 'Materiale della lezione'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function stripRuntimeForEditor(value) {
+  if (Array.isArray(value)) return value.map(stripRuntimeForEditor);
+  if (!value || typeof value !== 'object') return value;
+  const output = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key.startsWith('_')) continue;
+    output[key] = stripRuntimeForEditor(item);
+  }
+  return output;
+}
+
+function renderLegalPage(kind) {
+  const privacy = kind === 'privacy';
+  setPageMeta(
+    privacy ? 'Privacy' : 'Termini',
+    privacy ? 'Informativa privacy di StudyLibrary.' : 'Termini di utilizzo di StudyLibrary.'
+  );
+
+  const content = privacy
+    ? `<h1>Privacy</h1>
+       <p>StudyLibrary può usare Google tramite Supabase Auth per identificare l'account. L'applicazione salva il profilo pubblico minimo fornito dal provider, i cataloghi creati, valutazioni, commenti e segnalazioni.</p>
+       <h2>Contenuti pubblici e privati</h2>
+       <p>I cataloghi privati sono accessibili al proprietario secondo le policy Row Level Security. I cataloghi pubblicati, i commenti e le valutazioni sono visibili agli altri utenti.</p>
+       <h2>Dati tecnici</h2>
+       <p>Il provider di hosting, il browser e i servizi collegati possono generare log tecnici secondo la loro configurazione. StudyLibrary non inserisce tracker pubblicitari nel codice dell'applicazione.</p>
+       <h2>Controllo dei dati</h2>
+       <p>Puoi esportare i tuoi cataloghi, eliminare i tuoi contenuti oppure eliminare definitivamente l’account dall’interfaccia. La cancellazione dell’account rimuove anche i dati applicativi associati tramite le relazioni del database.</p>`
+    : `<h1>Termini di utilizzo</h1>
+       <p>StudyLibrary è uno strumento per creare e condividere materiale di studio. Chi pubblica un catalogo resta responsabile del contenuto che carica e delle fonti che utilizza.</p>
+       <h2>Contenuti</h2>
+       <p>Non pubblicare materiale illecito, dati personali di terzi senza autorizzazione, spam o contenuti per i quali non possiedi i necessari diritti di utilizzo.</p>
+       <h2>Community</h2>
+       <p>Commenti e cataloghi possono essere segnalati. I contenuti segnalati possono essere rimossi dal gestore dell'istanza.</p>
+       <h2>Disponibilità</h2>
+       <p>Il servizio può cambiare durante lo sviluppo e non garantisce disponibilità continua o conservazione indefinita dei contenuti. Mantieni una copia dei JSON importanti.</p>`;
+
+  app.innerHTML = '<div class="page page-narrow legal-page"><span class="eyebrow">StudyLibrary</span>' + content + '<p class="legal-updated">Versione: ottobre 2026</p></div>';
+}
+
+function renderRouteError(err) {
+  document.body.classList.remove('universe-mode');
+  setPageMeta('Errore', 'Si è verificato un errore durante il caricamento della pagina.');
+  app.innerHTML = `<div class="page empty-state route-error"><span class="eyebrow">Errore</span><h2>Qualcosa non ha funzionato</h2><p>${escapeHtml(err?.message || 'Errore imprevisto')}</p><div class="hero-actions" style="justify-content:center"><button class="button" type="button" data-route-retry>Riprova</button><a class="button secondary" href="#/">Torna alla Home</a></div></div>`;
+  app.querySelector('[data-route-retry]')?.addEventListener('click', safeRoute);
+}
+
+function renderNotFound(message = 'Pagina non trovata') {
+  setPageMeta('Pagina non trovata', message);
+  app.innerHTML = `<div class="page empty-state"><span class="eyebrow">404</span><h2>${escapeHtml(message)}</h2><p>Il contenuto potrebbe essere stato spostato, reso privato o eliminato.</p><div class="hero-actions" style="justify-content:center"><a class="button" href="#/">Esplora i cataloghi</a><a class="button secondary" href="#/mine">Il mio catalogo</a></div></div>`;
+}
+
+bootstrap();
+,right:'
+
+  function validateAndPreview(value = draft) {
+    const result = validateCatalog(value);
+    validationEl.innerHTML = result.ok
+      ? '<div class="validation ok">● Schema valido</div>'
+      : '<div class="validation error">● ' + result.errors.length + ' problemi</div><p class="demo-note">' + result.errors.slice(0, 8).map(escapeHtml).join('<br>') + '</p>';
+    const stats = catalogStats(value);
+    previewEl.innerHTML = '<span class="eyebrow">Anteprima</span><h2 class="preview-title">' + escapeHtml(value.title || 'Senza titolo') + '</h2><p class="preview-description">' + escapeHtml(value.description || '') + '</p><div class="tags">' + (value.tags || []).slice(0, 4).map(tag => '<span class="tag">' + escapeHtml(tag) + '</span>').join('') + '</div><p class="demo-note">' + stats.libraries + ' librerie · ' + stats.lessons + ' lezioni · ' + stats.topics + ' argomenti · ' + stats.media + ' media</p>';
+    return result;
+  }
+
+  function mountVisual() {
+    const selectedBefore = visualEditor?.getSelection();
+    visualEditor?.destroy();
+    visualEditor = mountCatalogEditor(visualHost, draft, {
+      initialSelection: selectedBefore || initialSelection,
+      onChange(next) {
+        if (editorHistory.record(next)) {
+          draft = next;
+          validateAndPreview();
+          refreshEditorStatus();
+        }
+      }
+    });
+    if (initialAction) {
+      const action = initialAction;
+      initialAction = null;
+      const selector = {
+        library: '[data-add-library]',
+        lesson: '[data-add-lesson]',
+        topic: '[data-add-topic]'
+      }[action];
+      visualHost.querySelector(selector)?.click();
+    }
+  }
+
+  mountVisual();
+  validateAndPreview();
+  refreshEditorStatus();
+
+  function restoreHistory(next) {
+    if (!next) return;
+    draft = next;
+    rawEditor.value = JSON.stringify(draft, null, 2);
+    mountVisual();
+    validateAndPreview();
+    refreshEditorStatus();
+  }
+  app.querySelector('[data-editor-undo]')?.addEventListener('click', () => restoreHistory(editorHistory.undo()));
+  app.querySelector('[data-editor-redo]')?.addEventListener('click', () => restoreHistory(editorHistory.redo()));
+  const onEditorShortcut = event => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+    if (event.target.closest('input, textarea, [contenteditable], .CodeMirror')) return;
+    event.preventDefault();
+    restoreHistory(event.shiftKey ? editorHistory.redo() : editorHistory.undo());
+  };
+  document.addEventListener('keydown', onEditorShortcut);
+
+  app.querySelectorAll('[data-studio-tab]').forEach(button => button.addEventListener('click', () => {
+    const mode = button.dataset.studioTab;
+    if (mode === 'json') {
+      rawEditor.value = JSON.stringify(draft, null, 2);
+      rawEditor.hidden = false;
+      visualHost.hidden = true;
+    } else {
+      try {
+        if (!rawEditor.hidden) {
+          const parsed = JSON.parse(rawEditor.value);
+          if (editorHistory.record(parsed)) draft = parsed;
+          refreshEditorStatus();
+        }
+      } catch (err) {
+        toast('Il JSON contiene errori: ' + err.message);
+        return;
+      }
+      rawEditor.hidden = true;
+      visualHost.hidden = false;
+      mountVisual();
+      validateAndPreview();
+    }
+    app.querySelectorAll('[data-studio-tab]').forEach(tab => tab.classList.toggle('active', tab === button));
+  }));
+
+  let rawTimer;
+  rawEditor.addEventListener('input', () => {
+    clearTimeout(rawTimer);
+    rawTimer = setTimeout(() => {
+      try {
+        const parsed = JSON.parse(rawEditor.value);
+        if (editorHistory.record(parsed)) draft = parsed;
+        validateAndPreview();
+        refreshEditorStatus();
+      } catch (err) {
+        validationEl.innerHTML = '<div class="validation error">● JSON non valido</div><p class="demo-note">' + escapeHtml(err.message) + '</p>';
+      }
+    }, 180);
+  });
+
+  app.querySelector('[data-import]').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+
+      if (parsed?.kind === 'studylibrary.update') {
+        const prepared = await prepareUpdatePackageCandidate(parsed, file.name);
+        if (!prepared) return;
+
+        const { target, candidate } = prepared;
+        if (editingCatalog && target._db?.id !== editingCatalog._db?.id) {
+          throw new Error('Questo JSON aggiorna un altro catalogo. Importalo da “I miei cataloghi”.');
+        }
+        editingCatalog = target;
+        loadedVersion = target._db?.current_version || null;
+        draft = candidate;
+        state.activeCatalog = target;
+        pendingUpdate = {
+          catalogId: target._db?.id || parsed.catalog,
+          baseVersion: Number(target._db?.current_version || parsed.baseVersion || 1)
+        };
+
+        editorHistory.record(draft);
+        rawEditor.value = JSON.stringify(draft, null, 2);
+        mountVisual();
+        validateAndPreview();
+        refreshEditorStatus();
+
+        if (versionMessageInput) {
+          versionMessageInput.value = String(parsed.message || ('Pacchetto aggiornamento: ' + file.name)).slice(0, 240);
+        }
+
+        const diff = summarizeCatalogDiff(target, candidate);
+        showModal(
+          'Aggiornamento caricato nell’editor',
+          '<div class="import-diff">' +
+            '<p><strong>' + escapeHtml(file.name) + '</strong> è stato riconosciuto come pacchetto <code>studylibrary.update</code> per <strong>' + escapeHtml(target.title || 'catalogo') + '</strong>.</p>' +
+            '<div class="diff-stats">' +
+              '<span><strong>+' + diff.added + '</strong> aggiunti</span>' +
+              '<span><strong>~' + diff.changed + '</strong> modificati</span>' +
+              '<span><strong>−' + diff.removed + '</strong> rimossi</span>' +
+            '</div>' +
+            (diff.samples.length ? '<div class="diff-samples">' + diff.samples.slice(0, 8).map(item => '<code>' + escapeHtml(item) + '</code>').join('') + '</div>' : '') +
+            '<p class="demo-note">L’aggiornamento è solo caricato nell’editor: controllalo e poi usa Salva modifiche o Salva e pubblica. Prima del salvataggio verrà ricontrollata la versione del catalogo.</p>' +
+          '</div>',
+          [{ label: 'Continua nell’editor', className: 'button', action: closeModal }]
+        );
+        return;
+      }
+
+      pendingUpdate = null;
+      draft = normalizeImportedCatalog(parsed, file.name);
+      editorHistory.record(draft);
+      refreshEditorStatus();
+      rawEditor.value = JSON.stringify(draft, null, 2);
+      mountVisual();
+      validateAndPreview();
+      toast('JSON caricato nell’editor');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      fileInput.value = '';
+    }
+  });
+
+  app.querySelector('[data-download]').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (draft.slug || 'catalog') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  app.querySelector('[data-save]').addEventListener('click', () => saveDraft(false));
+  app.querySelector('[data-publish]').addEventListener('click', () => saveDraft(true));
+
+  async function saveDraft(publish) {
+    if (!rawEditor.hidden) {
+      try {
+        draft = JSON.parse(rawEditor.value);
+      } catch (err) {
+        return toast('Correggi il JSON prima di salvare: ' + err.message);
+      }
+    }
+    const result = validateAndPreview();
+    if (!result.ok) return toast('Correggi prima gli errori segnalati');
+    if (editingCatalog && draft.slug !== editingCatalog.slug) {
+      return toast('Lo slug identifica i link del catalogo. Per ora lascialo invariato nelle modifiche.');
+    }
+    if (!state.user || !state.supabase) return toast('Accedi con Google per salvare');
+
+    const buttons = [...app.querySelectorAll('[data-save], [data-publish]')];
+    buttons.forEach(button => { button.disabled = true; });
+    try {
+      // "Salva modifiche" must never unexpectedly make a public catalog private.
+      const shouldPublish = Boolean(publish || draft.visibility === 'public');
+      const versionMessage = versionMessageInput?.value.trim() ||
+        (publish ? 'Pubblicazione dall’editor' : 'Modifiche dall’editor');
+      const targetId = pendingUpdate?.catalogId || editingCatalog?._db?.id || null;
+      const baseVersion = pendingUpdate?.baseVersion || loadedVersion;
+      let resultSave;
+      if (targetId) {
+        resultSave = await writeCatalogVersioned(
+          targetId, Number(baseVersion), draft, versionMessage, shouldPublish
+        );
+      } else {
+        resultSave = await saveCatalog(draft, shouldPublish, versionMessage);
+      }
+      draft.visibility = shouldPublish ? 'public' : 'private';
+      await fetchPublicCatalogs();
+      const mine = await fetchMyCatalogs();
+      const updated = mine.find(item => item._db?.id === (resultSave?.catalogId || resultSave?.id)) ||
+        mine.find(item => item.slug === draft.slug) || null;
+      if (updated) {
+        editingCatalog = updated;
+        loadedVersion = Number(updated._db?.current_version || 1);
+        const saveButton = app.querySelector('[data-save]');
+        if (saveButton) saveButton.textContent = 'Salva modifiche';
+        const editorHeading = app.querySelector('.studio-heading h1');
+        if (editorHeading) editorHeading.textContent = updated.title;
+        state.activeCatalog = updated;
+        if (isNew) {
+          clearEditorDraft(localDraftKey);
+          localDraftKey = editorDraftKey(state.user.id, catalogRef(updated));
+          const editorRoute = '#/studio/catalog/' + encodeURIComponent(catalogRef(updated));
+          history.replaceState(null, '', location.pathname + location.search + editorRoute);
+        }
+        const backLink = app.querySelector('.studio-back');
+        if (backLink) {
+          backLink.href = '#/catalog/' + encodeURIComponent(catalogRef(updated));
+          backLink.textContent = '← Vai al catalogo';
+        }
+      }
+      pendingUpdate = null;
+      baseline = JSON.stringify(draft);
+      editorHistory.reset(draft);
+      clearEditorDraft(localDraftKey);
+      if (versionMessageInput) versionMessageInput.value = '';
+      refreshEditorStatus();
+      toast(shouldPublish ? 'Catalogo salvato e pubblicato' : 'Modifiche salvate');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      buttons.forEach(button => { button.disabled = false; });
+    }
+  }
+
+  cleanupRoute = () => {
+    clearTimeout(draftTimer);
+    persistLocalDraft();
+    document.removeEventListener('keydown', onEditorShortcut);
+    editorLeaveGuard = null;
+    visualEditor?.destroy();
+  };
+}
+
+function emptyCatalogTemplate() {
+  const stamp = Date.now();
+  const catalogSlug = 'catalog-' + stamp;
+  return {
+    schemaVersion: 2,
+    id: catalogSlug,
+    slug: catalogSlug,
+    title: 'Nuovo catalogo',
+    description: 'Descrivi il tuo spazio di studio.',
+    language: 'it',
+    visibility: 'private',
+    api: { publicRead: false },
+    tags: [],
+    media: [],
+    libraries: [
+      {
+        id: 'library-1',
+        slug: 'prima-libreria',
+        title: 'Prima libreria',
+        description: 'Per esempio: Computer Vision.',
+        lessons: [
+          {
+            schemaVersion: 1,
+            id: 'lesson-01',
+            slug: 'lezione-01',
+            title: 'Lezione 01',
+            description: 'Una lezione può corrispondere a una lezione del docente o a un gruppo di slide.',
+            modules: [
+              {
+                id: 'fondamenti',
+                title: 'Fondamenti',
+                topicIds: ['primo-argomento']
+              }
+            ],
+            topics: [
+              {
+                id: 'primo-argomento',
+                title: 'Primo argomento',
+                summary: 'Una spiegazione breve e concreta.',
+                why: 'Spiega perché serve.',
+                estimatedMinutes: 8,
+                prerequisites: [],
+                learningGoals: ['Capire l’idea centrale'],
+                sections: [
+                  { type: 'lead', body: 'Parti da un’intuizione semplice.' },
+                  { type: 'concept', title: 'Idea chiave', body: 'Costruisci il concetto progressivamente.' },
+                  { type: 'checkpoint', question: 'Qual è l’idea centrale?', answer: 'Scrivi una risposta verificabile.' }
+                ],
+                connections: [],
+                sources: [
+                  {
+                    ref: 'source-1',
+                    pages: '',
+                    note: 'Aggiungi una fonte reale.'
+                  }
+                ]
+              }
+            ],
+            sources: [
+              {
+                id: 'source-1',
+                type: 'slides',
+                label: 'Materiale della lezione'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function stripRuntimeForEditor(value) {
+  if (Array.isArray(value)) return value.map(stripRuntimeForEditor);
+  if (!value || typeof value !== 'object') return value;
+  const output = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key.startsWith('_')) continue;
+    output[key] = stripRuntimeForEditor(item);
+  }
+  return output;
+}
+
+function renderLegalPage(kind) {
+  const privacy = kind === 'privacy';
+  setPageMeta(
+    privacy ? 'Privacy' : 'Termini',
+    privacy ? 'Informativa privacy di StudyLibrary.' : 'Termini di utilizzo di StudyLibrary.'
+  );
+
+  const content = privacy
+    ? `<h1>Privacy</h1>
+       <p>StudyLibrary può usare Google tramite Supabase Auth per identificare l'account. L'applicazione salva il profilo pubblico minimo fornito dal provider, i cataloghi creati, valutazioni, commenti e segnalazioni.</p>
+       <h2>Contenuti pubblici e privati</h2>
+       <p>I cataloghi privati sono accessibili al proprietario secondo le policy Row Level Security. I cataloghi pubblicati, i commenti e le valutazioni sono visibili agli altri utenti.</p>
+       <h2>Dati tecnici</h2>
+       <p>Il provider di hosting, il browser e i servizi collegati possono generare log tecnici secondo la loro configurazione. StudyLibrary non inserisce tracker pubblicitari nel codice dell'applicazione.</p>
+       <h2>Controllo dei dati</h2>
+       <p>Puoi esportare i tuoi cataloghi, eliminare i tuoi contenuti oppure eliminare definitivamente l’account dall’interfaccia. La cancellazione dell’account rimuove anche i dati applicativi associati tramite le relazioni del database.</p>`
+    : `<h1>Termini di utilizzo</h1>
+       <p>StudyLibrary è uno strumento per creare e condividere materiale di studio. Chi pubblica un catalogo resta responsabile del contenuto che carica e delle fonti che utilizza.</p>
+       <h2>Contenuti</h2>
+       <p>Non pubblicare materiale illecito, dati personali di terzi senza autorizzazione, spam o contenuti per i quali non possiedi i necessari diritti di utilizzo.</p>
+       <h2>Community</h2>
+       <p>Commenti e cataloghi possono essere segnalati. I contenuti segnalati possono essere rimossi dal gestore dell'istanza.</p>
+       <h2>Disponibilità</h2>
+       <p>Il servizio può cambiare durante lo sviluppo e non garantisce disponibilità continua o conservazione indefinita dei contenuti. Mantieni una copia dei JSON importanti.</p>`;
+
+  app.innerHTML = '<div class="page page-narrow legal-page"><span class="eyebrow">StudyLibrary</span>' + content + '<p class="legal-updated">Versione: ottobre 2026</p></div>';
+}
+
+function renderRouteError(err) {
+  document.body.classList.remove('universe-mode');
+  setPageMeta('Errore', 'Si è verificato un errore durante il caricamento della pagina.');
+  app.innerHTML = `<div class="page empty-state route-error"><span class="eyebrow">Errore</span><h2>Qualcosa non ha funzionato</h2><p>${escapeHtml(err?.message || 'Errore imprevisto')}</p><div class="hero-actions" style="justify-content:center"><button class="button" type="button" data-route-retry>Riprova</button><a class="button secondary" href="#/">Torna alla Home</a></div></div>`;
+  app.querySelector('[data-route-retry]')?.addEventListener('click', safeRoute);
+}
+
+function renderNotFound(message = 'Pagina non trovata') {
+  setPageMeta('Pagina non trovata', message);
+  app.innerHTML = `<div class="page empty-state"><span class="eyebrow">404</span><h2>${escapeHtml(message)}</h2><p>Il contenuto potrebbe essere stato spostato, reso privato o eliminato.</p><div class="hero-actions" style="justify-content:center"><a class="button" href="#/">Esplora i cataloghi</a><a class="button secondary" href="#/mine">Il mio catalogo</a></div></div>`;
+}
+
+bootstrap();
+,display:false}],
+        throwOnError:false
+      });
+    }
+  }
+  livePreviewToggle?.addEventListener('click',()=>{
+    livePreviewHost.hidden = !livePreviewHost.hidden;
+    livePreviewToggle.setAttribute('aria-pressed',String(!livePreviewHost.hidden));
+    livePreviewToggle.textContent = livePreviewHost.hidden ? 'Anteprima lezione' : 'Nascondi anteprima';
+    updateLivePreview();
+  });
 
   function validateAndPreview(value = draft) {
     const result = validateCatalog(value);
