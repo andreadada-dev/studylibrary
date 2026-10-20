@@ -1,4 +1,4 @@
-import { paginateBook, bookCover } from './book-pagination.js';
+import { paginateBook, bookCover, bookPaper } from './book-pagination.js';
 
 const FLIP_SOURCES=[
   '/js/vendor/page-flip.browser.js',
@@ -113,6 +113,16 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       const first=bookCover({...settings,title,subtitle});
       fragments.appendChild(first);
       const pages=paginateBook(reader,fragments,{...settings,label:title});
+      // A rigid front/back cover needs an even number of interior faces so
+      // landscape spreads can turn completely (including one-page lessons).
+      if (pages.length % 2 === 1) {
+        const closing=bookPaper({...settings,number:pages.length+1,label:title});
+        closing.classList.add('book-closing-page');
+        closing.querySelector('.book-paper-body').innerHTML =
+          '<div class="book-closing-message"><span>FINE ARGOMENTO</span>' +
+          '<strong>Il prossimo capitolo ti aspetta.</strong></div>';
+        fragments.appendChild(closing);
+      }
       fragments.appendChild(bookCover({...settings,title,back:true}));
       if (!active || disposed || ticket!==generation) return;
       // PageFlip.destroy() REMOVES its root element. Give each render a
@@ -136,7 +146,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
         flippingTime:reduced?100:820,
         mobileScrollSupport:true,swipeDistance:24,
         clickEventForward:true,disableFlipByClick:true,
-        startPage:Math.min(Math.max(0,saved),pages.length+1)
+        startPage:Math.min(Math.max(0,saved),pages.length+(pages.length%2 ? 2 : 1))
       });
       flip.on('flip',event=>{
         currentPage=event.data;
