@@ -14,7 +14,7 @@ Alias standard:
 GET https://study.ddone.it/.well-known/studylibrary.json
 ```
 
-Il documento è versionato insieme all'app e descrive:
+Il documento è versionato insieme all'app (**Agent Protocol v2**) e descrive:
 
 - gerarchia Catalogo → Libreria → Lezione → Topic;
 - endpoint disponibili;
@@ -233,6 +233,47 @@ Una versione contiene:
 
 Il ripristino di una versione non cancella la storia: crea una nuova versione contenente quello snapshot.
 
+## Aggiornamenti granulari tramite AI (Protocol v2)
+
+La modalità consigliata **non** richiede l'esportazione completa del catalogo in ChatGPT.
+
+1. L'agente legge `GET /api/v1/agent` per istruzioni e schema attuale.
+2. Legge `GET /api/v1/catalogs/{catalog}/agent` per `currentVersion` e endpoint canonici.
+3. Usa `/context` per gli ID esistenti, quindi recupera solo il topic/lezione pertinente.
+4. Genera un piccolo JSON `studylibrary.update` con `schemaVersion:2`, `baseVersion:currentVersion` e operazioni mirate come `patchTopic`, `addSection`, `addMedia`, `addSource` e `moveTopic`.
+5. L'utente importa il JSON in **Il mio catalogo** e conferma dopo il diff.
+6. StudyLibrary mergea su una copia, valida e usa `studylibrary_api_write` con un confronto atomico su `p_base_version`.
+
+Esempio di singola modifica senza riscrivere il topic:
+
+```json
+{
+  "kind": "studylibrary.update",
+  "schemaVersion": 2,
+  "catalog": "UUID-LETTO-DALL-API",
+  "baseVersion": 7,
+  "message": "Aggiunta spiegazione",
+  "operations": [
+    {
+      "op": "addSection",
+      "library": "SLUG-REALE",
+      "lesson": "SLUG-REALE",
+      "topic": "ID-REALE",
+      "value": {
+        "id": "nuovo-esempio-univoco",
+        "type": "example",
+        "title": "Esempio",
+        "body": "Una spiegazione aggiuntiva."
+      }
+    }
+  ]
+}
+```
+
+I segnaposto sono illustrativi. Il file di update **non contiene credenziali** e **non è inviato direttamente a `/api/v1/write`**. L'endpoint di scrittura riceve soltanto lo snapshot risultante dopo il merge del browser, autenticato dal proprietario. I vecchi pacchetti `schemaVersion:1` continuano a funzionare.
+
+Leggi `/api/v1/schema/update-package` per elenco e campi machine-readable; `docs/UPDATE-PACKAGE.md` per contratti, selezione di sezioni esistenti anche senza ID (`sectionIndex` zero-based), esempi, validazione e regole sulle fonti.
+
 ## Scrittura autenticata
 
 Endpoint:
@@ -268,7 +309,7 @@ L'endpoint controlla sempre che il JWT appartenga al proprietario del catalogo.
 
 ## Workflow consigliato per agenti / ChatGPT
 
-Per aggiornare una nuova lezione senza perdere il contesto del corso:
+Per aggiornare una nuova lezione senza perdere il contesto del corso (per nuove modifiche è preferito il workflow v2 sopra):
 
 ```text
 1. GET /context
