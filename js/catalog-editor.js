@@ -592,9 +592,14 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     let html = '<section class="direct-sections"><div class="direct-sections-head"><div><span class="eyebrow">Contenuto</span><h3>Sezioni</h3></div><span>' + list.length + '</span></div><div class="editor-sections direct">';
 
     list.forEach((section, i) => {
-      html += '<article class="editor-section-card direct-section-card">' +
+      html += '<article class="editor-section-card direct-section-card" data-section-card="' + i + '">' +
         '<div class="direct-section-toolbar">' +
+          '<span class="section-drag-handle" draggable="true" data-section-drag="' + i + '" aria-label="Trascina la sezione" title="Trascina per riordinare">⋮⋮</span>' +
           '<span class="direct-section-kind">' + esc(section.type || 'section') + '</span>' +
+          '<span class="section-move-actions">' +
+            '<button type="button" data-section-move="' + i + '" data-move-direction="-1" aria-label="Sposta sezione su" title="Sposta su"' + (i===0?' disabled':'') + '>↑</button>' +
+            '<button type="button" data-section-move="' + i + '" data-move-direction="1" aria-label="Sposta sezione giù" title="Sposta giù"' + (i===list.length-1?' disabled':'') + '>↓</button>' +
+          '</span>' +
           '<details class="section-options"><summary aria-label="Opzioni sezione">•••</summary><div class="section-options-popover">' +
             '<label><span>Tipo</span><select data-section-type="' + i + '">';
 
@@ -904,6 +909,40 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         selection = { type: 'lesson', li: selection.li, lj: selection.lj, ti: null };
       }
       emit(); render();
+    });
+
+    function moveSection(from, to) {
+      const topic = selected();
+      const items = topic?.sections || [];
+      if (!Number.isInteger(from) || !Number.isInteger(to) ||
+          from < 0 || to < 0 || from >= items.length || to >= items.length || from === to) return;
+      const [section] = items.splice(from, 1);
+      items.splice(to, 0, section);
+      emit();
+      render();
+    }
+    container.querySelectorAll('[data-section-move]').forEach(button => button.addEventListener('click', () => {
+      const from = Number(button.dataset.sectionMove);
+      moveSection(from, from + Number(button.dataset.moveDirection));
+    }));
+    container.querySelectorAll('[data-section-drag]').forEach(handle => handle.addEventListener('dragstart', event => {
+      event.dataTransfer?.setData('text/plain', handle.dataset.sectionDrag);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    }));
+    container.querySelectorAll('[data-section-card]').forEach(card => {
+      card.addEventListener('dragover', event => {
+        if (![...event.dataTransfer?.types || []].includes('text/plain')) return;
+        event.preventDefault();
+        card.classList.add('dragging-over');
+      });
+      card.addEventListener('dragleave', () => card.classList.remove('dragging-over'));
+      card.addEventListener('drop', event => {
+        event.preventDefault();
+        card.classList.remove('dragging-over');
+        const from = Number(event.dataTransfer?.getData('text/plain'));
+        const to = Number(card.dataset.sectionCard);
+        moveSection(from, to);
+      });
     });
 
     container.querySelectorAll('[data-delete-section]').forEach(button => button.addEventListener('click', () => {
