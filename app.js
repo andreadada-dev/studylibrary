@@ -266,7 +266,7 @@ function catalogSearchText(catalog) {
 }
 
 async function renderMyCatalogs() {
-  setPageMeta('Il mio catalogo', 'Gestisci cataloghi, librerie e lezioni nel tuo spazio personale.');
+  setPageMeta('I miei cataloghi', 'Crea, apri e modifica i tuoi cataloghi di studio.');
   let catalogs = [];
 
   if (state.user && state.supabase) {
@@ -278,62 +278,56 @@ async function renderMyCatalogs() {
     }
   }
 
+  const canManage = Boolean(state.user && state.supabase);
   app.innerHTML =
     '<div class="page">' +
       '<section class="collection-hero personal-hero">' +
-        '<div><span class="eyebrow">Spazio personale</span><h1>Il mio catalogo</h1><p class="lede">Qui trovi tutta la tua struttura: cataloghi, librerie, lezioni e argomenti. Importa un JSON oppure apri l’editor visuale.</p></div>' +
-        '<div class="hero-actions"><a class="button accent" href="#/studio">＋ Nuovo / Editor</a><a class="button secondary" href="#/mine/universe">Universo personale</a></div>' +
+        '<div><span class="eyebrow">Spazio personale</span><h1>I miei cataloghi</h1>' +
+          '<p class="lede">Apri un catalogo per studiare o scegli Modifica per lavorare sul suo contenuto. Crea il tuo primo catalogo senza dover preparare un file JSON.</p></div>' +
+        '<div class="hero-actions"><a class="button secondary" href="#/mine/universe">Universo personale</a></div>' +
       '</section>' +
       (!state.supabase
-        ? '<aside class="catalog-notice"><strong>Backend non configurato</strong><p>Collega Supabase per salvare il tuo spazio personale.</p></aside>'
+        ? '<aside class="catalog-notice"><strong>Salvataggio non disponibile</strong><p>Collega Supabase per creare e conservare i tuoi cataloghi.</p></aside>'
         : !state.user
-          ? '<aside class="catalog-notice"><strong>Accedi con Google</strong><p>Accedi per importare e gestire i tuoi cataloghi.</p></aside>'
-          : '<section class="json-drop-zone" data-json-drop tabindex="0" role="button" aria-label="Importa file JSON"><div class="json-drop-icon">↓</div><div><strong>Trascina qui un file JSON</strong><span>oppure clicca per selezionarlo · catalogo singolo o export StudyLibrary</span></div><button class="button secondary" type="button" data-json-browse>Scegli file</button><input data-json-file type="file" accept="application/json,.json" multiple hidden></section>') +
-      (state.user && catalogs.length
-        ? '<section class="personal-catalog-list"><div class="section-head"><div><h2>I tuoi cataloghi</h2><p>Apri un catalogo: le anteprime mostrano le lezioni e, quando disponibili, le immagini presenti nei contenuti.</p></div><span class="tag">' + catalogs.length + ' cataloghi</span></div><div class="course-grid personal-folder-grid">' + catalogs.map(catalogCard).join('') + '</div></section>'
-        : state.user
-          ? '<div class="empty-state personal-empty"><h2>Il tuo spazio è vuoto</h2><p>Trascina qui sopra il primo JSON oppure crea un catalogo con l’editor.</p><a class="button accent" href="#/studio">Crea il primo catalogo</a></div>'
-          : '') +
+          ? '<aside class="catalog-notice"><strong>Accedi con Google per iniziare</strong><p>Dopo l’accesso potrai creare, importare e modificare i tuoi cataloghi.</p></aside>'
+          : '<section class="personal-catalog-list" data-json-drop>' +
+              '<div class="section-head personal-list-heading">' +
+                '<div><h2>I tuoi cataloghi</h2><p>Clicca una cartella per aprirla. Modifica e creazione sono disponibili direttamente qui.</p></div>' +
+                '<div class="personal-list-actions">' +
+                  '<span class="tag">' + catalogs.length + ' cataloghi</span>' +
+                  '<button class="button secondary" type="button" data-json-browse>Importa / aggiorna JSON</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="course-grid personal-folder-grid">' +
+                '<a class="personal-create-tile" href="#/studio/new" aria-label="Crea un nuovo catalogo">' +
+                  '<span class="personal-create-visual" aria-hidden="true"><span>＋</span></span>' +
+                  '<strong>Nuovo catalogo</strong><small>Crea e inizia a scrivere</small>' +
+                '</a>' +
+                catalogs.map(personalCatalogTile).join('') +
+              '</div>' +
+              (catalogs.length ? '' : '<p class="personal-first-hint">Inizia dal pulsante +. Troverai già una struttura di esempio che puoi modificare liberamente.</p>') +
+              '<p class="personal-import-hint">Hai già un catalogo o un aggiornamento generato dall’AI? Usa “Importa / aggiorna JSON” oppure trascinalo qui.</p>' +
+              '<input data-json-file type="file" accept="application/json,.json" multiple hidden>' +
+            '</section>') +
     '</div>';
 
+  if (!canManage) return;
   const dropZone = app.querySelector('[data-json-drop]');
   const fileInput = app.querySelector('[data-json-file]');
-  const browse = app.querySelector('[data-json-browse]');
-
-  browse?.addEventListener('click', event => {
-    event.stopPropagation();
-    fileInput?.click();
-  });
-  dropZone?.addEventListener('click', event => {
-    if (event.target.closest('button')) return;
-    fileInput?.click();
-  });
-  dropZone?.addEventListener('keydown', event => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      fileInput?.click();
-    }
-  });
-  ['dragenter','dragover'].forEach(type => dropZone?.addEventListener(type, event => {
-    event.preventDefault();
-    dropZone.classList.add('dragging');
-  }));
-  ['dragleave','drop'].forEach(type => dropZone?.addEventListener(type, event => {
-    event.preventDefault();
-    dropZone.classList.remove('dragging');
-  }));
-  dropZone?.addEventListener('drop', event => importPersonalFiles([...event.dataTransfer.files]));
+  app.querySelector('[data-json-browse]')?.addEventListener('click', () => fileInput?.click());
   fileInput?.addEventListener('change', async () => {
     await importPersonalFiles([...fileInput.files]);
     fileInput.value = '';
   });
-
-  app.querySelectorAll('[data-edit-personal]').forEach(button => button.addEventListener('click', () => {
-    const catalog = catalogs.find(item => catalogRef(item) === button.dataset.editPersonal);
-    if (!catalog) return;
-    state.activeCatalog = catalog;
-    location.hash = '#/studio';
+  ['dragenter', 'dragover'].forEach(type => dropZone?.addEventListener(type, event => {
+    event.preventDefault();
+    dropZone.classList.add('dragging');
   }));
+  ['dragleave', 'drop'].forEach(type => dropZone?.addEventListener(type, event => {
+    event.preventDefault();
+    dropZone.classList.remove('dragging');
+  }));
+  dropZone?.addEventListener('drop', event => importPersonalFiles([...event.dataTransfer.files]));
 }
 
 function renderPersonalCatalogTree(catalog) {
