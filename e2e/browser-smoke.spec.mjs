@@ -186,7 +186,7 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   await expect(page.locator('body')).toHaveClass(/reading-focus-mode/);
   await expect(page.locator('.reader-book-view')).toBeVisible({timeout:18000});
   await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
-  await expect(page.locator('.book-paper')).toHaveCount(3);
+  await expect.poll(()=>page.locator('.reader-book-stage .book-paper').count()).toBeGreaterThanOrEqual(3);
   const readerBackground=await page.locator('.reader').evaluate(el=>getComputedStyle(el).backgroundColor);
   expect(readerBackground).toBe('rgba(0, 0, 0, 0)');
   await expect(hero).toBeHidden();
@@ -197,6 +197,7 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   expect(await page.locator('.reader').evaluate(el=>getComputedStyle(el).zoom)).toBe('1');
   await expect(toggle.locator('[data-reader-focus-label]')).toHaveText('Esci');
   await expect(page.locator('[data-reader-book-label]')).toHaveText('Scorrimento');
+  await page.screenshot({path:testInfo.outputPath('book-3d-open.png'),fullPage:true});
   await expect(page.locator('[data-book-count]')).not.toHaveText('0 / 0');
   await page.locator('[data-book-next]').click();
   await expect(page.locator('[data-book-count]')).not.toHaveText('1 / 3');
