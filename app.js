@@ -1,9 +1,10 @@
 import { state, isBackendConfigured } from './js/state.js';
-import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, fetchCatalogVersions, restoreCatalogVersion, deleteCatalog, reportContent } from './js/api.js';
+import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, fetchCatalogVersions, restoreCatalogVersion, deleteCatalog, reportContent, writeCatalogVersioned } from './js/api.js';
 import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref, catalogRef } from './js/content.js';
 import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
+import { applyUpdatePackage } from './js/update-package.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
@@ -450,152 +451,18 @@ async function importUpdatePackage(update, filename) {
   const approved = await confirmCatalogImport(target, candidate, filename);
   if (!approved) return 0;
 
-  const publish = target.visibility === 'public';
-  await saveCatalog(candidate, publish, update.message || ('Pacchetto aggiornamento: ' + filename));
+  const versionMessage = update.message || ('Pacchetto aggiornamento: ' + filename);
+  // A compare-and-swap on the database row prevents a concurrent edit from being overwritten.
+  await writeCatalogVersioned(
+    target._db.id,
+    Number(update.baseVersion),
+    candidate,
+    versionMessage
+  );
+  await Promise.all([fetchMyCatalogs(), fetchPublicCatalogs()]);
   return 1;
 }
 
-function applyUpdatePackage(baseCatalog, update) {
-  const catalog = structuredClone(baseCatalog);
-  const operations = Array.isArray(update.operations) ? update.operations : [];
-  if (!operations.length) throw new Error('Il pacchetto non contiene operazioni.');
-
-  const findLibraryForOp = op => {
-    const libraries = catalog.libraries || [];
-    const requested = String(op.library || '').trim();
-
-    let library = libraries.find(item => item.slug === requested || item.id === requested);
-    if (library) return library;
-
-    const normalizeKey = value => String(value || '')
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-    const normalizedRequested = normalizeKey(requested);
-    if (normalizedRequested) {
-      library = libraries.find(item =>
-        normalizeKey(item.slug) === normalizedRequested ||
-        normalizeKey(item.id) === normalizedRequested ||
-        normalizeKey(item.title) === normalizedRequested
-      );
-      if (library) return library;
-    }
-
-    // Update package generated for a catalog with a single library:
-    // if the human-readable library name changed, the target is still unambiguous.
-    if (libraries.length === 1) return libraries[0];
-
-    const available = libraries
-      .map(item => item.slug || item.id || item.title)
-      .filter(Boolean)
-      .join(', ');
-    throw new Error(
-      'Libreria non trovata: ' + requested +
-      (available ? '. Disponibili: ' + available : '')
-    );
-  };
-
-  const findLessonForOp = op => {
-    const library = findLibraryForOp(op);
-    const lesson = (library.lessons || []).find(item => item.slug === op.lesson || item.id === op.lesson);
-    if (!lesson) throw new Error('Lezione non trovata: ' + (op.lesson || ''));
-    return { library, lesson };
-  };
-
-  for (const op of operations) {
-    if (!op || !op.op) throw new Error('Operazione senza campo op.');
-
-    if (op.op === 'upsertLesson') {
-      const library = findLibraryForOp(op);
-      if (!op.value || typeof op.value !== 'object') throw new Error('upsertLesson richiede value.');
-      library.lessons ||= [];
-      const index = library.lessons.findIndex(item =>
-        item.slug === op.value.slug ||
-        item.id === op.value.id
-      );
-      if (index >= 0) library.lessons[index] = structuredClone(op.value);
-      else library.lessons.push(structuredClone(op.value));
-      continue;
-    }
-
-    if (op.op === 'removeLesson') {
-      const library = findLibraryForOp(op);
-      const before = library.lessons?.length || 0;
-      library.lessons = (library.lessons || []).filter(item => item.slug !== op.lesson && item.id !== op.lesson);
-      if ((library.lessons?.length || 0) === before) throw new Error('Lezione non trovata: ' + (op.lesson || ''));
-      continue;
-    }
-
-    if (op.op === 'upsertTopic') {
-      const { lesson } = findLessonForOp(op);
-      if (!op.value || typeof op.value !== 'object' || !op.value.id) throw new Error('upsertTopic richiede value.id.');
-      lesson.topics ||= [];
-      const index = lesson.topics.findIndex(item => item.id === op.value.id);
-      if (index >= 0) lesson.topics[index] = structuredClone(op.value);
-      else lesson.topics.push(structuredClone(op.value));
-
-      lesson.modules ||= [];
-      let module = null;
-      if (op.module) module = lesson.modules.find(item => item.id === op.module);
-      if (!module) module = lesson.modules[0];
-      if (!module) {
-        module = { id: op.module || 'contenuti', title: op.moduleTitle || 'Contenuti', topicIds: [] };
-        lesson.modules.push(module);
-      }
-      module.topicIds ||= [];
-      if (!module.topicIds.includes(op.value.id)) module.topicIds.push(op.value.id);
-      continue;
-    }
-
-    if (op.op === 'removeTopic') {
-      const { lesson } = findLessonForOp(op);
-      const topicId = op.topic;
-      const before = lesson.topics?.length || 0;
-      lesson.topics = (lesson.topics || []).filter(item => item.id !== topicId);
-      if ((lesson.topics?.length || 0) === before) throw new Error('Topic non trovato: ' + (topicId || ''));
-      (lesson.modules || []).forEach(module => {
-        module.topicIds = (module.topicIds || []).filter(id => id !== topicId);
-      });
-      (lesson.topics || []).forEach(topic => {
-        topic.prerequisites = (topic.prerequisites || []).filter(id => id !== topicId);
-        topic.connections = (topic.connections || []).filter(connection => connection.target !== topicId);
-      });
-      continue;
-    }
-
-    if (op.op === 'addConnection') {
-      const { lesson } = findLessonForOp(op);
-      const topic = (lesson.topics || []).find(item => item.id === op.from);
-      if (!topic) throw new Error('Topic origine non trovato: ' + (op.from || ''));
-      if (!op.connection?.target) throw new Error('addConnection richiede connection.target.');
-      topic.connections ||= [];
-      const duplicate = topic.connections.some(connection =>
-        connection.target === op.connection.target &&
-        (connection.type || 'related') === (op.connection.type || 'related')
-      );
-      if (!duplicate) topic.connections.push(structuredClone(op.connection));
-      continue;
-    }
-
-    if (op.op === 'removeConnection') {
-      const { lesson } = findLessonForOp(op);
-      const topic = (lesson.topics || []).find(item => item.id === op.from);
-      if (!topic) throw new Error('Topic origine non trovato: ' + (op.from || ''));
-      topic.connections = (topic.connections || []).filter(connection =>
-        !(connection.target === op.target && (!op.type || connection.type === op.type))
-      );
-      continue;
-    }
-
-    throw new Error('Operazione non supportata: ' + op.op);
-  }
-
-  return catalog;
-}
 
 function confirmCatalogImport(existing, candidate, filename) {
   const diff = summarizeCatalogDiff(existing, candidate);
