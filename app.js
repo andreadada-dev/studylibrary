@@ -1233,7 +1233,16 @@ async function renderStudio(options = {}) {
         '<textarea class="json-editor studio-json-advanced" data-json-editor spellcheck="false" aria-label="Editor JSON" hidden></textarea>' +
         '<input data-file type="file" accept="application/json,.json" hidden />' +
       '</section>' +
-      '<aside class="studio-side"><div data-validation></div><div data-preview></div><div class="schema-list"><div class="schema-item"><strong>Markdown</strong><span>Descrizioni, riassunti, spiegazioni e risposte supportano formattazione Markdown.</span></div><div class="schema-item"><strong>Media</strong><span>Immagini e video via URL vengono registrati automaticamente nel catalogo e riutilizzati con mediaRef.</span></div><div class="schema-item"><strong>Struttura</strong><span>Usa la colonna a sinistra per spostarti tra catalogo, librerie, lezioni e argomenti.</span></div><div class="schema-item"><strong>JSON avanzato</strong><span>Per proprietà speciali puoi sempre intervenire sul JSON completo.</span></div></div></aside>' +
+      '<aside class="studio-side">' +
+        '<section class="studio-quickstart"><strong>Come modificare</strong><ol>' +
+          '<li>Seleziona <b>catalogo, libreria, lezione o argomento</b> nella colonna Struttura.</li>' +
+          '<li><b>Clicca sui titoli e sui testi</b> per riscriverli. Usa + per aggiungere contenuti.</li>' +
+          '<li>Premi <b>Salva modifiche</b> quando hai finito.</li>' +
+        '</ol></section>' +
+        '<div data-validation></div><div data-preview></div>' +
+        '<details class="studio-guide-advanced"><summary>Informazioni per utenti avanzati</summary>' +
+          '<div class="schema-list"><div class="schema-item"><strong>Markdown</strong><span>Descrizioni, riassunti, spiegazioni e risposte supportano formattazione Markdown.</span></div><div class="schema-item"><strong>Media</strong><span>Immagini e video via URL vengono registrati automaticamente nel catalogo e riutilizzati con mediaRef.</span></div><div class="schema-item"><strong>Struttura</strong><span>Usa la colonna a sinistra per spostarti tra catalogo, librerie, lezioni e argomenti.</span></div><div class="schema-item"><strong>JSON avanzato</strong><span>Per proprietà speciali puoi sempre intervenire sul JSON completo.</span></div></div>' +
+        '</details></aside>' +
     '</div>' +
   '</div>';
 
@@ -1427,6 +1436,10 @@ async function renderStudio(options = {}) {
       if (updated) {
         editingCatalog = updated;
         loadedVersion = Number(updated._db?.current_version || 1);
+        const saveButton = app.querySelector('[data-save]');
+        if (saveButton) saveButton.textContent = 'Salva modifiche';
+        const editorHeading = app.querySelector('.studio-heading h1');
+        if (editorHeading) editorHeading.textContent = updated.title;
         state.activeCatalog = updated;
         if (isNew) {
           const editorRoute = '#/studio/catalog/' + encodeURIComponent(catalogRef(updated));
