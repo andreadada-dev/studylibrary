@@ -59,6 +59,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
   let refreshTimer=0, hideTimer=0;
   const controls = reader.querySelector('.reader-view-controls');
   const nav = view.querySelector('.reader-book-nav');
+  const lessonNav = view.querySelector('.reader-book-lesson-nav');
 
   function showControls() {
     if (!active || disposed) return;
@@ -70,7 +71,8 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
     if (!active || disposed) return;
     const focused=document.activeElement;
     const panel=reader.querySelector('[data-reader-panel]');
-    if ((focused?.matches?.(':focus-visible') && (controls?.contains(focused) || nav?.contains(focused))) ||
+    if ((focused?.matches?.(':focus-visible') &&
+        (controls?.contains(focused) || nav?.contains(focused) || lessonNav?.contains(focused))) ||
         (panel && !panel.hidden)) {
       clearTimeout(hideTimer);
       hideTimer=setTimeout(hideControls,1300);
@@ -217,6 +219,15 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
         event.target.closest?.('input,textarea,select,[contenteditable="true"]')) return;
     if (event.key==='ArrowLeft' || event.key==='ArrowRight') {
       showControls();
+      if (event.shiftKey) {
+        const direction=event.key==='ArrowLeft' ? 'previous' : 'next';
+        const lessonLink=view.querySelector('[data-book-lesson="'+direction+'"]');
+        if (lessonLink) {
+          event.preventDefault();
+          lessonLink.click();
+        }
+        return;
+      }
       event.preventDefault();
       if (event.key==='ArrowLeft') instance?.flipPrev?.();
       else instance?.flipNext?.();
@@ -251,6 +262,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
   reader.addEventListener('focusout',onFocusOut);
   document.addEventListener('visibilitychange',onVisibilityChange);
   view.addEventListener('click',onViewClick);
+  lessonNav?.addEventListener('click',showControls);
   document.addEventListener('keydown',onKeyDown);
   window.addEventListener('resize',scheduleRefresh);
 
@@ -296,6 +308,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       document.removeEventListener('keydown',onKeyDown);
       window.removeEventListener('resize',scheduleRefresh);
       view.removeEventListener('click',onViewClick);
+      lessonNav?.removeEventListener('click',showControls);
       document.removeEventListener('pointermove',onPointerMove);
       reader.removeEventListener('pointerdown',onPointerDown);
       reader.removeEventListener('focusin',onFocusIn);
