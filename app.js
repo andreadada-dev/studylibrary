@@ -232,9 +232,11 @@ function renderHome() {
   app.innerHTML =
     '<div class="page">' +
       '<section class="hero">' +
-        '<span class="eyebrow">Cataloghi pubblici</span>' +
-        '<h1 class="display">Studia per lezioni.<br/>Collega tutto.</h1>' +
-        '<p class="lede">Ogni persona costruisce il proprio catalogo. Dentro ci sono librerie, lezioni e argomenti collegati. Quando vuoi puoi pubblicarlo e renderlo visibile qui.</p>' +
+        '<span class="eyebrow">' + (state.user ? 'Il tuo spazio di studio' : 'Cataloghi pubblici') + '</span>' +
+        '<h1 class="display">' + (state.user ? 'Riprendi a studiare.<br/>Tutto al suo posto.' : 'Studia per lezioni.<br/>Collega tutto.') + '</h1>' +
+        '<p class="lede">' + (state.user
+          ? 'Ritrova i tuoi cataloghi, gli ultimi argomenti aperti e i preferiti. Più sotto puoi scoprire i contenuti della community.'
+          : 'Ogni persona costruisce il proprio catalogo. Dentro ci sono librerie, lezioni e argomenti collegati. Quando vuoi puoi pubblicarlo e renderlo visibile qui.') + '</p>' +
         '<div class="hero-actions">' +
           '<div class="searchbar"><input data-course-search type="search" placeholder="Cerca catalogo, libreria, lezione o argomento…" aria-label="Cerca"/><kbd>⌘K</kbd></div>' +
           '<a class="button secondary" href="#/universe">Universo pubblico</a>' +
