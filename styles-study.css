@@ -1611,3 +1611,122 @@ body.reading-focus-mode .reader.reader-book-active.book-controls-hidden .reader-
     transition:none;
   }
 }
+
+
+/* One StPageFlip volume per lesson: quiet chapter divider leaves and topic flow. */
+.book-lesson-intro .book-paper-body,
+.book-chapter-page .book-paper-body {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  padding:12px 0;
+  font-family:Georgia,"Times New Roman",serif;
+}
+.book-intro-overline,
+.book-chapter-overline,
+.book-topic-overline {
+  font:800 10px/1.5 ui-sans-serif,system-ui,sans-serif;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:#8577a6;
+}
+.book-lesson-intro .book-intro-title {
+  margin:15px 0 16px;
+  color:#30254b;
+  font:600 clamp(26px,2.1em,41px)/1.17 Georgia,"Times New Roman",serif;
+  letter-spacing:-.035em;
+  overflow-wrap:anywhere;
+}
+.book-intro-description {
+  margin:0 0 30px;
+  color:#786f69;
+  font:400 .95em/1.6 Georgia,serif;
+}
+.book-intro-chapter-count {
+  padding-top:17px;
+  border-top:1px solid #e9e0d5;
+  font:750 11px/1.4 ui-sans-serif,system-ui,sans-serif;
+  color:#7b6f69;
+}
+.book-intro-chapters {
+  margin:12px 0 0 19px;
+  padding:0;
+  font:.82em/1.55 Georgia,serif;
+  color:#544b47;
+}
+.book-intro-chapters li {margin:0 0 5px;}
+.book-chapter-page {
+  background:linear-gradient(138deg,#faf7f0 0%,#f5f0e8 65%,#eee6da 100%);
+}
+.book-chapter-page .book-paper-body {
+  border-left:3px solid #9c8ac7;
+  padding-left:clamp(11px,3vw,24px);
+  right:calc(var(--book-page-margin) + 8px);
+}
+.book-chapter-number {
+  margin:16px 0 0;
+  font:400 clamp(42px,4.1em,76px)/1 Georgia,serif;
+  letter-spacing:-.08em;
+  color:#c8b8dc;
+}
+.book-chapter-title {
+  margin:12px 0 16px;
+  color:#2c2247;
+  font:550 clamp(24px,1.9em,40px)/1.17 Georgia,"Times New Roman",serif;
+  letter-spacing:-.04em;
+  overflow-wrap:anywhere;
+}
+.book-chapter-description {
+  margin:0 0 24px;
+  padding-bottom:21px;
+  border-bottom:1px solid #e0d5c9;
+  color:#70675f;
+  font:400 .93em/1.5 Georgia,serif;
+}
+.book-chapter-topics {
+  padding:0 0 0 18px;
+  margin:0;
+  font:400 .79em/1.5 Georgia,serif;
+  color:#655c58;
+}
+.book-chapter-topics li {padding:0 0 6px 2px;}
+.book-paper-body .book-topic-overview {
+  margin:0 0 24px;
+  padding:0 0 17px;
+  border-bottom:1px solid #e4dcd3;
+}
+.book-paper-body .book-topic-title {
+  margin:10px 0 13px;
+  font:650 clamp(21px,1.38em,29px)/1.2 ui-sans-serif,system-ui,sans-serif;
+  letter-spacing:-.04em;
+  color:#3a3054;
+  overflow-wrap:anywhere;
+}
+.book-paper-body .book-topic-summary {
+  margin:0;
+  font:400 .94em/1.6 Georgia,serif;
+  color:#625a52;
+}
+.book-paper-body .book-topic-summary p {margin:0 0 6px;}
+.book-paper-body .book-learning-goals {
+  margin:6px 0 20px;
+  padding:11px 13px;
+  background:#f5efe6;
+  border-radius:8px;
+  color:#544c43;
+}
+.book-paper-body .book-learning-goals h3 {
+  margin:0 0 8px;
+  font:800 10px/1.4 ui-sans-serif,system-ui,sans-serif;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.book-paper-body .book-learning-goals ul {
+  margin:0;
+  padding:0 0 0 17px;
+  font-size:.83em;
+}
+.book-paper-body .book-learning-goals li {margin:0 0 4px;}
+.book-paper-body .book-topic-overview.book-fragment {padding:0 0 10px;margin:0 0 12px;}
