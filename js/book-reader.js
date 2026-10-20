@@ -99,13 +99,34 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       status.hidden=!message;
     }
   }
+  function atFirstPage() {
+    return (instance?.getCurrentPageIndex?.() ?? currentPage) <= 0;
+  }
+  function atLastSpread() {
+    const total=getPageCount();
+    const index=instance?.getCurrentPageIndex?.() ?? currentPage;
+    const spread=instance?.getOrientation?.() === 'landscape' ? 2 : 1;
+    return total > 0 && index >= total-spread;
+  }
   function drawButtons() {
     const total=getPageCount();
     const index=instance?.getCurrentPageIndex?.() ?? currentPage;
     currentPage=index;
     if (pageLabel) pageLabel.textContent=(total ? index+1 : 0) + ' / ' + total;
-    if (prev) prev.disabled=!active || index <= 0;
-    if (next) next.disabled=!active || index >= total-1;
+    if (prev) {
+      const forward=atFirstPage() && !!prev.dataset.readingPrev;
+      const kind=prev.dataset.readingPrevKind === 'lezione' ? 'Lezione' : 'Argomento';
+      prev.textContent=forward ? '← '+kind+' prima' : '← Pagina prima';
+      prev.setAttribute('aria-label', forward ? kind+' precedente' : 'Pagina precedente');
+      prev.disabled=!active || (atFirstPage() && !forward);
+    }
+    if (next) {
+      const forward=atLastSpread() && !!next.dataset.readingNext;
+      const kind=next.dataset.readingNextKind === 'lezione' ? 'Lezione' : 'Argomento';
+      next.textContent=forward ? kind+' dopo →' : 'Pagina dopo →';
+      next.setAttribute('aria-label', forward ? kind+' successivo' : 'Pagina successiva');
+      next.disabled=!active || (atLastSpread() && !forward);
+    }
   }
 
   function measurePage() {
@@ -254,8 +275,18 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
         }
       }) : null;
 
-  prev?.addEventListener('click',()=>{ instance?.flipPrev?.(); showControls(); });
-  next?.addEventListener('click',()=>{ instance?.flipNext?.(); showControls(); });
+  prev?.addEventListener('click',()=>{
+    if (atFirstPage() && prev.dataset.readingPrev) {
+      location.hash=prev.dataset.readingPrev;
+    } else instance?.flipPrev?.();
+    showControls();
+  });
+  next?.addEventListener('click',()=>{
+    if (atLastSpread() && next.dataset.readingNext) {
+      location.hash=next.dataset.readingNext;
+    } else instance?.flipNext?.();
+    showControls();
+  });
   document.addEventListener('pointermove',onPointerMove,{passive:true});
   reader.addEventListener('pointerdown',onPointerDown,{passive:true});
   reader.addEventListener('focusin',onFocusIn);
