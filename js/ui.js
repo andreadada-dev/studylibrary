@@ -3,7 +3,7 @@ import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, deleteA
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 import { resolveMediaAsset, detectVideoProvider, videoEmbedUrl } from './media.js';
 import { createStudyBook } from './book-reader.js';
-import { getLessonNeighbors } from './study-navigation.js';
+import { getLessonNeighbors, getReadingNeighbors } from './study-navigation.js';
 
 let resumeBookAcrossLessons = false;
 
@@ -763,6 +763,7 @@ export function lessonReaderRail(context, activeTopicId) {
   let i = 0;
   const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
   const lessonNeighbors = getLessonNeighbors(context.catalog, context.library, lesson);
+  const readingNeighbors = getReadingNeighbors(context.catalog, context.library, lesson, topic);
   return (lesson.modules || []).map(module =>
     '<section class="module-group">' +
       '<p class="module-title">' + escapeHtml(module.title) + '</p>' +
@@ -833,9 +834,15 @@ export function lessonTopicArticle(context, topic) {
           '<span class="book-lesson-empty" aria-hidden="true"></span>') +
       '</nav>' +
       '<div class="reader-book-nav" aria-label="Sfoglia le pagine">' +
-        '<button type="button" data-book-prev aria-label="Pagina precedente" disabled><span aria-hidden="true">←</span> Pagina prima</button>' +
+        '<button type="button" data-book-prev aria-label="Pagina precedente" ' +
+          (readingNeighbors.previous ? 'data-reading-prev="' + escapeHtml(readingNeighbors.previous.href) + '" ' +
+          'data-reading-prev-kind="' + escapeHtml(readingNeighbors.previous.kind) + '" ' : '') +
+          'disabled><span aria-hidden="true">←</span> Pagina prima</button>' +
         '<span data-book-count aria-live="polite">0 / 0</span>' +
-        '<button type="button" data-book-next aria-label="Pagina successiva" disabled>Pagina dopo <span aria-hidden="true">→</span></button>' +
+        '<button type="button" data-book-next aria-label="Pagina successiva" ' +
+          (readingNeighbors.next ? 'data-reading-next="' + escapeHtml(readingNeighbors.next.href) + '" ' +
+          'data-reading-next-kind="' + escapeHtml(readingNeighbors.next.kind) + '" ' : '') +
+          'disabled>Pagina dopo <span aria-hidden="true">→</span></button>' +
       '</div>' +
     '</section>' +
     '<header class="reader-header">' +
