@@ -760,7 +760,7 @@ async function renderCatalog(catalogSlug) {
       '</div>' +
       '<section class="collection-list">' +
         '<div class="section-head"><div><h2>Librerie</h2><p>Ogni libreria raccoglie le lezioni di un corso o di un’area di studio.</p></div></div>' +
-        (catalog.libraries || []).map(library => libraryCard(catalog, library)).join('') +
+        '<div class="course-grid library-folder-grid">' + (catalog.libraries || []).map(library => libraryCard(catalog, library)).join('') + '</div>' +
       '</section>' +
       '<div id="discussion-root"></div>' +
     '</div>';
