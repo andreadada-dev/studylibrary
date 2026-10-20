@@ -126,3 +126,48 @@ test('touch pointer can reorder using the same grip',async({page})=>{
     nodes.map(el=>el.dataset.personalCatalog))).toEqual(['two','one']);
   expect(await page.evaluate(()=>window.touchSaved)).toBe(1);
 });
+
+test('reader focus mode changes layout and Aa changes text only',async({page})=>{
+  await page.goto('/#/',{waitUntil:'domcontentloaded'});
+  await expect(page.locator('.hero')).toBeVisible({timeout:25000});
+  await page.evaluate(async()=>{
+    const {lessonTopicArticle,wireReaderInteractions}=await import('/js/ui.js');
+    const topic={
+      id:'pixel-resolution',title:'Risoluzione spaziale',summary:'I pixel rappresentano la risoluzione di una immagine.',
+      sections:[{id:'concept',type:'concept',title:'Che cosa sono i pixel',
+        body:'I pixel rappresentano piccole informazioni. Questo concetto aiuta a comprendere la visione artificiale.'}]
+    };
+    const lesson={slug:'intro',id:'intro',title:'Introduzione',topics:[topic],modules:[{id:'intro',topicIds:[topic.id]}]};
+    const library={slug:'cv',title:'Computer Vision',lessons:[lesson]};
+    const catalog={slug:'computer-vision',title:'Computer Vision',libraries:[library]};
+    const context={catalog,library,lesson};
+    document.querySelector('#app').innerHTML=
+      '<div class="page"><header class="course-hero"><h1>Lezione 01</h1></header>' +
+      '<div class="course-layout"><aside class="topic-rail">Indice argomenti</aside>' +
+      lessonTopicArticle(context,topic) + '</div></div>';
+    wireReaderInteractions();
+  });
+  const hero=page.locator('.course-hero');
+  const toggle=page.locator('[data-reader-focus]');
+  const settings=page.locator('[data-reader-settings]');
+  const text=page.locator('.reader .lesson-section p').first();
+  await expect(toggle).toBeVisible();
+  await expect(hero).toBeVisible();
+  const initialSize=await text.evaluate(el=>getComputedStyle(el).fontSize);
+  await settings.click();
+  await expect(page.locator('[data-reader-panel]')).toBeVisible();
+  await page.locator('[data-reader-zoom="1"]').click();
+  expect(await text.evaluate(el=>getComputedStyle(el).fontSize)).not.toBe(initialSize);
+  await toggle.click();
+  await expect(page.locator('body')).toHaveClass(/reading-focus-mode/);
+  await expect(hero).toBeHidden();
+  await expect(page.locator('.topic-rail')).toBeHidden();
+  await expect(page.locator('.reader-focus-context')).toBeVisible();
+  await expect(page.locator('[data-reader-panel]')).toBeHidden();
+  expect(await page.locator('.reader').evaluate(el=>getComputedStyle(el).zoom)).toBe('1');
+  await expect(toggle.locator('[data-reader-focus-label]')).toHaveText('Esci');
+  await page.screenshot({path:'test-results/reader-focus-'+test.info().project.name+'.png',fullPage:true});
+  await toggle.click();
+  await expect(page.locator('body')).not.toHaveClass(/reading-focus-mode/);
+  await expect(hero).toBeVisible();
+});
