@@ -20,6 +20,16 @@ Le bozze locali rimangono sul dispositivo e **non** equivalgono a un salvataggio
 
 Il completamento e le ultime letture richiedono la migrazione Supabase `20261020213500_study_progress.sql`: se non è stata distribuita, l'interfaccia non inventa percentuali di progresso.
 
+## Libro 3D nella modalità Concentrazione (StPageFlip)
+
+Nella pagina di una lezione premi **Concentrati**: il lettore apre un libro con copertina rigida, pagine HTML, piegatura 3D e ombre realistiche. Puoi sfogliare con gli angoli della carta, con i pulsanti **Precedente / Successiva** o con le frecce della tastiera. Desktop: due pagine affiancate; mobile: una pagina. Il pulsante **Scorrimento** torna subito alla lettura continua senza lasciare la modalità Concentrazione. Le opzioni `Aa` continuano a funzionare e reimpaginano il libro.
+
+La pagina è composta dal contenuto HTML già presente nel reader (formule KaTeX, spiegazioni, immagini e checkpoint). L'impaginazione cerca di non spezzare i blocchi: se necessario divide paragrafi lunghi mantenendo la formattazione, oppure usa un piccolo scorrimento interno per elementi indivisibili. Per non distrarre, discussione, collegamenti e fonti secondarie rimangono nella lettura continua.
+
+La libreria è **StPageFlip 2.0.7 (MIT, © Nodlik 2020)**. Il Dockerfile distribuisce `/js/vendor/page-flip.browser.js` e la relativa licenza insieme all'app, per evitare dipendenze dal CDN in produzione. In sviluppo locale senza bundle installato è disponibile un fallback jsDelivr alla versione fissata; se la libreria non è raggiungibile, il reader torna automaticamente alla lettura continua. Il blocco del bundle nella rete non impedisce la consultazione del contenuto.
+
+Test di comportamento e responsive: `Visual and mobile smoke` verifica il bundle reale in Chromium nelle viste desktop/iPhone. Questo non sostituisce un test su dispositivi fisici con lezioni e PDF reali.
+
 ## Editor visuale, media e organizzazione
 
 - **Palette + Blocco:** negli argomenti scegli tra testo, esempio, formula, immagine, galleria, PDF/risorsa, confronto, procedimento e checkpoint. Le sezioni mantengono il formato dati già esistente.
