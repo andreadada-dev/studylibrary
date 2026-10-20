@@ -6,6 +6,7 @@ import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
 import { applyUpdatePackage } from './js/update-package.js';
 import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
+import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
@@ -1215,6 +1216,43 @@ async function renderStudio(options = {}) {
   let loadedVersion = editingCatalog?._db?.current_version || null;
   let visualEditor = null;
   let pendingUpdate = null;
+  const localDraftKey = editorDraftKey(state.user.id, originalRef || 'new');
+  let baseline = JSON.stringify(draft);
+  const recovered = readEditorDraft(localDraftKey);
+  if (recovered && (recovered.baseVersion ?? null) === (loadedVersion ?? null) &&
+      JSON.stringify(recovered.catalog) !== baseline) {
+    if (window.confirm('Bozza non salvata trovata su questo dispositivo. Vuoi recuperarla?')) {
+      draft = recovered.catalog;
+    } else clearEditorDraft(localDraftKey);
+  } else if (recovered && (recovered.baseVersion ?? null) !== (loadedVersion ?? null)) {
+    toast('La bozza locale si riferisce a una versione precedente. Non è stata caricata.');
+  }
+  const editorHistory = createEditorHistory(draft);
+  let dirty = JSON.stringify(draft) !== baseline;
+  let draftTimer = null;
+
+  function persistLocalDraft() {
+    clearTimeout(draftTimer);
+    if (dirty) storeEditorDraft(localDraftKey, draft, loadedVersion);
+  }
+  function refreshEditorStatus() {
+    dirty = JSON.stringify(draft) !== baseline;
+    const feedback = app.querySelector('.studio-save-feedback');
+    if (feedback) feedback.textContent = dirty
+      ? '● Modifiche non salvate · bozza conservata sul dispositivo'
+      : '✓ Tutte le modifiche salvate';
+    const undo = app.querySelector('[data-editor-undo]');
+    const redo = app.querySelector('[data-editor-redo]');
+    if (undo) undo.disabled = !editorHistory.canUndo;
+    if (redo) redo.disabled = !editorHistory.canRedo;
+    clearTimeout(draftTimer);
+    if (dirty) draftTimer = setTimeout(persistLocalDraft, 600);
+    else clearEditorDraft(localDraftKey);
+  }
+  editorLeaveGuard = () => {
+    if (dirty) persistLocalDraft();
+    return dirty;
+  };
 
   setPageMeta(isNew ? 'Crea un catalogo' : 'Modifica ' + editingCatalog.title,
     'Editor contestuale per i tuoi cataloghi StudyLibrary.');
@@ -1242,7 +1280,9 @@ async function renderStudio(options = {}) {
         '</details>' +
       '</div>' +
     '</section>' +
-    '<div class="studio-tabs" role="tablist"><button class="active" type="button" data-studio-tab="visual">Visuale</button><button type="button" data-studio-tab="json">JSON avanzato</button></div>' +
+    '<div class="studio-mode-bar"><div class="studio-tabs" role="tablist"><button class="active" type="button" data-studio-tab="visual">Visuale</button><button type="button" data-studio-tab="json">JSON avanzato</button></div>' +
+      '<div class="studio-history-actions"><button class="button secondary" type="button" data-editor-undo disabled>↶ Annulla</button>' +
+      '<button class="button secondary" type="button" data-editor-redo disabled>↷ Ripristina</button></div></div>' +
     '<div class="studio-workspace">' +
       '<section class="studio-main">' +
         '<div data-visual-editor></div>' +
@@ -1280,12 +1320,16 @@ async function renderStudio(options = {}) {
   }
 
   function mountVisual() {
+    const selectedBefore = visualEditor?.getSelection();
     visualEditor?.destroy();
     visualEditor = mountCatalogEditor(visualHost, draft, {
-      initialSelection,
+      initialSelection: selectedBefore || initialSelection,
       onChange(next) {
-        draft = next;
-        validateAndPreview();
+        if (editorHistory.record(next)) {
+          draft = next;
+          validateAndPreview();
+          refreshEditorStatus();
+        }
       }
     });
     if (initialAction) {
@@ -1302,6 +1346,25 @@ async function renderStudio(options = {}) {
 
   mountVisual();
   validateAndPreview();
+  refreshEditorStatus();
+
+  function restoreHistory(next) {
+    if (!next) return;
+    draft = next;
+    rawEditor.value = JSON.stringify(draft, null, 2);
+    mountVisual();
+    validateAndPreview();
+    refreshEditorStatus();
+  }
+  app.querySelector('[data-editor-undo]')?.addEventListener('click', () => restoreHistory(editorHistory.undo()));
+  app.querySelector('[data-editor-redo]')?.addEventListener('click', () => restoreHistory(editorHistory.redo()));
+  const onEditorShortcut = event => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+    if (event.target.closest('input, textarea, [contenteditable], .CodeMirror')) return;
+    event.preventDefault();
+    restoreHistory(event.shiftKey ? editorHistory.redo() : editorHistory.undo());
+  };
+  document.addEventListener('keydown', onEditorShortcut);
 
   app.querySelectorAll('[data-studio-tab]').forEach(button => button.addEventListener('click', () => {
     const mode = button.dataset.studioTab;
@@ -1311,7 +1374,11 @@ async function renderStudio(options = {}) {
       visualHost.hidden = true;
     } else {
       try {
-        if (!rawEditor.hidden) draft = JSON.parse(rawEditor.value);
+        if (!rawEditor.hidden) {
+          const parsed = JSON.parse(rawEditor.value);
+          if (editorHistory.record(parsed)) draft = parsed;
+          refreshEditorStatus();
+        }
       } catch (err) {
         toast('Il JSON contiene errori: ' + err.message);
         return;
@@ -1329,8 +1396,10 @@ async function renderStudio(options = {}) {
     clearTimeout(rawTimer);
     rawTimer = setTimeout(() => {
       try {
-        draft = JSON.parse(rawEditor.value);
+        const parsed = JSON.parse(rawEditor.value);
+        if (editorHistory.record(parsed)) draft = parsed;
         validateAndPreview();
+        refreshEditorStatus();
       } catch (err) {
         validationEl.innerHTML = '<div class="validation error">● JSON non valido</div><p class="demo-note">' + escapeHtml(err.message) + '</p>';
       }
@@ -1361,9 +1430,11 @@ async function renderStudio(options = {}) {
           baseVersion: Number(target._db?.current_version || parsed.baseVersion || 1)
         };
 
+        editorHistory.record(draft);
         rawEditor.value = JSON.stringify(draft, null, 2);
         mountVisual();
         validateAndPreview();
+        refreshEditorStatus();
 
         if (versionMessageInput) {
           versionMessageInput.value = String(parsed.message || ('Pacchetto aggiornamento: ' + file.name)).slice(0, 240);
@@ -1389,6 +1460,8 @@ async function renderStudio(options = {}) {
 
       pendingUpdate = null;
       draft = normalizeImportedCatalog(parsed, file.name);
+      editorHistory.record(draft);
+      refreshEditorStatus();
       rawEditor.value = JSON.stringify(draft, null, 2);
       mountVisual();
       validateAndPreview();
@@ -1468,9 +1541,11 @@ async function renderStudio(options = {}) {
         }
       }
       pendingUpdate = null;
+      baseline = JSON.stringify(draft);
+      editorHistory.reset(draft);
+      clearEditorDraft(localDraftKey);
       if (versionMessageInput) versionMessageInput.value = '';
-      const label = app.querySelector('.studio-save-feedback');
-      if (label) label.textContent = 'Modifiche salvate · v' + (loadedVersion || 1);
+      refreshEditorStatus();
       toast(shouldPublish ? 'Catalogo salvato e pubblicato' : 'Modifiche salvate');
     } catch (err) {
       toast(err.message);
@@ -1479,7 +1554,13 @@ async function renderStudio(options = {}) {
     }
   }
 
-  cleanupRoute = () => visualEditor?.destroy();
+  cleanupRoute = () => {
+    clearTimeout(draftTimer);
+    persistLocalDraft();
+    document.removeEventListener('keydown', onEditorShortcut);
+    editorLeaveGuard = null;
+    visualEditor?.destroy();
+  };
 }
 
 function emptyCatalogTemplate() {
