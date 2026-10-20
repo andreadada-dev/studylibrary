@@ -812,3 +812,414 @@ body.reading-focus-mode .reader .lesson-nav { margin-top:70px; border-top:1px so
     line-height:1.15;
   }
 }
+
+
+/* StPageFlip · Focus reader physical book. Only loaded as UI, never a PDF/image conversion. */
+.reader-book-toggle[hidden], .reader-book-view[hidden], .reader-book-notice[hidden] { display:none !important; }
+.reader-book-toggle { transition: background .2s ease, color .2s ease; }
+body.reading-focus-mode .reader-book-toggle:not([hidden]) { display:inline-flex; }
+body.reading-focus-mode .reader-book-toggle[aria-pressed="true"] {
+  background:var(--accent-soft);
+  border-color:color-mix(in srgb,var(--accent) 25%,transparent);
+  color:var(--accent);
+}
+body.reading-focus-mode.reading-book-mode {
+  background:radial-gradient(ellipse 100% 70% at 50% 48%, #e4dccf 0%, #ebe7de 67%, #efece6 100%);
+}
+body.reading-focus-mode.reading-book-mode #app {
+  background:transparent;
+}
+body.reading-focus-mode.reading-book-mode #app .page {
+  width:min(100% - 24px, 1120px);
+  max-width:1120px;
+  padding-top:8px;
+}
+body.reading-focus-mode .course-layout > .reader.reader-book-active {
+  max-width:1100px;
+  min-height:calc(100vh - 35px);
+  padding:0 18px 34px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+body.reading-focus-mode .reader.reader-book-active > :not(.reader-view-controls):not(.reader-book-view) {
+  display:none !important;
+}
+body.reading-focus-mode .reader.reader-book-active .reader-view-controls {
+  max-width:860px;
+  margin:0 auto 12px;
+  padding:8px 8px 10px;
+  border:0;
+  background:transparent;
+  backdrop-filter:none;
+}
+body.reading-focus-mode .reader.reader-book-active .reader-focus-context {
+  color:#85776e;
+}
+.reader-book-view {
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  min-width:0;
+  align-items:center;
+  gap:12px;
+  padding:0 0 24px;
+}
+.reader-book-intro {
+  text-align:center;
+  margin:2px auto 4px;
+}
+.reader-book-intro > span {
+  display:block;
+  color:#857b70;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.2em;
+  margin-bottom:3px;
+}
+.reader-book-intro strong {
+  display:block;
+  color:#3b332e;
+  font-size:19px;
+  font-weight:740;
+  letter-spacing:-.035em;
+}
+.reader-book-intro p {
+  margin:5px 0 0;
+  color:#857b70;
+  font-size:11px;
+}
+.reader-book-stage {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  width:100%;
+  min-width:0;
+  perspective:1400px;
+  filter:drop-shadow(0 20px 28px rgba(67,53,40,.18));
+}
+.reader-book-stage .stf__parent {
+  margin-left:auto;
+  margin-right:auto;
+}
+.reader-book-notice {
+  margin:8px auto;
+  padding:12px 16px;
+  border-radius:10px;
+  background:#faf5eb;
+  color:#746550;
+  text-align:center;
+  font-size:12px;
+}
+.reader-book-nav {
+  width:min(100%,530px);
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+  gap:15px;
+  margin:10px auto 0;
+  color:#615950;
+  font-variant-numeric:tabular-nums;
+}
+.reader-book-nav > span {
+  font-size:12px;
+  font-weight:780;
+  white-space:nowrap;
+}
+.reader-book-nav button {
+  justify-self:start;
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  border:1px solid rgba(84,68,56,.14);
+  border-radius:999px;
+  padding:11px 17px;
+  min-height:42px;
+  color:#4e463f;
+  background:rgba(255,255,255,.55);
+  cursor:pointer;
+  font-weight:740;
+  font-size:11px;
+  transition:background .18s ease, transform .18s ease;
+}
+.reader-book-nav button:last-child {justify-self:end;}
+.reader-book-nav button:hover:not(:disabled) {
+  background:#fff;
+  transform:translateY(-1px);
+}
+.reader-book-nav button:disabled {opacity:.28;cursor:not-allowed;}
+.reader-book-nav button:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+
+/* Paper sizing is shared by live measurement and displayed HTML pages. */
+.book-measure {
+  position:fixed;
+  left:-10000px;
+  top:0;
+  width:max-content;
+  height:max-content;
+  visibility:hidden;
+  pointer-events:none;
+  z-index:-1;
+}
+.book-paper {
+  --book-page-margin:clamp(16px,5%,30px);
+  position:relative;
+  flex:0 0 auto;
+  box-sizing:border-box;
+  overflow:hidden;
+  background:linear-gradient(90deg,#f9f6ef 0%,#fffdf8 9%,#fffdf8 88%,#f3ede3 100%);
+  border:1px solid #e8e0d2;
+  color:#2c2a28;
+  isolation:isolate;
+}
+.book-paper-running-head {
+  position:absolute;
+  top:20px;
+  left:var(--book-page-margin);
+  right:var(--book-page-margin);
+  color:#90877d;
+  font-family:ui-sans-serif,system-ui,sans-serif;
+  font-size:9px;
+  font-weight:780;
+  letter-spacing:.11em;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  overflow:hidden;
+  text-transform:uppercase;
+}
+.book-paper-running-head span { color:#beb4a5; margin:0 4px; }
+.book-paper-body {
+  position:absolute;
+  top:53px;
+  bottom:51px;
+  left:var(--book-page-margin);
+  right:var(--book-page-margin);
+  min-height:0;
+  overflow:hidden;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(13px,calc(var(--reader-text-size,18px) * .84),20px);
+  line-height:1.65;
+  color:#34302d;
+}
+.book-paper-running-foot {
+  position:absolute;
+  bottom:16px;
+  left:var(--book-page-margin);
+  right:var(--book-page-margin);
+  display:flex;
+  justify-content:space-between;
+  color:#a0988e;
+  border-top:1px solid #eae4da;
+  padding-top:9px;
+  font-family:ui-sans-serif,system-ui,sans-serif;
+  font-size:8px;
+  font-weight:750;
+  letter-spacing:.12em;
+}
+.book-paper-number {color:#72645a;}
+.book-paper-body .reader-header {
+  margin:0 0 14px;
+}
+.book-paper-body .reader-kicker {display:none!important;}
+.book-paper-body h2.topic-title {
+  font-size:clamp(23px,calc(var(--reader-text-size,18px) * 1.55),33px);
+  line-height:1.13;
+  letter-spacing:-.045em;
+  margin:8px 0 14px;
+}
+.book-paper-body .topic-summary {
+  color:#776c61;
+  line-height:1.55;
+  font-size:clamp(13px,calc(var(--reader-text-size,18px) * .88),17px);
+}
+.book-paper-body .topic-summary p {margin-bottom:8px;}
+.book-paper-body .learning-goals {
+  margin:10px 0;
+  gap:4px;
+}
+.book-paper-body .learning-goals li {font-size:.84em;line-height:1.45;}
+.book-paper-body .lesson-section,
+.book-paper-body .book-fragment {
+  margin:0 0 11px;
+}
+.book-paper-body .lesson-section h3,
+.book-paper-body .book-fragment h3 {
+  font-family:ui-sans-serif,system-ui,sans-serif;
+  font-size:1.18em;
+  line-height:1.3;
+  letter-spacing:-.03em;
+  margin:0 0 9px;
+}
+.book-paper-body .lesson-section h4 {font-size:1em;}
+.book-paper-body .lesson-section p,
+.book-paper-body .lesson-section li,
+.book-paper-body .book-fragment p,
+.book-paper-body .book-fragment li {
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:1em;
+  line-height:1.62;
+  color:#3e3732;
+  margin:0 0 8px;
+}
+.book-paper-body .callout {
+  margin:6px 0 13px;
+  padding:14px 15px;
+  border-radius:9px;
+  font-size:.9em;
+}
+.book-paper-body .callout h4 {font-size:1.06em;margin:0 0 6px;}
+.book-paper-body .lesson-lead {padding-left:12px;}
+.book-paper-body .lesson-lead p {font-size:1em;}
+.book-paper-body .lesson-image,
+.book-paper-body figure {margin:8px 0 15px;}
+.book-paper-body .lesson-image img,
+.book-paper-body img {
+  display:block;
+  max-width:100%;
+  max-height:290px;
+  height:auto;
+  margin:auto;
+  object-fit:contain;
+  border-radius:6px;
+}
+.book-paper-body figcaption {font-size:10px;}
+.book-paper-body .formula {
+  margin:9px 0;
+  padding:10px 0;
+  border-top:1px solid #eee8df;
+  border-bottom:1px solid #eee8df;
+  overflow-x:auto;
+  max-width:100%;
+}
+.book-paper-body .katex-display {margin:.3em 0;overflow-x:auto;overflow-y:hidden;}
+.book-paper-body .katex {font-size:1em;}
+.book-paper-body .checkpoint {
+  margin:8px 0 14px;
+  padding:12px 0;
+}
+.book-paper-body .checkpoint h3 {font-size:1.07em;line-height:1.3;margin:6px 0 10px;}
+.book-paper-body .checkpoint button {font-size:11px;padding:7px 9px;}
+.book-paper-body .comparison {margin:8px 0 12px;}
+.book-paper-body .comparison > div {padding:10px;}
+.book-paper-body .comparison p {font-size:.85em;}
+.book-paper-body .flow-diagram {margin:8px 0;gap:4px;}
+.book-paper-body .flow-node {min-height:34px;padding:7px;font-size:10px;}
+.book-paper-body .flow-arrow {font-size:12px;}
+.book-paper-body .lesson-pdf-preview iframe {max-height:240px;min-height:180px;}
+.book-paper-body .book-oversize {
+  max-height:100%;
+  overflow-y:auto;
+  overflow-x:auto;
+  scrollbar-width:thin;
+}
+.book-paper-body > .book-oversize {max-height:calc(100% - 4px);}
+.book-paper-body .book-fragment {
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.book-paper-body .reader-header.book-fragment {margin:0 0 9px;}
+.book-paper-body .book-fragment .topic-title {margin:3px 0 12px;}
+.book-paper-body .external-resource {font-size:.86em;}
+
+/* Firm covers and soft paper shadows are handled by StPageFlip. */
+.book-hard-cover {
+  color:#faf6ed;
+  border:1px solid #352c67;
+  background:
+    radial-gradient(circle at 12% 0%,rgba(255,255,255,.18),transparent 30%),
+    linear-gradient(125deg,#2e226a 0%,#5342a6 55%,#7869bb 100%);
+}
+.book-cover-pattern {
+  position:absolute;inset:14px;
+  border:1px solid rgba(242,230,217,.37);
+  pointer-events:none;
+}
+.book-cover-pattern::after {
+  content:"";
+  position:absolute;inset:6px;
+  border:1px solid rgba(242,230,217,.14);
+}
+.book-cover-monogram {
+  position:absolute;
+  top:14%;
+  left:0;right:0;
+  text-align:center;
+  font-size:36px;
+  font-weight:500;
+  font-family:Georgia,serif;
+  letter-spacing:-.08em;
+  color:#f7e4c0;
+}
+.book-cover-monogram span {padding:0 8px;opacity:.6;}
+.book-cover-copy {
+  position:absolute;
+  top:37%;left:12%;right:12%;
+  text-align:center;
+}
+.book-cover-overline {
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.18em;
+  color:rgba(255,250,236,.73);
+}
+.book-cover-copy h2 {
+  margin:15px 0;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(22px,calc(var(--reader-text-size,18px) * 1.65),32px);
+  line-height:1.22;
+  overflow-wrap:anywhere;
+  letter-spacing:-.02em;
+  color:#fff9ee;
+}
+.book-cover-copy p {font-size:11px;color:#e7dcf2;line-height:1.55;}
+.book-cover-foot {
+  position:absolute;
+  bottom:9%;
+  left:0;right:0;
+  text-align:center;
+  color:#e6d3ac;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.26em;
+}
+.book-cover-foot span {font-size:7px;vertical-align:top;margin-left:3px;}
+.book-back-cover {background:linear-gradient(155deg,#3b2b78,#5849a4);}
+
+@media (max-width:760px) {
+  body.reading-focus-mode.reading-book-mode #app .page {width:100%;padding:0 0 14px;}
+  body.reading-focus-mode .course-layout > .reader.reader-book-active {
+    width:100%;
+    max-width:100%;
+    min-height:100vh;
+    padding:0 7px 34px;
+  }
+  body.reading-focus-mode .reader.reader-book-active .reader-view-controls {
+    padding:6px 8px;
+    min-height:53px;
+    margin-bottom:7px;
+  }
+  .reader-book-intro > span {font-size:8px;}
+  .reader-book-intro strong {font-size:17px;}
+  .reader-book-intro p {font-size:10px;}
+  .reader-book-nav {
+    width:100%;
+    max-width:370px;
+    gap:8px;
+    margin-top:4px;
+  }
+  .reader-book-nav button {padding:9px 13px;font-size:10px;min-height:43px;}
+  .reader-book-stage {filter:drop-shadow(0 12px 16px rgba(67,53,40,.16));}
+  .reader-book-view {gap:8px;}
+}
+@media (max-width:380px) {
+  body.reading-focus-mode .reader.reader-book-active .reader-focus-context {display:none;}
+  .reader-book-nav button {padding:8px 10px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .reader-book-nav button, .reader-book-toggle {transition:none;}
+}
