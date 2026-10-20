@@ -459,7 +459,8 @@ async function importUpdatePackage(update, filename) {
     candidate,
     versionMessage
   );
-  await Promise.all([fetchMyCatalogs(), fetchPublicCatalogs()]);
+  await fetchPublicCatalogs();
+  await fetchMyCatalogs();
   return 1;
 }
 
