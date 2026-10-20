@@ -1091,7 +1091,7 @@ async function renderLibrary(catalogSlug, librarySlug) {
       '</header>' +
       '<section class="lesson-list">' +
         '<div class="section-head"><div><h2>Lezioni</h2><p>Ordinate come il materiale del corso.</p></div><span class="tag">' + (library.lessons?.length || 0) + ' lezioni</span></div>' +
-        (library.lessons || []).map((lesson, index) => lessonCard(catalog, library, lesson, index)).join('') +
+        '<div class="course-grid lesson-folder-grid">' + (library.lessons || []).map((lesson, index) => lessonCard(catalog, library, lesson, index)).join('') + '</div>' +
       '</section>' +
       '<div id="discussion-root"></div>' +
     '</div>';
