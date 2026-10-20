@@ -61,7 +61,9 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
   }
 
   function measurePage() {
-    const widthAvailable=Math.min(reader.clientWidth,window.innerWidth-20);
+    const rectStyle=getComputedStyle(reader);
+    const padding=(parseFloat(rectStyle.paddingLeft)||0)+(parseFloat(rectStyle.paddingRight)||0);
+    const widthAvailable=Math.min(reader.clientWidth-padding,window.innerWidth-20);
     const portrait=window.innerWidth < 760;
     const pageWidth=portrait
       ? Math.max(240,Math.min(430,widthAvailable-16))
@@ -77,6 +79,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
     if (preserve && instance) currentPage=instance.getCurrentPageIndex();
     const saved=currentPage;
     const settings=measurePage();
+    stage.style.minHeight=(settings.height+18)+'px';
     drawStatus('Sto impaginando la lezione…');
     try {
       const PageFlip=await loadStPageFlip();
