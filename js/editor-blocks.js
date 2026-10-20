@@ -25,7 +25,7 @@ export function studyBlockTemplate(type, id) {
     case 'video':return {...section,title:'Video',url:'',caption:''};
     case 'embed':return {...section,title:'PDF o risorsa',url:'',body:''};
     case 'flow':return {...section,title:'Procedimento',nodes:['Passaggio 1','Passaggio 2'],body:''};
-    case 'comparison':return {...section,title:'Confronto',left:{title:'Prima',body:''},right:{title:'Dopo',body:''}};
+    case 'comparison':return {...section,title:'Confronto',body:'Spiega le differenze tra i due approcci'};
     case 'list':return {...section,title:'Elenco',body:'- Primo punto\n- Secondo punto'};
     default:return {...section,title:type==='example'?'Esempio':'Nuova sezione',body:'Scrivi qui il contenuto…'};
   }
