@@ -2,8 +2,23 @@ import { mediaAssetId, detectMediaType, detectVideoProvider, videoThumbnailUrl }
 
 export function mountCatalogEditor(container, initialCatalog, options = {}) {
   let catalog = structuredClone(initialCatalog);
-  let selection = { type: 'catalog', li: null, lj: null, ti: null };
+  let selection = selectionFor(initialCatalog, options.initialSelection);
   let editors = [];
+
+  function selectionFor(value, requested = {}) {
+    const base = { type: 'catalog', li: null, lj: null, ti: null };
+    if (!requested?.library) return base;
+    const li = (value.libraries || []).findIndex(item => item.slug === requested.library || item.id === requested.library);
+    if (li < 0) return base;
+    const librarySelection = { type: 'library', li, lj: null, ti: null };
+    if (!requested.lesson) return librarySelection;
+    const lj = (value.libraries[li].lessons || []).findIndex(item => item.slug === requested.lesson || item.id === requested.lesson);
+    if (lj < 0) return librarySelection;
+    const lessonSelection = { type: 'lesson', li, lj, ti: null };
+    if (!requested.topic) return lessonSelection;
+    const ti = (value.libraries[li].lessons[lj].topics || []).findIndex(item => item.id === requested.topic);
+    return ti < 0 ? lessonSelection : { type: 'topic', li, lj, ti };
+  }
   const openDisclosures = new Set();
 
   render();
