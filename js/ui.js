@@ -3,7 +3,7 @@ import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, deleteA
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 import { resolveMediaAsset, detectVideoProvider, videoEmbedUrl } from './media.js';
 import { createStudyBook } from './book-reader.js';
-import { getLessonNeighbors, getReadingNeighbors } from './study-navigation.js';
+import { getLessonNeighbors } from './study-navigation.js';
 
 let resumeBookAcrossLessons = false;
 
@@ -808,7 +808,6 @@ export function lessonTopicArticle(context, topic) {
   const number = topicNumber(lesson, topic.id);
   const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
   const lessonNeighbors = getLessonNeighbors(context.catalog, context.library, lesson);
-  const readingNeighbors = getReadingNeighbors(context.catalog, context.library, lesson, topic);
 
   return '<article class="reader">' +
     '<div class="reader-view-controls" role="toolbar" aria-label="Controlli di lettura">' +
@@ -857,13 +856,13 @@ export function lessonTopicArticle(context, topic) {
       '</nav>' +
       '<div class="reader-book-nav" aria-label="Sfoglia le pagine">' +
         '<button type="button" data-book-prev aria-label="Pagina precedente" ' +
-          (readingNeighbors.previous ? 'data-reading-prev="' + escapeHtml(readingNeighbors.previous.href) + '" ' +
-          'data-reading-prev-kind="' + escapeHtml(readingNeighbors.previous.kind) + '" ' : '') +
+          (lessonNeighbors.previous ? 'data-reading-prev="' + escapeHtml(lessonNeighbors.previous.href) + '" ' +
+          'data-reading-prev-kind="' + 'lezione' + '" ' : '') +
           'disabled><span aria-hidden="true">←</span> Pagina prima</button>' +
         '<span data-book-count aria-live="polite">0 / 0</span>' +
         '<button type="button" data-book-next aria-label="Pagina successiva" ' +
-          (readingNeighbors.next ? 'data-reading-next="' + escapeHtml(readingNeighbors.next.href) + '" ' +
-          'data-reading-next-kind="' + escapeHtml(readingNeighbors.next.kind) + '" ' : '') +
+          (lessonNeighbors.next ? 'data-reading-next="' + escapeHtml(lessonNeighbors.next.href) + '" ' +
+          'data-reading-next-kind="' + 'lezione' + '" ' : '') +
           'disabled>Pagina dopo <span aria-hidden="true">→</span></button>' +
       '</div>' +
     '</section>' +
