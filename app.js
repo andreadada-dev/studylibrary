@@ -1398,8 +1398,11 @@ async function renderStudio(options = {}) {
       },
       onSelect() { updateLivePreview(); },
       onNotice(message) { toast(message); },
-      async onUpload(file) {
+      async onUpload(file, attach) {
         const kind = validateStudyUpload(file);
+        if (kind.kind === 'pdf' && attach !== 'topic') {
+          throw new Error('Apri un argomento per caricare e inserire un PDF.');
+        }
         if (!window.confirm('Caricare "' + file.name + '" (' +
             (kind.max / 1024 / 1024) + ' MB massimo)? Il file avrà un URL pubblico, anche se il catalogo è privato. Non caricare materiali riservati.')) {
           throw new Error('Caricamento annullato.');
