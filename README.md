@@ -6,6 +6,20 @@ StudyLibrary è una piattaforma di studio **JSON-first** organizzata così:
 
 Un utente può tenere il proprio catalogo privato oppure pubblicarlo nella Home. Ogni libreria può contenere una o più lezioni; ogni lezione ha i propri topic, fonti, esempi, checkpoint e collegamenti.
 
+
+## Esperienza di studio e editor (ottobre 2026)
+
+- **Home personale per utenti autenticati:** cartelle personali, ultimi argomenti visitati, segnalibri manuali, preferiti e conteggio degli argomenti completati. La community rimane disponibile sotto.
+- **Ricerca profonda:** dalla Home è possibile aprire direttamente un catalogo, una libreria, una lezione oppure un topic trovato nel titolo, sommario o descrizione, inclusi i contenuti personali accessibili all'account.
+- **Progresso reale:** un argomento può essere segnato come completato (o nuovamente incompleto) nel reader. La barra della lezione conta i topic completati, non la semplice posizione corrente.
+- **Editor sicuro:** bozze locali per utente/catalogo con recupero al rientro, conferma prima di lasciare modifiche non salvate, Annulla/Ripristina, conferma delle eliminazioni e riordino dei blocchi con drag & drop (desktop) o frecce (touch e tastiera).
+- **Nomi comprensibili:** i tipi di sezione visualizzati nell'editor sono etichettati in italiano; nel JSON rimangono i tipi originali del protocollo.
+- **Preferiti:** filtri per tipo di contenuto, ricerca testuale e ordinamento.
+
+Le bozze locali rimangono sul dispositivo e **non** equivalgono a un salvataggio cloud: per sincronizzare modifiche e cronologia versioni bisogna premere **Salva modifiche**. Il recupero della bozza viene offerto quando la versione cloud di partenza non è cambiata. Su dispositivi condivisi evita di lasciare bozze contenenti materiale riservato.
+
+Il completamento e le ultime letture richiedono la migrazione Supabase `20261020213500_study_progress.sql`: se non è stata distribuita, l'interfaccia non inventa percentuali di progresso.
+
 ## Funzioni principali
 
 - Home con i **cataloghi pubblicati** dalla community.
