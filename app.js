@@ -1019,6 +1019,10 @@ async function renderLibrary(catalogSlug, librarySlug) {
   await renderDiscussion('library', catalogRef(catalog) + '/' + library.slug);
 }
 
+function contextWithTopic(catalog, library, lesson, topic) {
+  return { catalog, library, lesson, topic };
+}
+
 async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null) {
   let catalog = findCatalog(catalogSlug);
   if (!catalog && state.user && state.supabase) {
@@ -1074,6 +1078,8 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
 
   wireReaderInteractions();
   mountSaveControls({ catalog, library, lesson, topic });
+  void mountTopicProgress(contextWithTopic(catalog, library, lesson, topic));
+  void trackStudyVisit(contextWithTopic(catalog, library, lesson, topic));
   await renderDiscussion(
     'topic',
     catalogRef(catalog) + '/' + library.slug + '/' + lesson.slug + '/' + topic.id
