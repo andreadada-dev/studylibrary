@@ -237,8 +237,7 @@ export function renderSection(section, context = null) {
     case 'embed': {
       const url = safeUrl(section.url);
       if (!url) return `<section class="lesson-section media-block">${title}<div class="image-fallback"><strong>Risorsa non valida</strong><span>URL non consentito.</span></div></section>`;
-      const isPdf = /\\.pdf(?:[?#].*)?$/i.test(url) ||
-        /\\/storage\\/v1\\/object\\/public\\/study-media\\/[^?#]+\\.pdf(?:[?#].*)?$/i.test(url);
+      const isPdf = url.toLowerCase().split(/[?#]/, 1)[0].endsWith('.pdf');
       return `<section class="lesson-section external-resource">${title}${section.body ? paragraphs(section.body) : ''}` +
         (isPdf ? `<div class="lesson-pdf-preview"><iframe title="Anteprima PDF: ${escapeHtml(section.title || 'Documento')}" src="${escapeHtml(url)}#toolbar=0" loading="lazy"></iframe></div>` : '') +
         `<a class="external-resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer nofollow">${isPdf ? 'Apri PDF in una nuova scheda ↗' : 'Apri risorsa esterna ↗'}</a></section>`;
