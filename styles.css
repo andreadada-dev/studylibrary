@@ -5225,3 +5225,71 @@ body.universe-mode .universe-legend-hint {
   .study-search-type { min-width:60px; }
   .study-search-list a { gap:9px; }
 }
+
+
+/* Optional focus reader and accessible text scaling. */
+.reader-view-controls {
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:8px 0 20px;
+  margin-bottom:16px;
+  border-bottom:1px solid var(--line);
+}
+.reader-view-controls button {
+  min-height:40px;
+  padding:8px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--paper);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:12px;
+  font-weight:750;
+}
+.reader-view-controls button:hover,
+.reader-view-controls button:focus-visible {
+  color:var(--accent);
+  background:var(--accent-soft);
+  border-color:var(--accent);
+}
+.reader-view-controls [data-reader-focus][aria-pressed="true"] {
+  color:var(--accent);
+  border-color:var(--accent);
+  background:var(--accent-soft);
+}
+.reader-zoom-controls { display:inline-flex; gap:4px; }
+body.reading-focus-mode .topbar,
+body.reading-focus-mode .site-footer,
+body.reading-focus-mode .course-hero,
+body.reading-focus-mode .topic-rail {
+  display:none !important;
+}
+body.reading-focus-mode .course-layout {
+  display:block;
+  width:min(100%,860px);
+  max-width:860px;
+  margin:0 auto;
+}
+body.reading-focus-mode .course-layout .reader {
+  width:100%;
+  min-width:0;
+  max-width:none;
+}
+body.reading-focus-mode .reader-view-controls {
+  position:sticky;
+  z-index:12;
+  top:0;
+  background:var(--bg);
+  padding:12px 0;
+}
+body.reading-focus-mode .page {
+  padding-top:26px;
+}
+@media (max-width:720px) {
+  .reader-view-controls { justify-content:space-between; gap:7px; }
+  .reader-view-controls button { min-height:44px; }
+  body.reading-focus-mode .page { padding-top:12px; }
+}
