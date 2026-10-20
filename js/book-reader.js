@@ -1,4 +1,5 @@
 import { paginateBook, bookCover, bookPaper } from './book-pagination.js';
+import { buildLessonBook } from './book-lesson.js';
 
 const FLIP_SOURCES=[
   '/js/vendor/page-flip.browser.js',
@@ -46,7 +47,7 @@ export function loadStPageFlip() {
   return libraryPromise;
 }
 
-export function createStudyBook(reader, {onNotice = () => {}} = {}) {
+export function createStudyBook(reader, {onNotice = () => {}, context = null, renderTopic = null} = {}) {
   const view=reader.querySelector('[data-book-view]');
   const stage=view?.querySelector('[data-book-stage]');
   const status=view?.querySelector('[data-book-status]');
@@ -166,22 +167,33 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       instance=null;
       stage.replaceChildren();
       const fragments=document.createDocumentFragment();
-      const title=reader.querySelector('.reader-header .topic-title')?.textContent?.trim() || 'Lezione';
-      const subtitle=reader.querySelector('.reader-kicker')?.textContent?.replace(/\s+/g,' ').trim() || '';
-      const first=bookCover({...settings,title,subtitle});
-      fragments.appendChild(first);
-      const pages=paginateBook(reader,fragments,{...settings,label:title});
-      // A rigid front/back cover needs an even number of interior faces so
-      // landscape spreads can turn completely (including one-page lessons).
-      if (pages.length % 2 === 1) {
-        const closing=bookPaper({...settings,number:pages.length+1,label:title});
-        closing.classList.add('book-closing-page');
-        closing.querySelector('.book-paper-body').innerHTML =
-          '<div class="book-closing-message"><span>FINE ARGOMENTO</span>' +
-          '<strong>Il prossimo capitolo ti aspetta.</strong></div>';
-        fragments.appendChild(closing);
+      let pages=[];
+      let requestedPage=saved;
+      if (context?.lesson && typeof renderTopic === 'function') {
+        const volume=buildLessonBook(reader,context,{...settings,renderTopic});
+        pages=volume.pages;
+        const firstTopic=volume.chapters[0]?.topics[0]?.id;
+        if (!preserve && context.topic?.id && context.topic.id!==firstTopic) {
+          requestedPage=volume.firstPageByTopic.get(context.topic.id) ?? 0;
+        }
+        for (const page of pages) fragments.appendChild(page);
+      } else {
+        // Standalone reader demos/tests can still render a single article.
+        const title=reader.querySelector('.reader-header .topic-title')?.textContent?.trim() || 'Lezione';
+        const subtitle=reader.querySelector('.reader-kicker')?.textContent?.replace(/\\s+/g,' ').trim() || '';
+        fragments.appendChild(bookCover({...settings,title,subtitle}));
+        const interior=paginateBook(reader,fragments,{...settings,label:title});
+        if (interior.length % 2 === 1) {
+          const closing=bookPaper({...settings,number:interior.length+1,label:title});
+          closing.classList.add('book-closing-page');
+          closing.querySelector('.book-paper-body').innerHTML =
+            '<div class="book-closing-message"><span>FINE ARGOMENTO</span>' +
+            '<strong>Il prossimo capitolo ti aspetta.</strong></div>';
+          fragments.appendChild(closing);
+        }
+        fragments.appendChild(bookCover({...settings,title,back:true}));
+        pages=[...fragments.children];
       }
-      fragments.appendChild(bookCover({...settings,title,back:true}));
       if (!active || disposed || ticket!==generation) return;
       // PageFlip.destroy() REMOVES its root element. Give each render a
       // disposable inner root so the persistent stage can survive repagination.
@@ -202,7 +214,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
         flippingTime:reduced?100:820,
         mobileScrollSupport:true,swipeDistance:24,
         clickEventForward:true,disableFlipByClick:true,
-        startPage:Math.min(Math.max(0,saved),pages.length+(pages.length%2 ? 2 : 1))
+        startPage:Math.min(Math.max(0,requestedPage),pages.length-1)
       });
       flip.on('flip',event=>{
         currentPage=event.data;
