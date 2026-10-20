@@ -1,7 +1,7 @@
 {
   "protocol": "studylibrary",
-  "protocolVersion": "1.1",
-  "title": "StudyLibrary Agent Protocol",
+  "protocolVersion": "2.0",
+  "title": "StudyLibrary Agent Protocol v2",
   "purpose": "Self-describing protocol for reading, auditing and updating structured study knowledge bases.",
   "hierarchy": [
     "catalog",
@@ -10,17 +10,17 @@
     "topic"
   ],
   "canonicalWorkflow": [
-    "Read /api/v1/agent first.",
-    "Read /api/v1/catalogs/{catalog}/agent to discover the current catalog version and useful endpoints.",
-    "Read /api/v1/catalogs/{catalog}/context to understand existing concepts before creating new ones.",
-    "Read /api/v1/catalogs/{catalog}/audit to see structural and didactic gaps.",
-    "Read /api/v1/catalogs/{catalog}/graph when cross-topic or cross-lesson connections matter.",
-    "Fetch only the full lessons/topics needed for the requested change.",
-    "Inspect the user's source material (slides, notes, PDFs) and keep source-derived claims distinguishable from external additions.",
-    "When useful, add images or videos as catalog media with provenance metadata and reference them from topic sections by mediaRef.",
-    "Prefer a version-aware studylibrary.update package for incremental changes.",
-    "Use the catalog currentVersion as baseVersion. Never overwrite blindly.",
-    "After applying changes, re-run the audit and verify links, prerequisites, sources and checkpoints."
+    "GET /api/v1/agent for live capabilities, supported operations, schemas and source policy. Never assume undocumented fields.",
+    "GET /api/v1/catalogs/{catalog}/agent for catalog ID, currentVersion, endpoints and audit.",
+    "GET /api/v1/catalogs/{catalog}/context for a compact index of existing concepts and IDs.",
+    "GET /api/v1/catalogs/{catalog}/audit; fetch /graph if prerequisites or cross-topic relations are relevant.",
+    "GET only the actual lesson and topic objects being modified. To patch a legacy section, read its zero-based sectionIndex from the current topic.",
+    "Analyze the supplied slides/PDFs; keep source-derived claims distinguishable from independent explanations and preserve citations.",
+    "Build a small studylibrary.update schemaVersion 2 JSON containing only the necessary operations, using the currentVersion as baseVersion.",
+    "Prefer patchTopic/updateLesson/updateSection for existing objects; addSection with a stable unique id. Never recreate existing topics just to append a paragraph.",
+    "Add media with verified provenance and source metadata; never infer rights or invent licensing.",
+    "Deliver the patch file for user preview/import. Public Knowledge API is read-only; authenticated owner writes use atomic version checking.",
+    "After the update, fetch the new version and audit for broken links, missing checkpoints, and orphaned references."
   ],
   "endpoints": {
     "bootstrap": "/api/v1/agent",
@@ -40,7 +40,8 @@
     "lesson": "/api/v1/catalogs/{catalog}/libraries/{library}/lessons/{lesson}",
     "topics": "/api/v1/catalogs/{catalog}/libraries/{library}/lessons/{lesson}/topics",
     "topic": "/api/v1/catalogs/{catalog}/libraries/{library}/lessons/{lesson}/topics/{topic}",
-    "write": "/api/v1/write"
+    "write": "/api/v1/write",
+    "updatePackageSchema": "/api/v1/schema/update-package"
   },
   "schemas": {
     "catalog": "/api/v1/schema/catalog",
@@ -107,6 +108,8 @@
   ],
   "updateStrategy": {
     "preferred": "studylibrary.update",
+    "recommendedSchemaVersion": 2,
+    "backwardCompatibleSchemaVersion": 1,
     "schema": "/api/v1/schema/update-package",
     "supportedOperations": [
       "upsertLesson",
@@ -114,18 +117,66 @@
       "upsertTopic",
       "removeTopic",
       "addConnection",
-      "removeConnection"
+      "removeConnection",
+      "addTopic",
+      "patchTopic",
+      "addSection",
+      "updateSection",
+      "removeSection",
+      "addMedia",
+      "updateMedia",
+      "removeMedia",
+      "addSource",
+      "updateLesson",
+      "moveTopic"
     ],
-    "concurrency": "Always use baseVersion equal to the catalog currentVersion from /agent. A mismatch means the update must be regenerated or manually reconciled.",
+    "operationContracts": {
+      "addTopic": "library, lesson, value: full topic with unique id; optional module, moduleTitle. Does NOT overwrite existing topic.",
+      "patchTopic": "library, lesson, topic, changes: partial object. Only title/summary/why/estimatedMinutes/learningGoals/prerequisites/api. Does NOT replace sections or sources.",
+      "addSection": "library, lesson, topic, value: section object with unique id and type. Optional index (0 based), beforeSectionId OR afterSectionId.",
+      "updateSection": "library, lesson, topic, changes; select exactly one sectionId or zero-based sectionIndex. Patches existing fields; never alters type or id.",
+      "removeSection": "library, lesson, topic; select sectionId OR sectionIndex. Final topic must still have a checkpoint.",
+      "addMedia": "value: {id, type: image|video, url, alt?, sourceUrl?, credit?, license?}. Rejects existing different id payload.",
+      "updateMedia": "media: id, changes: partial media metadata or URL (not ID or type).",
+      "removeMedia": "media: id. Rejected when still referenced by any section/gallery.",
+      "addSource": "library, lesson, value: {id, ...source metadata}; optional topic, pages and note attach a reference to that topic.",
+      "updateLesson": "library, lesson, changes: partial title/description/estimatedMinutes/accent/api (no nested array replacement).",
+      "moveTopic": "library, lesson, topic, toLesson; optional toLibrary, module, moduleTitle. Moves the topic object, retains its id.",
+      "upsertLesson": "Legacy replacement of full lesson value: use only when full replacement intended.",
+      "removeLesson": "Legacy removal of lesson.",
+      "upsertTopic": "Legacy replacement of full topic value: use only when full replacement intended.",
+      "removeTopic": "Legacy removal of topic and cleanup of direct same-lesson links.",
+      "addConnection": "library, lesson, from, connection: {target,type,label?}. Duplicate links ignored.",
+      "removeConnection": "library, lesson, from, target, optional type."
+    },
+    "immutableIdentifiers": [
+      "catalog UUID and slug",
+      "library slug",
+      "lesson id/slug in patches",
+      "topic id",
+      "section id in patches",
+      "media id/type in updateMedia"
+    ],
+    "sectionSelection": {
+      "newSections": "Always assign a unique stable id when using addSection.",
+      "existingSections": "Use sectionId when available. For old sections without IDs, use sectionIndex (zero-based) read from the current full topic.",
+      "ordering": "index or beforeSectionId or afterSectionId; no selector means append.",
+      "check": "Re-read the topic before generating an index-based operation. baseVersion protects against concurrent changes."
+    },
+    "patchSemantics": "Partial, shallow field assignments only. Arrays in changes are replaced as whole arrays, so use dedicated addSection/addSource/addConnection for additions. No silent merging of unrelated objects.",
+    "concurrency": "baseVersion REQUIRED, equals the currentVersion of the target cloud catalog. StudyLibrary validates the candidate and uses a server-side row lock and optimistic compare-and-swap when importing to avoid losing concurrent changes.",
     "importFlow": [
-      "validate baseVersion",
-      "apply operations to a copy",
-      "validate resulting catalog",
-      "show diff",
-      "ask user confirmation",
-      "save",
-      "create immutable new version"
-    ]
+      "validate package kind, schemaVersion 1|2 and baseVersion",
+      "apply operations to independent catalog copy",
+      "validate resulting catalog including checkpoint and source rules",
+      "show changed content diff",
+      "require explicit user confirmation",
+      "commit via studylibrary_api_write with p_base_version and owner JWT",
+      "create immutable catalog version",
+      "refresh + audit"
+    ],
+    "privacy": "Public GET only works for API-enabled, readable content. To write, user signs into StudyLibrary with Google; never request private access tokens in chat.",
+    "sizeGuidance": "Prefer a small patch JSON over exporting a whole catalog. A single new section should be one addSection operation, not an upsertTopic."
   },
   "agentPolicy": {
     "preferExistingTopicsOverDuplicates": true,
@@ -176,5 +227,53 @@
       "Generic external resources are links, never arbitrary iframes.",
       "Do not claim a media license unless the source supports it."
     ]
+  },
+  "examples": {
+    "addExplanationToExistingTopic": {
+      "kind": "studylibrary.update",
+      "schemaVersion": 2,
+      "catalog": "<catalog-uuid>",
+      "baseVersion": 7,
+      "message": "Add practical example to spatial resolution",
+      "operations": [
+        {
+          "op": "addSection",
+          "library": "prima-libreria",
+          "lesson": "lezione-01",
+          "topic": "spatial-resolution",
+          "afterSectionId": "intuition",
+          "value": {
+            "id": "pixel-example",
+            "type": "example",
+            "title": "Pixel example",
+            "body": "A 1920x1080 image has 2,073,600 pixels."
+          }
+        }
+      ]
+    },
+    "patchExistingSummary": {
+      "kind": "studylibrary.update",
+      "schemaVersion": 2,
+      "catalog": "<catalog-uuid>",
+      "baseVersion": 7,
+      "operations": [
+        {
+          "op": "patchTopic",
+          "library": "prima-libreria",
+          "lesson": "lezione-01",
+          "topic": "spatial-resolution",
+          "changes": {
+            "summary": "Revised concise explanation."
+          }
+        }
+      ]
+    }
+  },
+  "authenticatedWriting": {
+    "method": "POST",
+    "path": "/api/v1/write",
+    "requestBody": "{p_catalog_id: UUID, p_base_version: currentVersion, p_message: string, p_catalog: merged full catalog snapshot, p_publish: null, p_api_public: null}",
+    "authentication": "Owner Supabase JWT via Authorization: Bearer <token>, managed in StudyLibrary UI. NEVER place tokens inside update JSON.",
+    "note": "The model supplies only the SMALL studylibrary.update JSON; the UI merges it into the existing catalog, and internally sends a full candidate snapshot to the server with atomic version checking. This is NOT a direct patch endpoint."
   }
 }
