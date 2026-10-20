@@ -7,6 +7,7 @@ import { mountCatalogEditor } from './js/catalog-editor.js';
 import { applyUpdatePackage } from './js/update-package.js';
 import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
 import { mountTopicProgress, trackStudyVisit } from './js/progress.js';
+import { searchStudyCatalogs } from './js/study-search.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
@@ -242,6 +243,7 @@ function renderHome() {
           '<a class="button secondary" href="#/universe">Universo pubblico</a>' +
           '<a class="button secondary" href="#/mine">Il mio catalogo</a>' +
         '</div>' +
+        '<div class="study-search-results" data-study-search-results hidden></div>' +
       '</section>' +
 
       '<section>' +
@@ -263,12 +265,26 @@ function renderHome() {
   const input = app.querySelector('[data-course-search]');
   const grid = app.querySelector('[data-course-grid]');
   const empty = app.querySelector('[data-no-results]');
+  const resultPanel = app.querySelector('[data-study-search-results]');
 
   input.addEventListener('input', () => {
-    const query = input.value.trim().toLowerCase();
+    const query = input.value.trim().toLocaleLowerCase('it');
     const filtered = catalogs.filter(catalog => catalogSearchText(catalog).includes(query));
     grid.innerHTML = filtered.map(catalogCard).join('');
-    empty.hidden = filtered.length > 0;
+    const allowed = allCatalogs().filter(catalog =>
+      catalog.visibility !== 'private' ||
+      (state.user && catalog._db?.owner_id === state.user.id));
+    const matches = searchStudyCatalogs(allowed, query);
+    resultPanel.hidden = query.length < 2;
+    resultPanel.innerHTML = matches.length ?
+      '<span class="eyebrow">Risultati in cataloghi, lezioni e argomenti</span><div class="study-search-list">' +
+      matches.map(item =>
+        '<a href="' + item.href + '"><span class="study-search-type">' + escapeHtml(item.type) + '</span>' +
+          '<span><strong>' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.subtitle) +
+          '</small></span><em>Apri →</em></a>').join('') + '</div>'
+      : '<p class="demo-note">Nessun argomento trovato. Prova un altro termine.</p>';
+    document.querySelector('.home-personal-dashboard')?.toggleAttribute('hidden', Boolean(query));
+    empty.hidden = filtered.length > 0 || matches.length > 0;
   });
 }
 
