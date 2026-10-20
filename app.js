@@ -7,7 +7,6 @@ import { mountCatalogEditor } from './js/catalog-editor.js';
 import { applyUpdatePackage } from './js/update-package.js';
 import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
 import { mountTopicProgress, trackStudyVisit } from './js/progress.js';
-import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
