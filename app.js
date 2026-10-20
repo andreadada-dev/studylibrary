@@ -1189,16 +1189,66 @@ async function renderUniverse(options = {}) {
   });
 }
 
-async function renderStudio() {
-  setPageMeta('Editor', 'Modifica cataloghi, librerie, lezioni e argomenti con un editor visuale Markdown.');
-  let draft = stripRuntimeForEditor(state.activeCatalog || emptyCatalogTemplate());
+async function renderStudio(options = {}) {
+  if (!state.user || !state.supabase) {
+    app.innerHTML = '<div class="page empty-state"><h2>Accedi per modificare i tuoi cataloghi</h2>' +
+      '<p>La creazione e la modifica richiedono un account Google.</p>' +
+      '<a class="button secondary" href="#/mine">Vai ai miei cataloghi</a></div>';
+    return;
+  }
+
+  const isNew = options.mode === 'new';
+  let editingCatalog = null;
+  if (!isNew) {
+    const mine = await fetchMyCatalogs();
+    editingCatalog = mine.find(item => catalogRef(item) === options.catalogRef);
+    if (!editingCatalog) return renderNotFound('Non puoi modificare questo catalogo');
+  }
+  state.activeCatalog = editingCatalog;
+  const initialSelection = {
+    library: options.library || null,
+    lesson: options.lesson || null,
+    topic: options.topic || null
+  };
+  let initialAction = options.action || null;
+  const contextName = options.topic ? 'argomento' : options.lesson ? 'lezione' : options.library ? 'libreria' : 'catalogo';
+  const originalRef = editingCatalog ? catalogRef(editingCatalog) : null;
+  const backHref = isNew ? '#/mine' : options.lesson
+    ? lessonHref(editingCatalog, options.library, options.lesson) +
+      (options.topic ? '/topic/' + encodeURIComponent(options.topic) : '')
+    : options.library
+      ? '#/catalog/' + encodeURIComponent(originalRef) + '/library/' + encodeURIComponent(options.library)
+      : '#/catalog/' + encodeURIComponent(originalRef);
+  let draft = stripRuntimeForEditor(editingCatalog || emptyCatalogTemplate());
+  let loadedVersion = editingCatalog?._db?.current_version || null;
   let visualEditor = null;
   let pendingUpdate = null;
 
+  setPageMeta(isNew ? 'Crea un catalogo' : 'Modifica ' + editingCatalog.title,
+    'Editor contestuale per i tuoi cataloghi StudyLibrary.');
+
   app.innerHTML = '<div class="studio-page">' +
     '<section class="studio-topbar">' +
-      '<div><span class="eyebrow">Editor</span><h1>Modifica il catalogo</h1><p class="demo-note">Clicca direttamente su titoli, descrizioni e contenuti per modificarli. Slug, ID e impostazioni tecniche restano raccolti nei pannelli avanzati.</p></div>' +
-      '<div class="toolbar-actions studio-save-actions"><input class="version-message-input" data-version-message maxlength="240" placeholder="Nota versione (opzionale)" aria-label="Nota versione"><button class="button secondary" data-new>Nuovo</button><button class="button secondary" data-import>Importa JSON</button><button class="button secondary" data-download>Scarica</button><button class="button" data-save>Salva privato</button><button class="button accent" data-publish>Pubblica</button></div>' +
+      '<div class="studio-heading">' +
+        '<a class="studio-back" href="' + backHref + '">← ' + (isNew ? 'I miei cataloghi' : 'Torna al contenuto') + '</a>' +
+        '<span class="eyebrow">' + (isNew ? 'Nuovo catalogo' : 'Stai modificando · ' + contextName) + '</span>' +
+        '<h1>' + (isNew ? 'Crea il tuo catalogo' : escapeHtml(editingCatalog.title)) + '</h1>' +
+        '<p class="demo-note">' +
+          (isNew ? 'Parti dal titolo del catalogo e personalizza la struttura di esempio. Seleziona una libreria, lezione o argomento dalla colonna Struttura per aggiungere contenuti.' :
+          'Stai modificando il tuo catalogo. Seleziona un elemento nella struttura, modifica i suoi contenuti e salva le modifiche.') +
+        '</p>' +
+      '</div>' +
+      '<div class="studio-toolbar-stack">' +
+        '<div class="toolbar-actions studio-save-actions">' +
+          '<button class="button" type="button" data-save>' + (isNew ? 'Crea e salva' : 'Salva modifiche') + '</button>' +
+          '<button class="button accent" type="button" data-publish>Salva e pubblica</button>' +
+        '</div>' +
+        '<details class="studio-tools"><summary>Strumenti avanzati</summary>' +
+          '<div class="studio-tool-content"><input class="version-message-input" data-version-message maxlength="240" placeholder="Nota versione (opzionale)" aria-label="Nota versione">' +
+          '<button class="button secondary" type="button" data-import>Carica JSON nell’editor</button>' +
+          '<button class="button secondary" type="button" data-download>Scarica JSON</button></div>' +
+        '</details>' +
+      '</div>' +
     '</section>' +
     '<div class="studio-tabs" role="tablist"><button class="active" type="button" data-studio-tab="visual">Visuale</button><button type="button" data-studio-tab="json">JSON avanzato</button></div>' +
     '<div class="studio-workspace">' +
@@ -1231,11 +1281,22 @@ async function renderStudio() {
   function mountVisual() {
     visualEditor?.destroy();
     visualEditor = mountCatalogEditor(visualHost, draft, {
+      initialSelection,
       onChange(next) {
         draft = next;
         validateAndPreview();
       }
     });
+    if (initialAction) {
+      const action = initialAction;
+      initialAction = null;
+      const selector = {
+        library: '[data-add-library]',
+        lesson: '[data-add-lesson]',
+        topic: '[data-add-topic]'
+      }[action];
+      visualHost.querySelector(selector)?.click();
+    }
   }
 
   mountVisual();
@@ -1273,15 +1334,6 @@ async function renderStudio() {
         validationEl.innerHTML = '<div class="validation error">● JSON non valido</div><p class="demo-note">' + escapeHtml(err.message) + '</p>';
       }
     }, 180);
-  });
-
-  app.querySelector('[data-new]').addEventListener('click', () => {
-    draft = emptyCatalogTemplate();
-    state.activeCatalog = null;
-    pendingUpdate = null;
-    rawEditor.value = JSON.stringify(draft, null, 2);
-    mountVisual();
-    validateAndPreview();
   });
 
   app.querySelector('[data-import]').addEventListener('click', () => fileInput.click());
