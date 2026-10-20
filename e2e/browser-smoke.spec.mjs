@@ -147,12 +147,30 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
       lessonTopicArticle(context,topic) + '</div></div>';
     wireReaderInteractions();
   });
+  // The HTML shell must actually load the dedicated stylesheet, not render
+  // unstyled native buttons when an asset is missing from the production image.
+  const cssResponse=await page.request.get('/styles-study.css');
+  expect(cssResponse.status()).toBe(200);
+  expect(await cssResponse.text()).toContain('.reader-view-controls');
+  const stylesheetLoaded=await page.evaluate(()=>{
+    const sheet=[...document.styleSheets].find(item=>item.href?.includes('/styles-study.css'));
+    return !!sheet && [...sheet.cssRules].length>0;
+  });
+  expect(stylesheetLoaded).toBe(true);
   const hero=page.locator('.course-hero');
   const toggle=page.locator('[data-reader-focus]');
   const settings=page.locator('[data-reader-settings]');
   const text=page.locator('.reader .lesson-section p').first();
   await expect(toggle).toBeVisible();
   await expect(hero).toBeVisible();
+  const initialToolbar=await page.locator('.reader-view-controls').evaluate(el=>({
+    display:getComputedStyle(el).display,
+    buttonRadius:getComputedStyle(el.querySelector('[data-reader-focus]')).borderRadius,
+    panelHidden:getComputedStyle(el.querySelector('[data-reader-panel]')).display
+  }));
+  expect(initialToolbar.display).toBe('flex');
+  expect(initialToolbar.buttonRadius).not.toBe('0px');
+  expect(initialToolbar.panelHidden).toBe('none');
   const initialSize=await text.evaluate(el=>getComputedStyle(el).fontSize);
   await settings.click();
   await expect(page.locator('[data-reader-panel]')).toBeVisible();
@@ -160,6 +178,8 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   expect(await text.evaluate(el=>getComputedStyle(el).fontSize)).not.toBe(initialSize);
   await toggle.click();
   await expect(page.locator('body')).toHaveClass(/reading-focus-mode/);
+  const readerBackground=await page.locator('.reader').evaluate(el=>getComputedStyle(el).backgroundColor);
+  expect(readerBackground).toBe('rgb(255, 255, 255)');
   await expect(hero).toBeHidden();
   await expect(page.locator('.topic-rail')).toBeHidden();
   if (page.viewportSize().width > 380) await expect(page.locator('.reader-focus-context')).toBeVisible();
