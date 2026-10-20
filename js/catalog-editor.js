@@ -963,10 +963,22 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 }
 
 function newLibrary(i) {
-  return { id: 'library-' + i, slug: 'libreria-' + i, title: 'Libreria ' + i, description: 'Descrivi questa libreria in **Markdown**.', lessons: [] };
+  return {
+    id: 'library-' + i, slug: 'libreria-' + i, title: 'Libreria ' + i,
+    description: 'Descrivi questa libreria in **Markdown**.',
+    lessons: [newLesson(1)]
+  };
 }
 function newLesson(i) {
-  return { schemaVersion: 1, id: 'lesson-' + i, slug: 'lezione-' + i, title: 'Lezione ' + String(i).padStart(2, '0'), description: 'Descrivi questa lezione in **Markdown**.', modules: [], topics: [], sources: [{ id: 'source-1', type: 'notes', label: 'Appunti personali' }] };
+  const topic = newTopic(1);
+  return {
+    schemaVersion: 1, id: 'lesson-' + i, slug: 'lezione-' + i,
+    title: 'Lezione ' + String(i).padStart(2, '0'),
+    description: 'Descrivi questa lezione in **Markdown**.',
+    modules: [{ id: 'contenuti', title: 'Contenuti', topicIds: [topic.id] }],
+    topics: [topic],
+    sources: [{ id: 'source-1', type: 'notes', label: 'Appunti personali' }]
+  };
 }
 function newTopic(i) {
   return {
