@@ -1581,7 +1581,7 @@ body.reading-focus-mode .reader.reader-book-active.book-controls-hidden .reader-
     gap:7px;
   }
   body.reading-focus-mode .reader.reader-book-active .reader-book-nav button {
-    font-size:clamp(12px,3.3vw,16px);
+    font-size:clamp(14px,3.8vw,18px);
     padding:10px 0;
     min-height:44px;
   }
@@ -1602,7 +1602,7 @@ body.reading-focus-mode .reader.reader-book-active.book-controls-hidden .reader-
   }
 }
 @media (max-width:360px) {
-  body.reading-focus-mode .reader.reader-book-active .reader-book-nav button { font-size:12px; }
+  body.reading-focus-mode .reader.reader-book-active .reader-book-nav button { font-size:14px; }
   body.reading-focus-mode .reader.reader-book-active .reader-book-lesson-nav strong { font-size:13px; }
 }
 @media (prefers-reduced-motion:reduce) {
