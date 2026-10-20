@@ -1,6 +1,8 @@
 import { state } from './state.js';
 import { allCatalogs, catalogRef, findLibrary, findLesson, findTopic, lessonHref } from './content.js';
-import { escapeHtml, toast } from './ui.js';
+import { escapeHtml, toast, catalogCard } from './ui.js';
+import { fetchMyCatalogs } from './api.js';
+import { loadStudyActivity, resolveRecentStudy, catalogCompletion } from './progress.js';
 
 const TYPES = new Set(['catalog', 'library', 'lesson', 'topic']);
 
@@ -289,19 +291,46 @@ export async function refreshTopSavedActions() {
 export async function renderHomeSavedSection(root) {
   if (!state.user || !state.supabase || !root) return;
   try {
-    await loadSaved({ force: true });
+    const catalogs = await fetchMyCatalogs();
+    await loadSaved();
+    try { await loadStudyActivity(); } catch (err) { console.warn('Study progress unavailable', err); }
+    const hero = root.querySelector('.hero');
+    if (!hero || !['', '#/', '#'].includes(location.hash)) return;
+
+    const recent = resolveRecentStudy(state.recentStudy || []).slice(0, 3);
     const resumes = (state.bookmarks || []).map(resumeCard).filter(Boolean).slice(0, 3);
     const favorites = (state.favorites || []).map(favoriteCard).filter(Boolean).slice(0, 6);
-    if (!resumes.length && !favorites.length) return;
+    const personal = catalogs.slice(0, 6).map(catalog => {
+      const stat = catalogCompletion(state.topicProgress || [], catalog);
+      return '<div class="home-personal-catalog">' + catalogCard(catalog) +
+        '<span class="personal-progress-detail">' + stat.completed + ' / ' + stat.total +
+        ' argomenti completati</span></div>';
+    }).join('');
 
     const section = document.createElement('section');
-    section.className = 'home-saved';
+    section.className = 'home-saved home-personal-dashboard';
     section.innerHTML =
-      (resumes.length ? '<div class="section-head"><div><h2>Continua a studiare</h2><p>I tuoi punti di ripresa, uno per catalogo.</p></div><a class="text-link" href="#/saved">Vedi tutti</a></div><div class="resume-grid">' + resumes.join('') + '</div>' : '') +
-      (favorites.length ? '<div class="section-head saved-favorites-head"><div><h2>I tuoi preferiti</h2><p>Contenuti che hai scelto di tenere a portata di mano.</p></div><a class="text-link" href="#/saved">Vedi tutti</a></div><div class="saved-grid">' + favorites.join('') + '</div>' : '');
-    const hero = root.querySelector('.hero');
-    hero?.insertAdjacentElement('afterend', section);
-  } catch (err) { console.warn('Saved content unavailable', err); }
+      '<div class="section-head"><div><h2>I tuoi cataloghi</h2><p>Il tuo spazio personale, subito a portata di mano.</p></div>' +
+      '<a class="text-link" href="#/mine">Gestisci →</a></div>' +
+      '<div class="course-grid home-personal-grid">' +
+      '<a href="#/studio/new" class="personal-create-tile" aria-label="Nuovo catalogo">' +
+        '<span class="personal-create-visual"><span>＋</span></span><strong>Nuovo catalogo</strong><small>Inizia da qui</small></a>' +
+      personal + '</div>' +
+      (recent.length ? '<div class="section-head saved-favorites-head"><div><h2>Ultime attività</h2>' +
+        '<p>Gli ultimi argomenti aperti, senza bisogno di creare segnalibri.</p></div></div>' +
+        '<div class="recent-study-list">' +
+          recent.map(item => '<a class="recent-study-item" href="' + item.href + '">' +
+            '<span class="recent-study-icon" aria-hidden="true">↗</span><span><strong>' +
+            escapeHtml(item.topic) + '</strong><small>' + escapeHtml(item.catalog + ' · ' + item.lesson) +
+            '</small></span><em>Continua →</em></a>').join('') + '</div>' : '') +
+      (resumes.length ? '<div class="section-head saved-favorites-head"><div><h2>I tuoi segnalibri</h2>' +
+        '<p>Punti di ripresa salvati manualmente.</p></div><a class="text-link" href="#/saved">Vedi tutti</a></div>' +
+        '<div class="resume-grid">' + resumes.join('') + '</div>' : '') +
+      (favorites.length ? '<div class="section-head saved-favorites-head"><div><h2>Preferiti</h2>' +
+        '<p>I contenuti che hai scelto di conservare.</p></div><a class="text-link" href="#/saved">Vedi tutti</a></div>' +
+        '<div class="saved-grid">' + favorites.join('') + '</div>' : '');
+    hero.insertAdjacentElement('afterend', section);
+  } catch (err) { console.warn('Personal dashboard unavailable', err); }
 }
 
 export async function renderSavedPage(root) {
