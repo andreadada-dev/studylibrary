@@ -199,6 +199,22 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
     throw new Error('StPageFlip initialization diagnostics: '+JSON.stringify(diagnostics)+'\n'+error.message);
   }
   await expect.poll(()=>page.locator('.reader-book-stage .book-paper').count()).toBeGreaterThanOrEqual(3);
+  const geometry=await page.locator('.book-flip-mount').boundingBox();
+  expect(geometry.height).toBeGreaterThan(page.viewportSize().height*0.57);
+  expect(await page.locator('.reader').evaluate(el=>getComputedStyle(el).position)).toBe('fixed');
+  // The overlay should auto-hide yet book gestures remain usable.
+  await page.mouse.move(32,Math.round(page.viewportSize().height*0.55));
+  await page.waitForTimeout(3450);
+  await expect(page.locator('.reader-view-controls')).toBeHidden();
+  await expect(page.locator('.reader-book-nav')).toBeHidden();
+  await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible();
+  if (page.viewportSize().width < 760) {
+    await page.touchscreen.tap(24,Math.round(page.viewportSize().height*0.65));
+  } else {
+    await page.mouse.move(83,Math.round(page.viewportSize().height*0.63));
+  }
+  await expect(page.locator('.reader-view-controls')).toBeVisible();
+  await expect(page.locator('.reader-book-nav')).toBeVisible();
   const readerBackground=await page.locator('.reader').evaluate(el=>getComputedStyle(el).backgroundColor);
   expect(readerBackground).toBe('rgba(0, 0, 0, 0)');
   await expect(hero).toBeHidden();
@@ -212,9 +228,11 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   await page.screenshot({path:testInfo.outputPath('book-3d-open.png'),fullPage:true});
   await expect(page.locator('[data-book-count]')).not.toHaveText('0 / 0');
   const beforeFlip=await page.locator('[data-book-count]').textContent();
+  await page.mouse.move(page.viewportSize().width/2,Math.round(page.viewportSize().height*0.73));
   await page.locator('[data-book-next]').click();
   await expect(page.locator('[data-book-count]')).not.toHaveText(beforeFlip,{timeout:9000});
   // Continuous reading stays available and has no blank page.
+  await page.mouse.move(page.viewportSize().width-25,20);
   await page.locator('[data-reader-book-toggle]').click();
   await expect(page.locator('.reader-book-view')).toBeHidden();
   await expect(page.locator('.reader-header')).toBeVisible();
