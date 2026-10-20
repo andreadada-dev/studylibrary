@@ -1,10 +1,12 @@
 // A small, stable block palette. The JSON section names remain protocol-compatible.
 export const STUDY_BLOCK_TYPES = Object.freeze([
+  {type:'lead',label:'Introduzione',description:'Apertura dell’argomento'},
   {type:'text',label:'Testo',description:'Paragrafo di spiegazione'},
   {type:'concept',label:'Concetto',description:'Definizione o idea principale'},
   {type:'example',label:'Esempio',description:'Esempio svolto'},
   {type:'formula',label:'Formula',description:'Espressione LaTeX e spiegazione'},
   {type:'image',label:'Immagine',description:'Immagine con didascalia'},
+  {type:'gallery',label:'Galleria',description:'Raccolta di immagini'},
   {type:'video',label:'Video',description:'Video da un link'},
   {type:'embed',label:'PDF o link',description:'File PDF o altra risorsa'},
   {type:'callout',label:'Nota',description:'Informazione da evidenziare'},
@@ -23,9 +25,10 @@ export function studyBlockTemplate(type, id) {
     case 'formula':return {...section,title:'Nuova formula',latex:'',note:'Spiega il significato della formula'};
     case 'image':return {...section,title:'Immagine',mediaRef:'',url:'',alt:'',caption:''};
     case 'video':return {...section,title:'Video',url:'',caption:''};
+    case 'gallery':return {...section,title:'Galleria',items:[],caption:''};
     case 'embed':return {...section,title:'PDF o risorsa',url:'',body:''};
     case 'flow':return {...section,title:'Procedimento',nodes:['Passaggio 1','Passaggio 2'],body:''};
-    case 'comparison':return {...section,title:'Confronto',body:'Spiega le differenze tra i due approcci'};
+    case 'comparison':return {...section,title:'Confronto',left:{title:'Primo',body:'Spiega la prima opzione'},right:{title:'Secondo',body:'Spiega la seconda opzione'}};
     case 'list':return {...section,title:'Elenco',items:['Primo punto','Secondo punto']};
     default:return {...section,title:type==='example'?'Esempio':'Nuova sezione',body:'Scrivi qui il contenuto…'};
   }
