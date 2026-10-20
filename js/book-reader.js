@@ -115,11 +115,15 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       const pages=paginateBook(reader,fragments,{...settings,label:title});
       fragments.appendChild(bookCover({...settings,title,back:true}));
       if (!active || disposed || ticket!==generation) return;
-      stage.appendChild(fragments);
-      // Keep the original nodes before StPageFlip builds its internal stage.
-      const paperElements=[...stage.querySelectorAll('.book-paper')];
+      // PageFlip.destroy() REMOVES its root element. Give each render a
+      // disposable inner root so the persistent stage can survive repagination.
+      const flipRoot=document.createElement('div');
+      flipRoot.className='book-flip-mount';
+      stage.appendChild(flipRoot);
+      flipRoot.appendChild(fragments);
+      const paperElements=[...flipRoot.querySelectorAll('.book-paper')];
       const reduced=window.matchMedia?.('(prefers-reduced-motion:reduce)').matches;
-      const flip=new PageFlip(stage,{
+      const flip=new PageFlip(flipRoot,{
         width:settings.width,height:settings.height,
         size:'fixed',showCover:true,usePortrait:true,autoSize:false,
         drawShadow:true,maxShadowOpacity:.54,
