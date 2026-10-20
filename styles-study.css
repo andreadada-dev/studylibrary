@@ -539,45 +539,93 @@ body.reading-focus-mode .page {
 }
 
 
-/* Reorder personal catalog folders independently of their open/edit actions. */
-.personal-order-actions {
+/* Folder reorder: one familiar six-dot grip, separate from opening/editing. */
+.personal-folder-controls {
   display:flex;
   align-items:center;
-  gap:4px;
-  margin:3px 0 0;
+  gap:7px;
+  min-height:38px;
+  margin-top:3px;
+  width:100%;
 }
-.personal-order-actions button,
-.personal-order-actions [data-personal-drag] {
+.personal-folder-controls .personal-folder-edit {
+  flex:0 1 auto;
+  margin:0;
+}
+.personal-drag-handle {
+  flex:0 0 34px;
+  width:34px;
+  height:34px;
   display:grid;
   place-items:center;
-  width:34px;
-  height:33px;
   padding:0;
   border:1px solid var(--line);
-  border-radius:8px;
-  background:var(--paper);
+  border-radius:10px;
   color:var(--muted);
-  cursor:pointer;
-  font-size:14px;
+  background:var(--paper);
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .15s ease,color .15s ease,border-color .15s ease,transform .15s ease;
 }
-.personal-order-actions [data-personal-drag] { cursor:grab; }
-.personal-order-actions button:hover,
-.personal-order-actions button:focus-visible,
-.personal-order-actions [data-personal-drag]:hover {
-  background:var(--accent-soft);
+.personal-drag-handle svg { pointer-events:none; }
+.personal-drag-handle:hover,
+.personal-drag-handle:focus-visible {
   color:var(--accent);
+  background:var(--accent-soft);
   border-color:var(--accent);
 }
-.personal-folder-tile.dragging-over {
-  outline:2px dashed var(--accent);
-  outline-offset:4px;
-  border-radius:12px;
+.personal-drag-handle:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+.personal-drag-handle:active,
+.personal-drag-handle.is-grabbing {
+  cursor:grabbing;
+  color:var(--accent);
+  background:var(--accent-soft);
+}
+.personal-folder-tile.personal-tile-dragging {
+  opacity:.28;
+}
+.personal-drag-ghost {
+  display:flex !important;
+  cursor:grabbing;
+  opacity:.97;
+  transform:rotate(2deg) scale(1.035);
+  filter:drop-shadow(0 14px 18px rgba(25,23,76,.21));
+  background:var(--bg);
+  border-radius:14px;
+}
+.personal-drag-ghost .personal-drag-handle { cursor:grabbing; }
+.personal-drag-help {
+  margin:-7px 0 15px;
+  color:var(--muted);
+  font-size:11px;
+}
+.visually-hidden {
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  margin:-1px !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  clip-path:inset(50%) !important;
+  white-space:nowrap !important;
+  border:0 !important;
 }
 @media (max-width:720px) {
-  .personal-order-actions button { width:44px; height:44px; }
-  .personal-order-actions [data-personal-drag] { display:none; }
+  .personal-drag-handle { width:44px; height:44px; flex-basis:44px; }
+  .personal-folder-controls { gap:4px; }
+  .personal-folder-controls .personal-folder-edit { font-size:9px; }
+  .personal-drag-help { font-size:11px; }
 }
-
+@media (prefers-reduced-motion:reduce) {
+  .personal-drag-handle { transition:none; }
+  .personal-drag-ghost { transform:none; }
+}
 
 /* Mobile navigation target size validated by Playwright. */
 @media (max-width:720px) {
