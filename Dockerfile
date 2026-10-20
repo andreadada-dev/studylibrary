@@ -1,6 +1,8 @@
 FROM node:22-alpine AS verify
 WORKDIR /src
 COPY . .
+# Ship a pinned, licensed StPageFlip bundle with the production image.
+RUN npm install --no-save --ignore-scripts page-flip@2.0.7
 RUN npm run ci
 
 FROM nginx:1.27-alpine
@@ -15,6 +17,8 @@ COPY --from=verify /src/manifest.webmanifest /usr/share/nginx/html/manifest.webm
 COPY --from=verify /src/robots.txt /usr/share/nginx/html/robots.txt
 COPY --from=verify /src/sitemap.xml /usr/share/nginx/html/sitemap.xml
 COPY --from=verify /src/js /usr/share/nginx/html/js
+COPY --from=verify /src/node_modules/page-flip/dist/js/page-flip.browser.js /usr/share/nginx/html/js/vendor/page-flip.browser.js
+COPY --from=verify /src/node_modules/page-flip/LICENSE /usr/share/nginx/html/js/vendor/page-flip.LICENSE
 COPY --from=verify /src/data /usr/share/nginx/html/data
 COPY --from=verify /src/protocol /usr/share/nginx/html/protocol
 COPY --from=verify /src/docker-entrypoint-study.sh /docker-entrypoint.d/40-studylibrary-config.sh
