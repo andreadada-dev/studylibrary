@@ -2,6 +2,7 @@ import { state, isBackendConfigured } from './state.js';
 import { signInWithGoogle, signOut, fetchMyCatalogs, deleteAllMyContent, deleteAccount, getDiscussion, addComment, updateComment, deleteComment, reportContent, setRating } from './api.js';
 import { getOrderedTopics, topicNumber, findTopic, catalogStats, lessonHref, catalogRef } from './content.js';
 import { resolveMediaAsset, detectVideoProvider, videoEmbedUrl } from './media.js';
+import { createStudyBook } from './book-reader.js';
 
 export const escapeHtml = value => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -298,9 +299,32 @@ export function wireReaderInteractions() {
     const focus = reader.querySelector('[data-reader-focus]');
     const focusLabel = reader.querySelector('[data-reader-focus-label]');
     const sizeLabel = reader.querySelector('[data-reader-size-label]');
+    const bookToggle = reader.querySelector('[data-reader-book-toggle]');
+    const bookLabel = reader.querySelector('[data-reader-book-label]');
+    const book = createStudyBook(reader, {onNotice: toast});
+    let disposed = false;
+    function drawBook() {
+      const active = Boolean(book?.active);
+      if (bookToggle) {
+        bookToggle.hidden = !document.body.classList.contains('reading-focus-mode');
+        bookToggle.setAttribute('aria-pressed', String(active));
+        bookToggle.setAttribute('aria-label', active ? 'Passa alla lettura continua' : 'Attiva il libro 3D');
+      }
+      if (bookLabel) bookLabel.textContent = active ? 'Scorrimento' : 'Libro 3D';
+    }
+    async function enableBook() {
+      if (!book || disposed) return;
+      await book.enable();
+      if (!disposed) drawBook();
+    }
+    function stopBook() {
+      book?.disable();
+      drawBook();
+    }
 
     function drawSize() {
       reader.style.setProperty('--reader-text-size', textSize + 'px');
+      book?.refresh();
       if (sizeLabel) sizeLabel.textContent = textSize + ' px';
       reader.querySelectorAll('[data-reader-zoom]').forEach(button => {
         button.disabled = Number(button.dataset.readerZoom) < 0 ? textSize <= 16 : textSize >= 24;
@@ -311,6 +335,7 @@ export function wireReaderInteractions() {
       focus?.setAttribute('aria-pressed', String(active));
       focus?.setAttribute('aria-label', active ? 'Esci dalla modalità lettura' : 'Attiva modalità lettura');
       if (focusLabel) focusLabel.textContent = active ? 'Esci' : 'Concentrati';
+      drawBook();
     }
     function closeSettings() {
       if (!panel || !settings) return;
@@ -319,12 +344,19 @@ export function wireReaderInteractions() {
     }
 
     focus?.addEventListener('click', () => {
-      document.body.classList.toggle('reading-focus-mode');
+      const active = document.body.classList.toggle('reading-focus-mode');
       closeSettings();
-      drawFocus();
-      if (document.body.classList.contains('reading-focus-mode')) {
+      if (active) {
         window.scrollTo({ top: 0, behavior: 'instant' });
-      }
+        void enableBook();
+      } else stopBook();
+      drawFocus();
+    });
+    bookToggle?.addEventListener('click', () => {
+      if (!document.body.classList.contains('reading-focus-mode')) return;
+      if (book?.active) stopBook();
+      else void enableBook();
+      drawBook();
     });
     settings?.addEventListener('click', () => {
       panel.hidden = !panel.hidden;
@@ -349,6 +381,7 @@ export function wireReaderInteractions() {
         if (!panel?.hidden) { closeSettings(); settings?.focus(); }
         else if (document.body.classList.contains('reading-focus-mode')) {
           document.body.classList.remove('reading-focus-mode');
+          stopBook();
           drawFocus();
           focus?.focus();
         }
@@ -356,6 +389,10 @@ export function wireReaderInteractions() {
     });
     drawSize();
     drawFocus();
+    reader._disposeBookReader = () => {
+      disposed = true;
+      book?.destroy();
+    };
   }
 
   document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
@@ -374,6 +411,11 @@ export function wireReaderInteractions() {
   });
 
   renderStudyMath(document.querySelector('.reader') || document.body);
+  return () => {
+    const previous=document.querySelector('.reader');
+    previous?._disposeBookReader?.();
+    document.body.classList.remove('reading-book-mode');
+  };
 }
 
 export async function renderDiscussion(targetKind, targetKey, rootId = 'discussion-root') {
@@ -713,6 +755,11 @@ export function lessonTopicArticle(context, topic) {
           '</svg>' +
           '<span data-reader-focus-label>Concentrati</span>' +
         '</button>' +
+        '<button type="button" class="reader-control reader-book-toggle" data-reader-book-toggle hidden aria-pressed="false" aria-label="Attiva il libro 3D">' +
+          '<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M12 20c-2.1-1.4-5.2-2-9-1.6V5c4-.4 6.8.4 9 2 2.2-1.6 5-2.4 9-2v13.4c-3.8-.4-6.9.2-9 1.6Z"/><path d="M12 7v13"/><path d="m16 9 2 2-2 2"/>' +
+          '</svg><span data-reader-book-label>Libro 3D</span>' +
+        '</button>' +
         '<div class="reader-text-settings">' +
           '<button type="button" class="reader-control reader-type-toggle" data-reader-settings aria-expanded="false" aria-controls="reader-type-panel" aria-label="Impostazioni del testo">Aa</button>' +
           '<div class="reader-type-panel" id="reader-type-panel" data-reader-panel hidden>' +
@@ -727,6 +774,16 @@ export function lessonTopicArticle(context, topic) {
         '</div>' +
       '</div>' +
     '</div>' +
+    '<section class="reader-book-view" data-book-view hidden aria-label="Libro tridimensionale">' +
+      '<div class="reader-book-intro"><span>UN MODO DIVERSO DI STUDIARE</span><strong>Sfoglia le pagine</strong><p>Trascina l’angolo della carta oppure usa le frecce.</p></div>' +
+      '<div class="reader-book-stage" data-book-stage aria-label="Pagine del libro 3D"></div>' +
+      '<div class="reader-book-notice" data-book-status role="status" hidden></div>' +
+      '<div class="reader-book-nav" aria-label="Navigazione del libro">' +
+        '<button type="button" data-book-prev aria-label="Pagina precedente" disabled><span aria-hidden="true">←</span> Precedente</button>' +
+        '<span data-book-count aria-live="polite">0 / 0</span>' +
+        '<button type="button" data-book-next aria-label="Pagina successiva" disabled>Successiva <span aria-hidden="true">→</span></button>' +
+      '</div>' +
+    '</section>' +
     '<header class="reader-header">' +
       '<div class="reader-kicker">' +
         '<a href="#/catalog/' + encodeURIComponent(catalogRef(context.catalog)) + '">' + escapeHtml(context.catalog.title) + '</a>' +
