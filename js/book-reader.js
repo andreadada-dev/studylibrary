@@ -177,8 +177,15 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
     answer.textContent=box.classList.contains('open')?'Nascondi risposta':'Mostra risposta';
   }
 
+  let observedWidth=0;
   const observer=typeof ResizeObserver!=='undefined'
-    ? new ResizeObserver(scheduleRefresh) : null;
+    ? new ResizeObserver(entries=>{
+        const width=Math.round(entries[0]?.contentRect.width || 0);
+        if (Math.abs(width-observedWidth)>3) {
+          observedWidth=width;
+          scheduleRefresh();
+        }
+      }) : null;
 
   prev?.addEventListener('click',()=>instance?.flipPrev?.());
   next?.addEventListener('click',()=>instance?.flipNext?.());
@@ -196,6 +203,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       view.hidden=false;
       reader.classList.add('reader-book-active');
       document.body.classList.add('reading-book-mode');
+      observedWidth=Math.round(reader.getBoundingClientRect().width);
       observer?.observe(reader);
       currentPage=0;
       await rebuild({preserve:false});
