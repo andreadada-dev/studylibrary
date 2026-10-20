@@ -303,6 +303,25 @@ export function wireReaderInteractions() {
     const bookLabel = reader.querySelector('[data-reader-book-label]');
     const book = createStudyBook(reader, {onNotice: toast});
     let disposed = false;
+    let enteredBrowserFullscreen = false;
+    function requestBookFullscreen() {
+      // Called directly from a user gesture. CSS viewport mode remains the
+      // fallback on mobile browsers that do not implement Fullscreen API.
+      if (document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+      try {
+        const request=document.documentElement.requestFullscreen({navigationUI:'hide'});
+        Promise.resolve(request).then(()=>{ enteredBrowserFullscreen=true; }).catch(()=>{
+          enteredBrowserFullscreen=false;
+        });
+      } catch { enteredBrowserFullscreen=false; }
+    }
+    function leaveBookFullscreen() {
+      if (!enteredBrowserFullscreen) return;
+      enteredBrowserFullscreen=false;
+      if (document.fullscreenElement===document.documentElement) {
+        document.exitFullscreen?.().catch(()=>{});
+      }
+    }
     function drawBook() {
       const active = Boolean(book?.active);
       if (bookToggle) {
@@ -348,14 +367,23 @@ export function wireReaderInteractions() {
       closeSettings();
       if (active) {
         window.scrollTo({ top: 0, behavior: 'instant' });
+        requestBookFullscreen();
         void enableBook();
-      } else stopBook();
+      } else {
+        stopBook();
+        leaveBookFullscreen();
+      }
       drawFocus();
     });
     bookToggle?.addEventListener('click', () => {
       if (!document.body.classList.contains('reading-focus-mode')) return;
-      if (book?.active) stopBook();
-      else void enableBook();
+      if (book?.active) {
+        stopBook();
+        leaveBookFullscreen();
+      } else {
+        requestBookFullscreen();
+        void enableBook();
+      }
       drawBook();
     });
     settings?.addEventListener('click', () => {
@@ -382,6 +410,7 @@ export function wireReaderInteractions() {
         else if (document.body.classList.contains('reading-focus-mode')) {
           document.body.classList.remove('reading-focus-mode');
           stopBook();
+          leaveBookFullscreen();
           drawFocus();
           focus?.focus();
         }
@@ -391,6 +420,7 @@ export function wireReaderInteractions() {
     drawFocus();
     reader._disposeBookReader = () => {
       disposed = true;
+      leaveBookFullscreen();
       book?.destroy();
     };
   }
