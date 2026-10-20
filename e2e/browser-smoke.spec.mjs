@@ -1,5 +1,11 @@
 import { test,expect } from '@playwright/test';
+import { resolve } from 'node:path';
 test.beforeEach(async({page})=>{
+  // Exercise the REAL pinned StPageFlip bundle, not a fake page-turn mock.
+  await page.route('**/js/vendor/page-flip.browser.js',route=>route.fulfill({
+    status:200,contentType:'application/javascript',
+    path:resolve(process.cwd(),'node_modules/page-flip/dist/js/page-flip.browser.js')
+  }));
   // The visual smoke test exercises the app shell, not the availability of a CDN.
   await page.route(url=>url.hostname==='cdn.jsdelivr.net',route=>{
     const path=route.request().url();
@@ -178,8 +184,11 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   expect(await text.evaluate(el=>getComputedStyle(el).fontSize)).not.toBe(initialSize);
   await toggle.click();
   await expect(page.locator('body')).toHaveClass(/reading-focus-mode/);
+  await expect(page.locator('.reader-book-view')).toBeVisible({timeout:18000});
+  await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
+  await expect(page.locator('.book-paper')).toHaveCount(3);
   const readerBackground=await page.locator('.reader').evaluate(el=>getComputedStyle(el).backgroundColor);
-  expect(readerBackground).toBe('rgb(255, 255, 255)');
+  expect(readerBackground).toBe('rgba(0, 0, 0, 0)');
   await expect(hero).toBeHidden();
   await expect(page.locator('.topic-rail')).toBeHidden();
   if (page.viewportSize().width > 380) await expect(page.locator('.reader-focus-context')).toBeVisible();
@@ -187,8 +196,52 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   await expect(page.locator('[data-reader-panel]')).toBeHidden();
   expect(await page.locator('.reader').evaluate(el=>getComputedStyle(el).zoom)).toBe('1');
   await expect(toggle.locator('[data-reader-focus-label]')).toHaveText('Esci');
+  await expect(page.locator('[data-reader-book-label]')).toHaveText('Scorrimento');
+  await expect(page.locator('[data-book-count]')).not.toHaveText('0 / 0');
+  await page.locator('[data-book-next]').click();
+  await expect(page.locator('[data-book-count]')).not.toHaveText('1 / 3');
+  // Continuous reading stays available and has no blank page.
+  await page.locator('[data-reader-book-toggle]').click();
+  await expect(page.locator('.reader-book-view')).toBeHidden();
+  await expect(page.locator('.reader-header')).toBeVisible();
   await page.screenshot({path:testInfo.outputPath('reader-focus.png'),fullPage:true});
   await toggle.click();
   await expect(page.locator('body')).not.toHaveClass(/reading-focus-mode/);
   await expect(hero).toBeVisible();
+});
+
+test('long lesson text is paginated with intact words and a usable book',async({page})=>{
+  await page.goto('/#/',{waitUntil:'domcontentloaded'});
+  await expect(page.locator('.hero')).toBeVisible({timeout:25000});
+  const result=await page.evaluate(async()=>{
+    const {paginateBook,bookSourceBlocks}=await import('/js/book-pagination.js');
+    const reader=document.createElement('article');
+    reader.className='reader';
+    const phrase='La risoluzione spaziale si misura in pixel. ';
+    const words=phrase.repeat(180);
+    reader.innerHTML='<header class="reader-header"><h2 class="topic-title">Introduzione</h2></header>' +
+      '<section class="lesson-section"><h3>Spiegazione</h3><p>'+words+'</p>' +
+      '<p><strong>Una formula importante</strong> descrive come si contano i pixel.</p></section>' +
+      '<section class="checkpoint"><h3>Domanda finale</h3><button data-reveal>Mostra risposta</button>' +
+      '<div class="checkpoint-answer">Sono milioni di pixel.</div></section>';
+    document.body.appendChild(reader);
+    const mount=document.createElement('div');
+    document.body.appendChild(mount);
+    let result;
+    try {
+      const pages=paginateBook(reader,mount,{width:320,height:440,label:'Introduzione'});
+      const bodyText=pages.map(p=>p.querySelector('.book-paper-body').textContent.replace(/\s+/g,' ')).join(' ');
+      result={
+        pages:pages.length,
+        phraseCount:(bodyText.match(/La risoluzione spaziale/g)||[]).length,
+        lastQuestion:bodyText.includes('Domanda finale'),
+        formatted:!!mount.querySelector('strong')
+      };
+    } finally {reader.remove();mount.remove();}
+    return result;
+  });
+  expect(result.pages).toBeGreaterThan(2);
+  expect(result.phraseCount).toBe(180);
+  expect(result.lastQuestion).toBe(true);
+  expect(result.formatted).toBe(true);
 });
