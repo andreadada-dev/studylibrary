@@ -1,255 +1,192 @@
-# StudyLibrary Update Package
+# StudyLibrary incremental updates — Agent protocol v2
 
-Un update package permette di aggiornare un catalogo esistente senza scambiare ogni volta l'intero JSON.
+Il formato **`studylibrary.update`** serve a proporre piccole modifiche a cataloghi esistenti **senza esportare o rigenerare tutto il catalogo**. Un agente legge il contesto corrente tramite API e produce soltanto le operazioni richieste. La UI StudyLibrary applica queste operazioni a una copia, convalida l'intero risultato, mostra un diff, richiede conferma, poi salva una nuova versione con un controllo di concorrenza atomico.
 
-È pensato soprattutto per il workflow:
+## Da leggere prima di generare JSON
 
-```text
-StudyLibrary /context
-        ↓
-nuove slide
-        ↓
-ChatGPT genera update package
-        ↓
-drag & drop in Il mio catalogo
-        ↓
-diff
-        ↓
-conferma
-        ↓
-nuova versione
-```
+- Manifest AI: `GET https://study.ddone.it/api/v1/agent` (alias `/.well-known/studylibrary.json`)
+- Schema verificabile: `GET /api/v1/schema/update-package`
+- Stato e versione del catalogo: `GET /api/v1/catalogs/{catalog}/agent`
+- Indice semantico leggero: `GET /api/v1/catalogs/{catalog}/context`
+- Verifica qualità: `GET /api/v1/catalogs/{catalog}/audit`
+- Grafo: `GET /api/v1/catalogs/{catalog}/graph`
+- Lettura mirata: `GET /api/v1/catalogs/{catalog}/libraries/{library}/lessons/{lesson}/topics/{topic}`
+- Scrittura autenticata: `POST /api/v1/write` (nota importante sotto)
 
-## Formato
+La Knowledge API pubblica espone **soltanto** cataloghi/rami esplicitamente abilitati alla lettura API. Un catalogo nella Home non è automaticamente accessibile via API.
+
+## Formato consigliato (v2)
 
 ```json
 {
   "kind": "studylibrary.update",
-  "schemaVersion": 1,
-  "catalog": "UUID-o-slug-catalogo",
+  "schemaVersion": 2,
+  "catalog": "uuid-catalogo",
   "baseVersion": 7,
-  "message": "Aggiunta Lezione 04 e collegamenti con convolution",
-  "operations": []
+  "message": "Aggiunta spiegazione su risoluzione spaziale",
+  "operations": [
+    {
+      "op": "addSection",
+      "library": "prima-libreria",
+      "lesson": "lezione-01",
+      "topic": "spatial-resolution",
+      "beforeSectionId": "checkpoint-spatial",
+      "value": {
+        "id": "spatial-resolution-example-01",
+        "type": "example",
+        "title": "Esempio",
+        "body": "Un'immagine 1920×1080 ha 2.073.600 pixel."
+      }
+    }
+  ]
 }
 ```
 
-### catalog
+I valori di `catalog`, `library`, `lesson`, `topic` e `beforeSectionId` sono **illustrativi**, non identificatori reali. Recuperali dalle API prima di generare il pacchetto.
 
-Può essere:
+- `kind` è sempre `studylibrary.update`.
+- `schemaVersion`: **2** per gli aggiornamenti granulari (i vecchi pacchetti **1** restano compatibili).
+- `catalog`: UUID cloud preferito (supportati anche slug e ID JSON).
+- `baseVersion`: obbligatorio; deve essere `currentVersion` del catalogo letto con `/agent`.
+- `message`: breve descrizione della modifica, visibile nella cronologia versioni (max 240 caratteri).
+- `operations`: almeno un'operazione; eseguite nell'ordine indicato, su una copia del catalogo.
 
-- UUID cloud del catalogo;
-- slug del catalogo;
-- id JSON del catalogo.
+## Operazioni v2 per cambiamenti mirati
 
-L'UUID è preferibile perché stabile e non ambiguo.
+| Operazione | Parametri obbligatori | Comportamento |
+| --- | --- | --- |
+| `addTopic` | `library`, `lesson`, `value` con ID | Aggiunge topic; fallisce se esiste. Opz. `module`, `moduleTitle` |
+| `patchTopic` | `library`, `lesson`, `topic`, `changes` | Cambia solo campi espliciti |
+| `addSection` | `library`, `lesson`, `topic`, `value` | Aggiunge sezione con ID unico e tipo |
+| `updateSection` | `library`, `lesson`, `topic`, `changes`, selettore | Cambia solo i campi della sezione individuata |
+| `removeSection` | `library`, `lesson`, `topic`, selettore | Elimina sezione; validazione mantiene i checkpoint |
+| `addMedia` | `value` con `id`, `type`, `url` | Registra un asset nel catalogo |
+| `updateMedia` | `media` (ID), `changes` | Aggiorna metadati/URL dell'asset, non ID/tipo |
+| `removeMedia` | `media` (ID) | Fallisce se un topic fa ancora riferimento all'asset |
+| `addSource` | `library`, `lesson`, `value` con `id` | Aggiunge fonte; opz. `topic`, `pages`, `note` per collegarla |
+| `updateLesson` | `library`, `lesson`, `changes` | Cambia proprietà della lezione, senza riscrivere topic/moduli |
+| `moveTopic` | `library`, `lesson`, `topic`, `toLesson` | Sposta il topic; opz. `toLibrary`, `module`, `moduleTitle` |
 
-### baseVersion
+Restano supportati **in v1 e v2**: `upsertLesson`, `removeLesson`, `upsertTopic`, `removeTopic`, `addConnection`, `removeConnection`. **Attenzione:** gli upsert legacy sostituiscono l'intero oggetto preesistente (lezione o topic): non usarli per aggiungere soltanto una sezione.
 
-Versione sulla quale è stato preparato il pacchetto.
-
-Se StudyLibrary è già a una versione diversa, l'import viene bloccato per evitare di sovrascrivere modifiche recenti.
-
-### message
-
-Diventa il messaggio della nuova versione.
-
-## Operazioni
-
-### upsertLesson
-
-Aggiunge una nuova lezione oppure sostituisce quella con lo stesso `slug` / `id`.
+### Modifica di alcuni campi
 
 ```json
 {
-  "op": "upsertLesson",
-  "library": "computer-vision",
+  "op": "patchTopic",
+  "library": "prima-libreria",
+  "lesson": "lezione-01",
+  "topic": "spatial-resolution",
+  "changes": {
+    "summary": "Definizione più precisa.",
+    "estimatedMinutes": 14
+  }
+}
+```
+
+`patchTopic` ammette solo `title`, `summary`, `why`, `estimatedMinutes`, `learningGoals`, `prerequisites`, `api`. `updateLesson` ammette solo `title`, `description`, `estimatedMinutes`, `accent`, `api`.
+
+Il patch è **shallow**: modifica esclusivamente i campi inviati, ma se passi un array (per esempio `learningGoals`) sostituisce **tutto quell'array**. Non usare i patch generici per sostituire `topics`, `sections`, `sources`, `modules`, `id` o `slug`. Per questi usa le operazioni mirate.
+
+### Aggiungere una sezione senza rigenerare il topic
+
+```json
+{
+  "op": "addSection",
+  "library": "prima-libreria",
+  "lesson": "lezione-01",
+  "topic": "spatial-resolution",
+  "afterSectionId": "intro",
   "value": {
-    "schemaVersion": 1,
-    "id": "lesson-04",
-    "slug": "lesson-04-filtering",
-    "title": "Lezione 04 — Filtering",
-    "description": "...",
-    "modules": [],
-    "topics": [],
-    "sources": []
+    "id": "new-example-01",
+    "type": "example",
+    "title": "Un esempio pratico",
+    "body": "..."
   }
 }
 ```
 
-### removeLesson
+La nuova sezione ha un **ID stabile e unico** dentro il topic. Puoi indicare **al massimo uno** tra `index` (zero-based), `beforeSectionId`, `afterSectionId`; senza selettore viene appesa in fondo.
+
+Per **modificare o eliminare** una sezione esistente devi indicare **esattamente uno** tra `sectionId` (consigliato) e `sectionIndex` (zero-based). Le vecchie sezioni senza ID possono essere gestite con `sectionIndex`: recupera il topic completo subito prima di generare la modifica.
 
 ```json
 {
-  "op": "removeLesson",
-  "library": "computer-vision",
-  "lesson": "lesson-04-filtering"
+  "op": "updateSection",
+  "library": "prima-libreria",
+  "lesson": "lezione-01",
+  "topic": "spatial-resolution",
+  "sectionIndex": 2,
+  "changes": {
+    "body": "Testo corretto, senza sostituire la formula o altre sezioni."
+  }
 }
 ```
 
-### upsertTopic
+`updateSection` non cambia mai `id` o `type`. `removeSection` usa lo stesso selettore. Il catalogo finale deve continuare a superare la validazione didattica (fonti, checkpoint, ecc.).
 
-Aggiunge o sostituisce un topic dentro una lezione.
+### Media con provenienza verificabile
 
 ```json
 {
-  "op": "upsertTopic",
-  "library": "computer-vision",
-  "lesson": "lesson-04-filtering",
-  "module": "filtri",
-  "moduleTitle": "Filtri",
+  "op": "addMedia",
   "value": {
-    "id": "gaussian-filter",
-    "title": "Gaussian Filter",
-    "summary": "...",
-    "why": "...",
-    "estimatedMinutes": 12,
-    "prerequisites": ["convolution"],
-    "learningGoals": ["..."],
-    "sections": [
-      {
-        "type": "concept",
-        "title": "Idea chiave",
-        "body": "..."
-      },
-      {
-        "type": "checkpoint",
-        "question": "...?",
-        "answer": "..."
-      }
-    ],
-    "connections": [],
-    "sources": [
-      {
-        "ref": "slides-04",
-        "pages": "8-13",
-        "note": "..."
-      }
-    ]
+    "id": "cv-gaussian-illustration",
+    "type": "image",
+    "url": "https://example.org/image.png",
+    "alt": "Distribuzione del kernel gaussiano",
+    "sourceUrl": "https://example.org/original",
+    "credit": "Autore verificato"
   }
 }
 ```
 
-Se il modulo indicato non esiste, viene usato il primo modulo. Se non esiste alcun modulo ne viene creato uno.
+Successivamente usa `mediaRef: "cv-gaussian-illustration"` in una sezione `image`, oppure aggiungi l'immagine inline tramite `addSection`: StudyLibrary normalizza i media inline quando salva. Non inventare autori, licenze o URL delle slide. `removeMedia` non può eliminare un asset ancora utilizzato da sezioni o gallery.
 
-### removeTopic
-
-```json
-{
-  "op": "removeTopic",
-  "library": "computer-vision",
-  "lesson": "lesson-04-filtering",
-  "topic": "gaussian-filter"
-}
-```
-
-StudyLibrary rimuove anche il topic dai moduli e pulisce i riferimenti interni più diretti.
-
-### addConnection
+### Fonti, lezioni e spostamenti
 
 ```json
 {
-  "op": "addConnection",
-  "library": "computer-vision",
-  "lesson": "lesson-04-filtering",
-  "from": "gaussian-filter",
-  "connection": {
-    "target": "convolution",
-    "type": "uses",
-    "label": "Il filtro gaussiano viene applicato tramite convoluzione"
-  }
-}
-```
-
-Le connessioni duplicate non vengono aggiunte due volte.
-
-### removeConnection
-
-```json
-{
-  "op": "removeConnection",
-  "library": "computer-vision",
-  "lesson": "lesson-04-filtering",
-  "from": "gaussian-filter",
-  "target": "convolution",
-  "type": "uses"
-}
-```
-
-`type` è opzionale: se omesso vengono rimosse le connessioni verso quel target.
-
-## Validazione
-
-Prima dell'applicazione definitiva StudyLibrary:
-
-1. controlla `baseVersion`;
-2. applica le operazioni su una copia in memoria;
-3. valida il catalogo risultante;
-4. mostra un diff sintetico;
-5. chiede conferma;
-6. salva il catalogo;
-7. crea automaticamente una nuova versione.
-
-Il pacchetto originale non modifica direttamente il database.
-
-## Prompt consigliato
-
-Quando chiedi a ChatGPT di aggiornare StudyLibrary puoi usare una richiesta del tipo:
-
-> Leggi il context pubblico del mio catalogo StudyLibrary e le lezioni necessarie. Analizza queste nuove slide. Restituiscimi un file `studylibrary.update` basato sulla currentVersion corrente, aggiungendo soltanto le nuove lezioni/topic e le connessioni utili con ciò che esiste già.
-
-In questo modo il modello non deve rigenerare l'intero catalogo e il merge rimane verificabile.
-
-
-## Media negli update package
-
-Non è necessaria un'operazione separata per registrare immagini/video.
-
-Un `upsertTopic` può includere media inline:
-
-```json
-{
-  "op": "upsertTopic",
-  "library": "computer-vision",
-  "lesson": "lesson-04",
+  "op": "addSource",
+  "library": "prima-libreria",
+  "lesson": "lezione-01",
+  "topic": "spatial-resolution",
   "value": {
-    "id": "gaussian-filter",
-    "title": "Gaussian Filter",
-    "summary": "...",
-    "why": "...",
-    "learningGoals": ["..."],
-    "estimatedMinutes": 10,
-    "prerequisites": ["convolution"],
-    "sections": [
-      {
-        "type": "image",
-        "url": "https://example.org/gaussian-kernel.png",
-        "alt": "Kernel gaussiano visualizzato come superficie 3D",
-        "caption": "I pesi diminuiscono allontanandosi dal centro.",
-        "sourceUrl": "https://example.org/source",
-        "license": "CC BY 4.0"
-      },
-      {
-        "type": "video",
-        "url": "https://www.youtube.com/watch?v=...",
-        "title": "Gaussian smoothing visualizzato",
-        "sourceUrl": "https://www.youtube.com/watch?v=..."
-      },
-      {
-        "type": "checkpoint",
-        "question": "...?",
-        "answer": "..."
-      }
-    ],
-    "connections": [],
-    "sources": [
-      {
-        "ref": "slides-04",
-        "pages": "8–13",
-        "note": "..."
-      }
-    ]
-  }
+    "id": "slides-lecture-01",
+    "type": "slides",
+    "label": "Slide della lezione"
+  },
+  "pages": "3–8",
+  "note": "Spiegazione sulla risoluzione"
 }
 ```
 
-Al salvataggio gli URL media vengono automaticamente estratti nel registry del catalogo e convertiti in `mediaRef`.
+`addSource` registra la fonte nella lezione e, se viene specificato `topic`, aggiunge anche il riferimento alle sue fonti. Non duplica un ID già identico; rifiuta ID riutilizzati con dati differenti.
+
+`moveTopic` mantiene il topic con il suo ID e ne cambia la posizione tra moduli/lezioni. Controlla le connessioni tra lezioni dopo uno spostamento.
+
+## Regole fondamentali per agenti
+
+1. Leggi `/agent`, `/context` e la `currentVersion` reale.
+2. Leggi solo i topic/lezioni necessari. Mai inventare ID o selettori.
+3. Analizza le fonti consegnate dall'utente; conserva terminologia, slide e pagine. Ricerca esterna solo se richiesta o utile, sempre distinta dalla fonte.
+4. Preferisci `patchTopic`, `addSection`, `updateSection`, `addSource` a `upsertTopic` quando il topic esiste.
+5. Non modificare materiale non coinvolto; se manca una fonte, segnalalo.
+6. Non eliminare contenuti senza richiesta esplicita.
+7. Restituisci **un piccolo JSON**, con `schemaVersion:2`, `baseVersion` e un messaggio significativo.
+8. Controlla audit, collegamenti e prerequisiti dopo il merge.
+
+## Importazione, versione e sicurezza
+
+1. L'utente trascina il file `*.json` in **Il mio catalogo**.
+2. StudyLibrary controlla la versione, applica tutte le operazioni a una copia e valida il risultato.
+3. Mostra un diff e chiede conferma.
+4. Dopo conferma, il browser invia lo snapshot completo risultante alla funzione Supabase `studylibrary_api_write` con `p_base_version` e il JWT dell'**utente proprietario**.
+5. La funzione applica un blocco sulla riga e confronta la versione prima di scrivere. Se un altro dispositivo ha salvato nel frattempo, rifiuta con `version_conflict`. Nessun overwrite silenzioso.
+6. L'aggiornamento riuscito crea una nuova versione immutabile.
+
+**Nota:** `/api/v1/write` continua a richiedere, internamente, lo **snapshot intero**. Questo NON è un endpoint che accetta direttamente il piccolo pacchetto. Lo scambio fra ChatGPT e l'utente rimane piccolo; è StudyLibrary a fare il merge prima della scrittura. Non inserire token JWT o credenziali nel file JSON e non condividerli in chat.
+
+### Retrocompatibilità
+
+Il formato `schemaVersion:1` e le sue sei operazioni originali continuano a essere accettati. Passa a `schemaVersion:2` per tutte le nuove modifiche granulari.
