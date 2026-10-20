@@ -149,7 +149,12 @@ export function paginateBook(reader, mount, {width,height,label = '',maxPages = 
       whole=original.cloneNode(true);
       if (fits(whole)) { items++; return; }
     }
-    const children=[...original.children];
+    if (original.matches('p,li,blockquote,h2,h3,h4') && !original.querySelector(ATOMIC_SELECTOR)) {
+      splitText(original);
+      return;
+    }
+    const children=[...original.childNodes].filter(node=>node.nodeType===1 ||
+      (node.nodeType===3 && node.textContent.trim()));
     // Do not break illustration/formula/table/interactive components in half.
     if (!children.length || original.matches('figure,iframe,img,video,table') || original.querySelector(ATOMIC_SELECTOR) && children.length === 1) {
       if (original.matches('p,li,blockquote,h2,h3,h4')) splitText(original);
@@ -157,6 +162,12 @@ export function paginateBook(reader, mount, {width,height,label = '',maxPages = 
       return;
     }
     for (const child of children) {
+      if (child.nodeType === 3) {
+        const paragraph=document.createElement('p');
+        paragraph.textContent=child.textContent;
+        splitText(paragraph,original);
+        continue;
+      }
       const candidate=wrap(original,child.cloneNode(true));
       if (fits(candidate)) { items++; continue; }
       if (items) {
@@ -174,6 +185,11 @@ export function paginateBook(reader, mount, {width,height,label = '',maxPages = 
     begin();
     for (const original of source) placeBlock(original);
     if (!items && papers.length>1) papers.pop();
+    if (!source.length) {
+      const placeholder=document.createElement('p');
+      placeholder.textContent='Nessun contenuto disponibile per questo argomento.';
+      paper.querySelector('.book-paper-body').appendChild(placeholder);
+    }
     for (const item of papers) mount.appendChild(item);
     return papers;
   } finally {
