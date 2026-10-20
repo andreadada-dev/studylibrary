@@ -9,6 +9,7 @@ import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, cr
 import { mountTopicProgress, trackStudyVisit } from './js/progress.js';
 import { searchStudyCatalogs } from './js/study-search.js';
 import { uploadStudyFile, validateStudyUpload } from './js/uploads.js';
+import { mountPersonalCatalogReorder } from './js/catalog-reorder.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
@@ -199,12 +200,17 @@ function personalCatalogTile(catalog) {
   const href = studioHref(catalog);
   return '<article class="personal-folder-tile" data-personal-catalog="' + escapeHtml(catalog._db?.id || catalogRef(catalog)) + '">' +
     catalogCard(catalog) +
-    '<a class="personal-folder-edit" href="' + href + '" aria-label="Modifica ' +
-      escapeHtml(catalog.title) + '">Modifica catalogo →</a>' +
-    '<div class="personal-order-actions" aria-label="Ordine dei cataloghi">' +
-      '<span draggable="true" data-personal-drag title="Trascina per riordinare" aria-label="Trascina ' + escapeHtml(catalog.title) + '">⋮⋮</span>' +
-      '<button type="button" data-personal-move="-1" aria-label="Sposta ' + escapeHtml(catalog.title) + ' a sinistra">←</button>' +
-      '<button type="button" data-personal-move="1" aria-label="Sposta ' + escapeHtml(catalog.title) + ' a destra">→</button>' +
+    '<div class="personal-folder-controls">' +
+      '<a class="personal-folder-edit" href="' + href + '" aria-label="Modifica ' +
+        escapeHtml(catalog.title) + '">Modifica catalogo →</a>' +
+      '<button type="button" class="personal-drag-handle" data-personal-drag ' +
+        'title="Trascina per spostare la cartella" aria-label="Sposta ' + escapeHtml(catalog.title) +
+        '. Trascina per riordinare, oppure usa le frecce della tastiera">' +
+        '<svg width="16" height="20" viewBox="0 0 16 20" fill="currentColor" aria-hidden="true" focusable="false">' +
+          '<circle cx="5" cy="5" r="1.6"/><circle cx="11" cy="5" r="1.6"/>' +
+          '<circle cx="5" cy="10" r="1.6"/><circle cx="11" cy="10" r="1.6"/>' +
+          '<circle cx="5" cy="15" r="1.6"/><circle cx="11" cy="15" r="1.6"/>' +
+        '</svg></button>' +
     '</div></article>';
 }
 
@@ -361,6 +367,8 @@ async function renderMyCatalogs() {
                   '<button class="button secondary" type="button" data-json-browse>Importa / aggiorna JSON</button>' +
                 '</div>' +
               '</div>' +
+              '<p class="personal-drag-help">Per cambiare l’ordine, trascina la maniglia a sei puntini accanto a «Modifica catalogo».</p>' +
+              '<p class="visually-hidden" role="status" aria-live="polite" data-drag-status></p>' +
               '<div class="course-grid personal-folder-grid">' +
                 '<a class="personal-create-tile" href="#/studio/new" aria-label="Crea un nuovo catalogo">' +
                   '<span class="personal-create-visual" aria-hidden="true"><span>＋</span></span>' +
@@ -389,42 +397,10 @@ async function renderMyCatalogs() {
       console.warn('Order synced only on this device until migration is deployed',error);
     }
   };
-  const movePersonalCatalog = (from,to) => {
-    const tiles = allTiles();
-    if (from<0 || to<0 || from>=tiles.length || to>=tiles.length || from===to) return;
-    const target=tiles[to];
-    const moving=tiles[from];
-    if (from<to) target.after(moving);
-    else target.before(moving);
-    void persistCatalogOrder();
-  };
-  catalogGrid?.querySelectorAll('[data-personal-move]').forEach(button=>
-    button.addEventListener('click',()=>{
-      const tile=button.closest('[data-personal-catalog]');
-      movePersonalCatalog(allTiles().indexOf(tile),
-        allTiles().indexOf(tile)+Number(button.dataset.personalMove));
-    }));
-  catalogGrid?.querySelectorAll('[data-personal-drag]').forEach(handle=>
-    handle.addEventListener('dragstart',event=>{
-      event.dataTransfer?.setData('application/x-studylibrary-catalog',
-        handle.closest('[data-personal-catalog]')?.dataset.personalCatalog || '');
-      if(event.dataTransfer) event.dataTransfer.effectAllowed='move';
-    }));
-  catalogGrid?.querySelectorAll('[data-personal-catalog]').forEach(tile=>{
-    tile.addEventListener('dragover',event=>{
-      if (![...(event.dataTransfer?.types || [])].includes('application/x-studylibrary-catalog')) return;
-      event.preventDefault();
-      tile.classList.add('dragging-over');
-    });
-    tile.addEventListener('dragleave',()=>tile.classList.remove('dragging-over'));
-    tile.addEventListener('drop',event=>{
-      const id=event.dataTransfer?.getData('application/x-studylibrary-catalog');
-      tile.classList.remove('dragging-over');
-      if(!id)return;
-      event.preventDefault();event.stopPropagation();
-      movePersonalCatalog(allTiles().findIndex(item=>item.dataset.personalCatalog===id),
-        allTiles().indexOf(tile));
-    });
+  const dragStatus = app.querySelector('[data-drag-status]');
+  cleanupRoute = mountPersonalCatalogReorder(catalogGrid, {
+    onSave: persistCatalogOrder,
+    onAnnounce: message => { if (dragStatus) dragStatus.textContent = message; }
   });
 
   const dropZone = app.querySelector('[data-json-drop]');
