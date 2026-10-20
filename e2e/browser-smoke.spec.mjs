@@ -322,3 +322,72 @@ test('book goes from lesson to lesson without leaving focus mode',async({page})=
   await expect(page).toHaveURL(/\/lesson\/l1\/topic\/inizio$/);
   await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
 });
+
+test('one 3D book includes chapter dividers and every topic in the lesson',async({page},testInfo)=>{
+  await page.goto('/#/',{waitUntil:'domcontentloaded'});
+  await expect(page.locator('.hero')).toBeVisible({timeout:25000});
+  const result=await page.evaluate(async()=>{
+    const [{buildLessonBook},{bookTopicSource}]=await Promise.all([
+      import('/js/book-lesson.js'),import('/js/ui.js')
+    ]);
+    const makeTopic=(id,title,body)=>({
+      id,title,summary:'Sommario di '+title,why:'Motivazione di '+title,
+      sections:[{id:id+'-text',type:'text',title:'Approfondimento',body}]
+    });
+    const lesson={
+      slug:'l1',title:'Lezione 01 — Introduzione',
+      description:'Dal contesto storico alla formazione delle immagini',
+      modules:[
+        {id:'foundation',title:'Fondamenti e contesto',
+          description:'Introduzione ai concetti principali',topicIds:['a','b']},
+        {id:'perception',title:'Visione umana e percezione',topicIds:['c']}
+      ],
+      topics:[
+        makeTopic('a','Cos’è la Computer Vision','PARAGRAFO_UNICO_A dettagli e fondamenti.'),
+        makeTopic('b','Storia della visione artificiale','PARAGRAFO_UNICO_B contesto e applicazioni.'),
+        makeTopic('c','Occhio umano e retina','PARAGRAFO_UNICO_C coni bastoncelli retina.')
+      ]
+    };
+    const catalog={slug:'cv',title:'Computer Vision',libraries:[]};
+    const library={slug:'prima',title:'Prima libreria',lessons:[lesson]};
+    catalog.libraries=[library];
+    const context={catalog,library,lesson};
+    const reader=document.createElement('article');
+    reader.className='reader';
+    reader.style.setProperty('--reader-text-size','18px');
+    document.body.appendChild(reader);
+    try {
+      const book=buildLessonBook(reader,context,{
+        width:360,height:540,renderTopic:bookTopicSource
+      });
+      const chapterPages=book.pages.filter(p=>p.dataset.bookKind==='chapter');
+      const topicText=book.pages.filter(p=>p.dataset.bookKind==='topic')
+        .map(p=>p.querySelector('.book-paper-body').textContent).join(' ');
+      const positionA=book.firstPageByTopic.get('a');
+      const positionB=book.firstPageByTopic.get('b');
+      const positionC=book.firstPageByTopic.get('c');
+      return {
+        pages:book.pages.length,
+        covers:book.pages.filter(p=>p.classList.contains('book-hard-cover')).length,
+        intro:book.pages.filter(p=>p.dataset.bookKind==='lesson-intro').length,
+        chapters:chapterPages.map(p=>p.querySelector('.book-chapter-title')?.textContent),
+        description:chapterPages[0]?.querySelector('.book-chapter-description')?.textContent,
+        markers:['PARAGRAFO_UNICO_A','PARAGRAFO_UNICO_B','PARAGRAFO_UNICO_C']
+          .map(marker=>topicText.includes(marker)),
+        positions:[positionA,positionB,positionC],
+        firstIsCover:book.pages[0].classList.contains('book-hard-cover'),
+        lastIsCover:book.pages.at(-1).classList.contains('book-hard-cover')
+      };
+    } finally {reader.remove();}
+  });
+  expect(result.covers).toBe(2);
+  expect(result.intro).toBe(1);
+  expect(result.chapters).toEqual(['Fondamenti e contesto','Visione umana e percezione']);
+  expect(result.description).toContain('Introduzione ai concetti');
+  expect(result.markers).toEqual([true,true,true]);
+  expect(result.positions[0]).toBeGreaterThan(2);
+  expect(result.positions[0]).toBeLessThan(result.positions[1]);
+  expect(result.positions[1]).toBeLessThan(result.positions[2]);
+  expect(result.firstIsCover && result.lastIsCover).toBe(true);
+  expect(result.pages).toBeGreaterThan(6);
+});
