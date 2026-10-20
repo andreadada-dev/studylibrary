@@ -497,16 +497,41 @@ function confirmCatalogImport(existing, candidate, filename) {
 }
 
 function summarizeCatalogDiff(before, after) {
+  // Compare leaf records, not whole nested lessons; a one-section edit should
+  // display as one changed section rather than a rewritten lesson + topic.
   const flatten = catalog => {
     const map = new Map();
+    const metadata = (node, omitted) => Object.fromEntries(
+      Object.entries(node || {}).filter(([field]) => !omitted.includes(field) && !field.startsWith('_'))
+    );
+    map.set('catalog', metadata(catalog, ['libraries', 'media']));
+    for (const asset of catalog?.media || []) {
+      map.set('media:' + asset.id, asset);
+    }
     for (const library of catalog?.libraries || []) {
       const libraryKey = 'library:' + (library.slug || library.id || 'library');
-      map.set(libraryKey, library);
+      map.set(libraryKey, metadata(library, ['lessons']));
       for (const lesson of library.lessons || []) {
         const lessonKey = libraryKey + '/lesson:' + (lesson.slug || lesson.id || 'lesson');
-        map.set(lessonKey, lesson);
+        map.set(lessonKey, metadata(lesson, ['topics', 'modules', 'sources']));
+        for (const module of lesson.modules || []) {
+          map.set(lessonKey + '/module:' + (module.id || module.title), module);
+        }
+        for (const source of lesson.sources || []) {
+          map.set(lessonKey + '/source:' + source.id, source);
+        }
         for (const topic of lesson.topics || []) {
-          map.set(lessonKey + '/topic:' + (topic.id || 'topic'), topic);
+          const topicKey = lessonKey + '/topic:' + (topic.id || 'topic');
+          map.set(topicKey, metadata(topic, ['sections', 'sources', 'connections']));
+          (topic.sections || []).forEach((section, index) => {
+            map.set(topicKey + '/section:' + (section.id || ('index-' + index)), section);
+          });
+          (topic.sources || []).forEach((source, index) => {
+            map.set(topicKey + '/source:' + (source.ref || index), source);
+          });
+          (topic.connections || []).forEach((connection, index) => {
+            map.set(topicKey + '/connection:' + (connection.target || index) + ':' + (connection.type || 'related'), connection);
+          });
         }
       }
     }
