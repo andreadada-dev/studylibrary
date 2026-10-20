@@ -5,10 +5,13 @@ import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, 
 import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
 import { applyUpdatePackage } from './js/update-package.js';
+import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
 const app = document.getElementById('app');
 let cleanupRoute = null;
+let editorLeaveGuard = null;
+let renderedHash = location.hash;
 
 async function bootstrap() {
   app.innerHTML = `<div class="page"><div class="skeleton" style="height:180px"></div></div>`;
@@ -24,6 +27,11 @@ async function bootstrap() {
   }
   renderAccount();
   window.addEventListener('hashchange', safeRoute);
+  window.addEventListener('beforeunload', event => {
+    if (!editorLeaveGuard?.()) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
   window.addEventListener('studylibrary:auth-changed', async () => {
     renderAccount();
     await safeRoute();
@@ -76,8 +84,16 @@ function parseRoute() {
 }
 
 async function safeRoute() {
+  if (editorLeaveGuard?.() && location.hash !== renderedHash) {
+    if (!window.confirm('Hai modifiche non salvate. Uscire dall’editor? La bozza locale resterà disponibile.')) {
+      history.replaceState(null, '', location.pathname + location.search + renderedHash);
+      return;
+    }
+    editorLeaveGuard = null;
+  }
   try {
     await route();
+    renderedHash = location.hash;
     await refreshTopSavedActions();
     if (!document.body.classList.contains('universe-mode')) {
       app.focus({ preventScroll: true });
