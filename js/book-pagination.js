@@ -209,7 +209,7 @@ export function bookCover({width,height,title,subtitle = '',back = false}) {
     '<div class="book-cover-monogram" aria-hidden="true">S<span>·</span>L</div>' +
     '<div class="book-cover-copy"><span class="book-cover-overline">STUDYLIBRARY / ' +
     (back ? 'FINE':'LETTURA') + '</span><h2>' + escapeBook(back?'Continua a esplorare':title) +
-    '</h2><p>' + escapeBook(back?'Hai terminato questo argomento.':subtitle) + '</p></div>' +
+    '</h2><p>' + escapeBook(back?'Hai terminato questa lezione.':subtitle) + '</p></div>' +
     '<div class="book-cover-foot">STUDYLIBRARY<span>®</span></div>';
   return page;
 }
