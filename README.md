@@ -1,6 +1,6 @@
 # StudyLibrary
 
-StudyLibrary è una piattaforma di studio **JSON-first** organizzata così:
+StudyLibrary è una piattaforma di studio **visual-first, con import/export JSON** organizzata così:
 
 **Utente → Catalogo → Librerie → Lezioni → Argomenti**
 
@@ -20,6 +20,29 @@ Le bozze locali rimangono sul dispositivo e **non** equivalgono a un salvataggio
 
 Il completamento e le ultime letture richiedono la migrazione Supabase `20261020213500_study_progress.sql`: se non è stata distribuita, l'interfaccia non inventa percentuali di progresso.
 
+## Editor visuale, media e organizzazione
+
+- **Palette + Blocco:** negli argomenti scegli tra testo, esempio, formula, immagine, galleria, PDF/risorsa, confronto, procedimento e checkpoint. Le sezioni mantengono il formato dati già esistente.
+- **Anteprima lezione:** dall'editor attiva **Anteprima lezione** e seleziona un argomento dalla struttura; le modifiche vengono visualizzate senza pubblicare.
+- **Riordino:** cartelle personali, librerie, lezioni e sezioni possono essere spostate con trascinamento desktop o con frecce su mobile/tastiera.
+- **Upload diretto:** nel catalogo puoi caricare immagini; nel singolo argomento puoi caricare immagini o PDF. Accettati JPEG, PNG, WebP, GIF e AVIF (max 6 MB), PDF (max 10 MB).
+- **PDF:** il lettore mostra un'anteprima incorporata quando consentito dal browser, con un collegamento per aprire il documento in un'altra scheda.
+- **CSS più manutenibile:** gli stili aggiunti per studio, editor e responsive sono in `styles-study.css`; `styles.css` contiene la base e le regole legacy.
+
+**Attenzione alla visibilità dei file:** il bucket `study-media` utilizza **URL pubblici**, anche quando il catalogo è privato. L'app richiede conferma prima dell'upload. Non caricare documenti riservati o materiale protetto da copyright senza autorizzazione. La visibilità del catalogo e la visibilità dei file caricati sono due impostazioni diverse.
+
+Migrazioni richieste:
+- `20261020213500_study_progress.sql` — completamento e ultime letture;
+- `20261020220000_study_media_bucket.sql` — bucket media e policy di scrittura per utente;
+- `20261020221000_study_catalog_order.sql` — ordinamento dei cataloghi sincronizzato tra dispositivi.
+
+Le migrazioni sono versionate, **ma non vengono eseguite automaticamente dai commit**. Distribuiscile tramite il workflow manuale **Deploy Supabase** prima di utilizzare tutte le nuove funzionalità in produzione.
+
+### Controlli automatici
+
+`npm run ci` esegue validazione JS/SQL, controllo dati e test unitari.
+Il workflow `Visual and mobile smoke` usa Playwright/Chromium in viewport desktop, iPhone 13 e iPhone SE; genera screenshot e trace in GitHub Actions. È **emulazione browser**, non collaudo su telefoni fisici. La prova reale su dispositivi e la verifica con login Supabase richiedono un test separato.
+
 ## Funzioni principali
 
 - Home con i **cataloghi pubblicati** dalla community.
@@ -29,7 +52,7 @@ Il completamento e le ultime letture richiedono la migrazione Supabase `20261020
 - **Universo della lezione**, della libreria, del catalogo e Universo totale.
 - Force graph fullscreen con ricerca, zoom, drag, focus e pannello nodo.
 - Editor visuale Markdown + JSON avanzato, import/export, salvataggio privato e pubblicazione.
-- Libreria media per immagini/video: URL inline auto-registrati, `mediaRef`, gallery, YouTube/Vimeo e provenienza delle fonti.
+- Libreria media per immagini/video e upload di immagini e PDF; URL inline auto-registrati, `mediaRef`, gallery, YouTube/Vimeo e provenienza delle fonti.
 - Knowledge API pubblica per cataloghi/librerie/lezioni/topic con controllo gerarchico.
 - Self-describing **Agent Protocol v2** su `/api/v1/agent` + audit automatico per catalogo.
 - JSON di aggiornamento incrementale (`studylibrary.update`, v2): patch puntuali di topic, sezioni, lezioni, media e fonti senza scambiare il catalogo completo.
