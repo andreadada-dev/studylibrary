@@ -1,33 +1,47 @@
 import { paginateBook, bookCover } from './book-pagination.js';
 
-const FLIP_SRC='https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js';
+const FLIP_SOURCES=[
+  '/js/vendor/page-flip.browser.js',
+  'https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js'
+];
 let libraryPromise;
 
 export function loadStPageFlip() {
   if (window.St?.PageFlip) return Promise.resolve(window.St.PageFlip);
   if (libraryPromise) return libraryPromise;
-  libraryPromise=new Promise((resolve,reject)=>{
-    const script=document.createElement('script');
-    script.src=FLIP_SRC;
-    script.async=true;
-    script.crossOrigin='anonymous';
-    let complete=false;
-    const finish=(error)=>{
-      if (complete) return;
-      complete=true;
-      clearTimeout(timeout);
-      if (error) {
-        script.remove();
-        libraryPromise=null;
-        reject(error);
-      } else resolve(window.St.PageFlip);
-    };
-    const timeout=setTimeout(()=>finish(new Error('Caricamento del libro 3D non riuscito: connessione troppo lenta.')),10000);
-    script.onload=()=>window.St?.PageFlip
-      ? finish()
-      : finish(new Error('Libreria StPageFlip non disponibile.'));
-    script.onerror=()=>finish(new Error('Impossibile caricare StPageFlip. Controlla la connessione.'));
-    document.head.appendChild(script);
+  libraryPromise=(async()=>{
+    for (const url of FLIP_SOURCES) {
+      try {
+        const constructor=await new Promise((resolve,reject)=>{
+          const script=document.createElement('script');
+          script.src=url;
+          script.async=true;
+          let finished=false;
+          const done=error=>{
+            if (finished) return;
+            finished=true;
+            clearTimeout(timer);
+            if (error) {
+              script.remove();
+              reject(error);
+            } else resolve(window.St.PageFlip);
+          };
+          const timer=setTimeout(()=>done(new Error('Timeout StPageFlip')),6500);
+          script.onload=()=>window.St?.PageFlip
+            ? done()
+            : done(new Error('StPageFlip non inizializzato'));
+          script.onerror=()=>done(new Error('Bundle StPageFlip non raggiungibile'));
+          document.head.appendChild(script);
+        });
+        return constructor;
+      } catch (error) {
+        console.warn('PageFlip fallback:',url,error.message);
+      }
+    }
+    throw new Error('Il libro 3D non è disponibile. Puoi comunque continuare a leggere.');
+  })().catch(error=>{
+    libraryPromise=null;
+    throw error;
   });
   return libraryPromise;
 }
