@@ -60,6 +60,8 @@ export function paginateBook(reader, mount, {width,height,label = '',maxPages = 
   const papers = [];
   const measuring = document.createElement('div');
   measuring.className = 'book-measure';
+  measuring.style.setProperty('--reader-text-size',
+    getComputedStyle(reader).getPropertyValue('--reader-text-size').trim() || '18px');
   measuring.setAttribute('aria-hidden','true');
   document.body.appendChild(measuring);
 
