@@ -109,6 +109,9 @@ async function safeRoute() {
 async function route() {
   if (cleanupRoute) { cleanupRoute(); cleanupRoute = null; }
   const parts = parseRoute();
+  const inLessonReader = parts[0] === 'catalog' && parts[2] === 'library' &&
+    parts[4] === 'lesson' && parts[6] !== 'universe';
+  if (!inLessonReader) document.body.classList.remove('reading-focus-mode');
   const universeMode = parts.includes('universe');
   document.body.classList.toggle('universe-mode', universeMode);
   setActiveNav(parts[0] || 'home', universeMode);
