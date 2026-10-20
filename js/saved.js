@@ -293,7 +293,11 @@ export async function renderHomeSavedSection(root) {
   try {
     const catalogs = await fetchMyCatalogs();
     await loadSaved();
-    try { await loadStudyActivity(); } catch (err) { console.warn('Study progress unavailable', err); }
+    let progressAvailable = true;
+    try { await loadStudyActivity(); } catch (err) {
+      progressAvailable = false;
+      console.warn('Study progress unavailable', err);
+    }
     const hero = root.querySelector('.hero');
     if (!hero || !['', '#/', '#'].includes(location.hash)) return;
 
@@ -303,8 +307,9 @@ export async function renderHomeSavedSection(root) {
     const personal = catalogs.slice(0, 6).map(catalog => {
       const stat = catalogCompletion(state.topicProgress || [], catalog);
       return '<div class="home-personal-catalog">' + catalogCard(catalog) +
-        '<span class="personal-progress-detail">' + stat.completed + ' / ' + stat.total +
-        ' argomenti completati</span></div>';
+        '<span class="personal-progress-detail">' +
+        (progressAvailable ? (stat.completed + ' / ' + stat.total + ' argomenti completati') : 'Progresso in attesa di sincronizzazione') +
+        '</span></div>';
     }).join('');
 
     const section = document.createElement('section');
