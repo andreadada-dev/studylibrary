@@ -127,7 +127,7 @@ test('touch pointer can reorder using the same grip',async({page})=>{
   expect(await page.evaluate(()=>window.touchSaved)).toBe(1);
 });
 
-test('reader focus mode changes layout and Aa changes text only',async({page})=>{
+test('reader focus mode changes layout and Aa changes text only',async({page},testInfo)=>{
   await page.goto('/#/',{waitUntil:'domcontentloaded'});
   await expect(page.locator('.hero')).toBeVisible({timeout:25000});
   await page.evaluate(async()=>{
@@ -166,7 +166,7 @@ test('reader focus mode changes layout and Aa changes text only',async({page})=>
   await expect(page.locator('[data-reader-panel]')).toBeHidden();
   expect(await page.locator('.reader').evaluate(el=>getComputedStyle(el).zoom)).toBe('1');
   await expect(toggle.locator('[data-reader-focus-label]')).toHaveText('Esci');
-  await page.screenshot({path:'test-results/reader-focus-'+test.info().project.name+'.png',fullPage:true});
+  await page.screenshot({path:testInfo.outputPath('reader-focus.png'),fullPage:true});
   await toggle.click();
   await expect(page.locator('body')).not.toHaveClass(/reading-focus-mode/);
   await expect(hero).toBeVisible();
