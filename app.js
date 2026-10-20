@@ -1356,8 +1356,22 @@ async function renderStudio(options = {}) {
     livePreviewHost.innerHTML = '<div class="studio-rendered-preview">' +
       (window.DOMPurify ? window.DOMPurify.sanitize(content) : content) + '</div>';
     if (window.renderMathInElement) {
+      const dollar=String.fromCharCode(36);
       window.renderMathInElement(livePreviewHost,{
-        delimiters:[{left:'$',right:'$',display:true},{left:'
+        delimiters:[
+          {left:dollar+dollar,right:dollar+dollar,display:true},
+          {left:dollar,right:dollar,display:false}
+        ],
+        throwOnError:false
+      });
+    }
+  }
+  livePreviewToggle?.addEventListener('click',()=>{
+    livePreviewHost.hidden = !livePreviewHost.hidden;
+    livePreviewToggle.setAttribute('aria-pressed',String(!livePreviewHost.hidden));
+    livePreviewToggle.textContent = livePreviewHost.hidden ? 'Anteprima lezione' : 'Nascondi anteprima';
+    updateLivePreview();
+  });
 
   function validateAndPreview(value = draft) {
     const result = validateCatalog(value);
