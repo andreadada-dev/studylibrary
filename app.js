@@ -1149,7 +1149,7 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
       '</div>' +
     '</div>';
 
-  cleanupRoute = wireReaderInteractions() || null;
+  cleanupRoute = wireReaderInteractions(context) || null;
   mountSaveControls({ catalog, library, lesson, topic });
   void mountTopicProgress(contextWithTopic(catalog, library, lesson, topic));
   void trackStudyVisit(contextWithTopic(catalog, library, lesson, topic));
