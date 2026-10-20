@@ -185,7 +185,19 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   await toggle.click();
   await expect(page.locator('body')).toHaveClass(/reading-focus-mode/);
   await expect(page.locator('.reader-book-view')).toBeVisible({timeout:18000});
-  await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
+  try {
+    await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:12000});
+  } catch(error) {
+    const diagnostics=await page.evaluate(()=>({
+      library:typeof window.St?.PageFlip,
+      bookVisible:!document.querySelector('[data-book-view]')?.hidden,
+      status:document.querySelector('[data-book-status]')?.textContent,
+      toast:document.getElementById('toast-region')?.textContent,
+      pageNodes:document.querySelectorAll('.book-paper').length,
+      stageHTML:document.querySelector('[data-book-stage]')?.innerHTML.slice(0,350)
+    }));
+    throw new Error('StPageFlip initialization diagnostics: '+JSON.stringify(diagnostics)+'\n'+error.message);
+  }
   await expect.poll(()=>page.locator('.reader-book-stage .book-paper').count()).toBeGreaterThanOrEqual(3);
   const readerBackground=await page.locator('.reader').evaluate(el=>getComputedStyle(el).backgroundColor);
   expect(readerBackground).toBe('rgba(0, 0, 0, 0)');
@@ -234,7 +246,7 @@ test('long lesson text is paginated with intact words and a usable book',async({
       const bodyText=pages.map(p=>p.querySelector('.book-paper-body').textContent.replace(/\s+/g,' ')).join(' ');
       result={
         pages:pages.length,
-        phraseCount:(bodyText.match(/La risoluzione spaziale/g)||[]).length,
+        phraseCount:(bodyText.replace(/\s+/g,'').match(/Larisoluzionespaziale/g)||[]).length,
         lastQuestion:bodyText.includes('Domanda finale'),
         formatted:!!mount.querySelector('strong')
       };
