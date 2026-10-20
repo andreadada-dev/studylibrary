@@ -119,6 +119,12 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       // disposable inner root so the persistent stage can survive repagination.
       const flipRoot=document.createElement('div');
       flipRoot.className='book-flip-mount';
+      const widthForBook=reader.clientWidth -
+        (parseFloat(getComputedStyle(reader).paddingLeft)||0) -
+        (parseFloat(getComputedStyle(reader).paddingRight)||0);
+      const hasRoomForSpread=widthForBook >= settings.width*2 + 2;
+      flipRoot.style.width=(hasRoomForSpread ? settings.width*2 : settings.width)+'px';
+      flipRoot.style.height=settings.height+'px';
       stage.appendChild(flipRoot);
       flipRoot.appendChild(fragments);
       const paperElements=[...flipRoot.querySelectorAll('.book-paper')];
