@@ -30,14 +30,16 @@ Un utente può tenere il proprio catalogo privato oppure pubblicarlo nella Home.
 
 Il repository non contiene più cataloghi demo obbligatori. I contenuti principali vivono nello spazio personale dell'utente su Supabase.
 
-Da **Il mio catalogo** puoi:
+Da **I miei cataloghi** puoi:
 
-- trascinare file JSON;
-- vedere Cataloghi → Librerie → Lezioni → Argomenti;
-- aprire l'Universo personale;
-- modificare i contenuti con editor visuale Markdown;
-- usare il JSON avanzato quando serve;
-- pubblicare o mantenere privato ogni catalogo.
+- scegliere **+ Nuovo catalogo** direttamente dalla griglia (nessun JSON richiesto);
+- aprire una cartella per consultare il catalogo oppure cliccare **Modifica catalogo**;
+- all'interno del catalogo usare **+ Libreria**, dentro una libreria **+ Lezione** e dentro una lezione **+ Argomento**;
+- modificare direttamente la libreria, la lezione o il topic selezionato: l'editor si apre sul contenuto richiesto;
+- importare cataloghi o pacchetti `studylibrary.update` da **Importa / aggiorna JSON** (o tramite trascinamento);
+- aprire l'Universo personale e gestire pubblicazione e privacy.
+
+L'Editor non è più un collegamento globale ambiguo nella navbar. L'accesso è contestuale e proprietario: `#/studio/new` per creare e `#/studio/catalog/{uuid}/...` per modificare. L'interfaccia mostra subito le azioni principali di salvataggio e tiene gli strumenti JSON sotto **Strumenti avanzati**; il salvataggio di cataloghi già esistenti usa il controllo atomico della versione.
 
 ## Knowledge API e versioning
 
