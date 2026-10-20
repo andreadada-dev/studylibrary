@@ -762,8 +762,6 @@ export function lessonReaderRail(context, activeTopicId) {
   const lesson = context.lesson;
   let i = 0;
   const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
-  const lessonNeighbors = getLessonNeighbors(context.catalog, context.library, lesson);
-  const readingNeighbors = getReadingNeighbors(context.catalog, context.library, lesson, topic);
   return (lesson.modules || []).map(module =>
     '<section class="module-group">' +
       '<p class="module-title">' + escapeHtml(module.title) + '</p>' +
@@ -787,6 +785,8 @@ export function lessonTopicArticle(context, topic) {
   const next = ordered[index + 1];
   const number = topicNumber(lesson, topic.id);
   const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
+  const lessonNeighbors = getLessonNeighbors(context.catalog, context.library, lesson);
+  const readingNeighbors = getReadingNeighbors(context.catalog, context.library, lesson, topic);
 
   return '<article class="reader">' +
     '<div class="reader-view-controls" role="toolbar" aria-label="Controlli di lettura">' +
