@@ -17,7 +17,9 @@ Un utente può tenere il proprio catalogo privato oppure pubblicarlo nella Home.
 - Editor visuale Markdown + JSON avanzato, import/export, salvataggio privato e pubblicazione.
 - Libreria media per immagini/video: URL inline auto-registrati, `mediaRef`, gallery, YouTube/Vimeo e provenienza delle fonti.
 - Knowledge API pubblica per cataloghi/librerie/lezioni/topic con controllo gerarchico.
-- Self-describing agent protocol su `/api/v1/agent` + audit automatico per catalogo.
+- Self-describing **Agent Protocol v2** su `/api/v1/agent` + audit automatico per catalogo.
+- JSON di aggiornamento incrementale (`studylibrary.update`, v2): patch puntuali di topic, sezioni, lezioni, media e fonti senza scambiare il catalogo completo.
+- Import version-aware con diff, conferma e salvataggio atomico `baseVersion` (protezione da modifiche concorrenti).
 - Versioning automatico, cronologia, ripristino e diff degli import.
 - Google Login via Supabase.
 - Rating e commenti con Row Level Security.
@@ -63,7 +65,7 @@ Documentazione completa: `docs/API.md`.
 
 Per agent/AI il punto di ingresso canonico è `https://study.ddone.it/api/v1/agent` (anche `/.well-known/studylibrary.json`).
 
-Per aggiornamenti incrementali generati da AI/agent usa il formato version-aware descritto in `docs/UPDATE-PACKAGE.md`.
+Per aggiornamenti incrementali AI usa `schemaVersion: 2` e `docs/UPDATE-PACKAGE.md`: è possibile aggiungere una singola sezione con un JSON piccolo. Le API pubbliche restano di sola lettura; la UI importa il pacchetto e salva con l'account del proprietario.
 
 ## Coolify
 
