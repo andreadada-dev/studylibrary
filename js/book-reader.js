@@ -116,6 +116,8 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       fragments.appendChild(bookCover({...settings,title,back:true}));
       if (!active || disposed || ticket!==generation) return;
       stage.appendChild(fragments);
+      // Keep the original nodes before StPageFlip builds its internal stage.
+      const paperElements=[...stage.querySelectorAll('.book-paper')];
       const reduced=window.matchMedia?.('(prefers-reduced-motion:reduce)').matches;
       const flip=new PageFlip(stage,{
         width:settings.width,height:settings.height,
@@ -131,7 +133,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
         drawButtons();
       });
       flip.on('changeOrientation',()=>drawButtons());
-      flip.loadFromHTML(stage.querySelectorAll('.book-paper'));
+      flip.loadFromHTML(paperElements);
       instance=flip;
       drawStatus('');
       drawButtons();
