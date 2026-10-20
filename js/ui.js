@@ -452,6 +452,41 @@ function lessonPreviewImage(catalog, lesson) {
   return '';
 }
 
+function topicPreviewImage(catalog, topic) {
+  const direct = safeUrl(
+    topic?.coverImage || topic?.coverUrl || topic?.thumbnailUrl || topic?.image || '',
+    { image: true }
+  );
+  if (direct) return direct;
+
+  for (const section of topic?.sections || []) {
+    if (section?.type === 'image') {
+      const asset = resolveMediaAsset(catalog, section);
+      const src = safeUrl(asset?.url || section.url || section.src || '', { image: true });
+      if (src) return src;
+    }
+
+    if (section?.type === 'video') {
+      const asset = resolveMediaAsset(catalog, section);
+      const src = safeUrl(asset?.thumbnailUrl || section.thumbnailUrl || '', { image: true });
+      if (src) return src;
+    }
+
+    if (section?.type === 'gallery') {
+      for (const item of section.items || []) {
+        const asset = resolveMediaAsset(catalog, item);
+        const src = safeUrl(
+          asset?.type === 'video' ? asset?.thumbnailUrl : asset?.url,
+          { image: true }
+        );
+        if (src) return src;
+      }
+    }
+  }
+
+  return '';
+}
+
 function catalogPreviewLessons(catalog, limit = 5) {
   const previews = [];
   for (const library of catalog?.libraries || []) {
@@ -531,15 +566,26 @@ export function libraryCard(catalog, library) {
 export function lessonCard(catalog, library, lesson, index) {
   const topics = lesson.topics?.length || 0;
   const minutes = lesson.estimatedMinutes || (lesson.topics || []).reduce((sum, topic) => sum + (topic.estimatedMinutes || 0), 0);
+  const previews = (lesson.topics || []).slice(0, 5).map((topic, topicIndex) => ({
+    title: topic.title || ('Argomento ' + (topicIndex + 1)),
+    image: topicPreviewImage(catalog, topic)
+  }));
+  const accent = safeColor(lesson.accent || library.accent || catalog.accent);
   const href = lessonHref(catalog, library.slug, lesson.slug);
-  return '<article class="lesson-row">' +
-    '<a class="lesson-row-main" href="' + href + '">' +
-      '<span class="lesson-index">' + String(index + 1).padStart(2, '0') + '</span>' +
-      '<div><h3>' + escapeHtml(lesson.title) + '</h3><p>' + escapeHtml(lesson.description || '') + '</p></div>' +
-      '<div class="lesson-meta"><strong>' + topics + '</strong><span>argomenti</span><strong>' + (minutes || '—') + '</strong><span>min</span></div>' +
-    '</a>' +
-    '<a class="lesson-universe-link" href="' + href + '/universe">Universo lezione ↗</a>' +
-  '</article>';
+
+  return '<a class="catalog-folder-card lesson-folder-card" href="' + href + '" style="--folder-accent:' + accent + '" aria-label="Apri la lezione ' + escapeHtml(lesson.title) + '">' +
+    '<div class="catalog-folder-visual" aria-hidden="true">' +
+      '<div class="catalog-folder-back"></div>' +
+      '<div class="catalog-folder-preview-stack">' +
+        previews.map(catalogPreviewCard).join('') +
+      '</div>' +
+      '<div class="catalog-folder-front"></div>' +
+    '</div>' +
+    '<div class="catalog-folder-caption">' +
+      '<h3>' + escapeHtml(lesson.title) + '</h3>' +
+      '<p><span>' + topics + ' argomenti</span><span>' + (minutes || '—') + ' min</span></p>' +
+    '</div>' +
+  '</a>';
 }
 
 export function lessonReaderRail(context, activeTopicId) {
