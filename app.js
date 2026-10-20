@@ -1221,7 +1221,7 @@ async function renderStudio(options = {}) {
   let loadedVersion = editingCatalog?._db?.current_version || null;
   let visualEditor = null;
   let pendingUpdate = null;
-  const localDraftKey = editorDraftKey(state.user.id, originalRef || 'new');
+  let localDraftKey = editorDraftKey(state.user.id, originalRef || 'new');
   let baseline = JSON.stringify(draft);
   const recovered = readEditorDraft(localDraftKey);
   if (recovered && (recovered.baseVersion ?? null) === (loadedVersion ?? null) &&
@@ -1536,6 +1536,8 @@ async function renderStudio(options = {}) {
         if (editorHeading) editorHeading.textContent = updated.title;
         state.activeCatalog = updated;
         if (isNew) {
+          clearEditorDraft(localDraftKey);
+          localDraftKey = editorDraftKey(state.user.id, catalogRef(updated));
           const editorRoute = '#/studio/catalog/' + encodeURIComponent(catalogRef(updated));
           history.replaceState(null, '', location.pathname + location.search + editorRoute);
         }
