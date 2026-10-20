@@ -1,7 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "/api/v1/schema/update-package",
-  "title": "StudyLibrary Update Package",
+  "title": "StudyLibrary Update Package v2 (v1 compatible)",
+  "description": "Version-aware incremental instructions. v2 operations patch existing entities instead of replacing the catalog. This schema is also provided by /api/v1/schema/update-package.",
   "type": "object",
   "required": [
     "kind",
@@ -15,15 +16,21 @@
       "const": "studylibrary.update"
     },
     "schemaVersion": {
-      "const": 1
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ],
+      "description": "Use 2 for granular operations; 1 for legacy packages."
     },
     "catalog": {
-      "type": "string",
-      "minLength": 1
+      "$ref": "#/$defs/nonempty",
+      "description": "Catalog UUID preferred; catalog slug or JSON ID also supported."
     },
     "baseVersion": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 1,
+      "description": "Must match currentVersion from /api/v1/catalogs/{catalog}/agent."
     },
     "message": {
       "type": "string",
@@ -33,55 +40,1458 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "properties": {
-          "op": {
-            "enum": [
-              "upsertLesson",
-              "removeLesson",
-              "upsertTopic",
-              "removeTopic",
-              "addConnection",
-              "removeConnection"
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "value"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsertLesson"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeLesson"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "value"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsertTopic"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "topic"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeTopic"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "from",
+              "connection"
+            ],
+            "properties": {
+              "op": {
+                "const": "addConnection"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "from",
+              "target"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeConnection"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "value"
+            ],
+            "properties": {
+              "op": {
+                "const": "addTopic"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "topic",
+              "changes"
+            ],
+            "properties": {
+              "op": {
+                "const": "patchTopic"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "topic",
+              "value"
+            ],
+            "properties": {
+              "op": {
+                "const": "addSection"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "topic",
+              "changes"
+            ],
+            "properties": {
+              "op": {
+                "const": "updateSection"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "sectionId"
+                ]
+              },
+              {
+                "required": [
+                  "sectionIndex"
+                ]
+              }
             ]
           },
-          "library": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "topic"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeSection"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "sectionId"
+                ]
+              },
+              {
+                "required": [
+                  "sectionIndex"
+                ]
+              }
+            ]
           },
-          "lesson": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "value"
+            ],
+            "properties": {
+              "op": {
+                "const": "addMedia"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           },
-          "topic": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "media",
+              "changes"
+            ],
+            "properties": {
+              "op": {
+                "const": "updateMedia"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           },
-          "from": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "media"
+            ],
+            "properties": {
+              "op": {
+                "const": "removeMedia"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           },
-          "target": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "value"
+            ],
+            "properties": {
+              "op": {
+                "const": "addSource"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           },
-          "type": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "changes"
+            ],
+            "properties": {
+              "op": {
+                "const": "updateLesson"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           },
-          "module": {
-            "type": "string"
-          },
-          "moduleTitle": {
-            "type": "string"
-          },
-          "value": {
-            "type": "object"
-          },
-          "connection": {
-            "type": "object"
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "library",
+              "lesson",
+              "topic",
+              "toLesson"
+            ],
+            "properties": {
+              "op": {
+                "const": "moveTopic"
+              },
+              "library": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "lesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "topic": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "from": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "target": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLibrary": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "toLesson": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "media": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "sectionIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "beforeSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "afterSectionId": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "module": {
+                "$ref": "#/$defs/nonempty"
+              },
+              "moduleTitle": {
+                "type": "string"
+              },
+              "value": {
+                "type": "object"
+              },
+              "changes": {
+                "type": "object",
+                "minProperties": 1
+              },
+              "connection": {
+                "type": "object"
+              },
+              "type": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           }
-        },
-        "additionalProperties": true
+        ]
       }
     }
   },
-  "additionalProperties": false
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operations": {
+            "items": {
+              "properties": {
+                "op": {
+                  "enum": [
+                    "upsertLesson",
+                    "removeLesson",
+                    "upsertTopic",
+                    "removeTopic",
+                    "addConnection",
+                    "removeConnection"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonempty": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false,
+  "x-studyLibrary": {
+    "versionPolicy": "Always read currentVersion before preparing a package. The final authenticated write performs server-side compare-and-swap.",
+    "sectionIdentity": "For existing sections without an id, use zero-based sectionIndex from the full topic response. New sections require a unique id and can be placed with index, beforeSectionId or afterSectionId.",
+    "patchPolicy": "patchTopic/updateLesson/updateMedia/updateSection modify only specified fields; changing IDs or structural arrays using patch operations is forbidden. Use explicit list operations.",
+    "mediaPolicy": "Add media to catalog.media via addMedia; reference an ID with mediaRef. Or include media inline in a newly added section; client normalizes it on save.",
+    "writeFlow": "Import package in Il mio catalogo, review diff, approve; the client merges on current snapshot and invokes studylibrary_api_write with p_base_version.",
+    "security": "Public API is read-only. Writes require an authenticated catalog owner; never share private tokens in chat."
+  }
 }
