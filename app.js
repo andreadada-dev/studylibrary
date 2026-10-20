@@ -1,7 +1,7 @@
 import { state, isBackendConfigured } from './js/state.js';
 import { initBackend, fetchPublicCatalogs, fetchMyCatalogs, saveCatalog, fetchCatalogVersions, restoreCatalogVersion, deleteCatalog, reportContent, writeCatalogVersioned } from './js/api.js';
 import { loadStaticCatalogs, allCatalogs, findCatalog, findLibrary, findLesson, findTopic, getOrderedTopics, catalogStats, validateCatalog, lessonHref, catalogRef } from './js/content.js';
-import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, renderSection, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
+import { renderAccount, catalogCard, libraryCard, lessonCard, lessonReaderRail, lessonTopicArticle, wireReaderInteractions, renderDiscussion, renderSection, renderStudyMath, toast, escapeHtml, showModal, closeModal } from './js/ui.js';
 import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
 import { applyUpdatePackage } from './js/update-package.js';
@@ -1431,16 +1431,7 @@ async function renderStudio(options = {}) {
       (topic.sections || []).map(section=>renderSection(section,{catalog:draft,library,lesson,topic})).join('');
     livePreviewHost.innerHTML = '<div class="studio-rendered-preview">' +
       (window.DOMPurify ? window.DOMPurify.sanitize(content) : content) + '</div>';
-    if (window.renderMathInElement) {
-      const dollar=String.fromCharCode(36);
-      window.renderMathInElement(livePreviewHost,{
-        delimiters:[
-          {left:dollar+dollar,right:dollar+dollar,display:true},
-          {left:dollar,right:dollar,display:false}
-        ],
-        throwOnError:false
-      });
-    }
+    renderStudyMath(livePreviewHost);
   }
   livePreviewToggle?.addEventListener('click',()=>{
     livePreviewHost.hidden = !livePreviewHost.hidden;
