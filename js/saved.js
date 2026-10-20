@@ -330,6 +330,8 @@ export async function renderHomeSavedSection(root) {
         '<p>I contenuti che hai scelto di conservare.</p></div><a class="text-link" href="#/saved">Vedi tutti</a></div>' +
         '<div class="saved-grid">' + favorites.join('') + '</div>' : '');
     hero.insertAdjacentElement('afterend', section);
+    const activeSearch = root.querySelector('[data-course-search]');
+    if (activeSearch?.value.trim()) activeSearch.dispatchEvent(new Event('input', { bubbles:true }));
   } catch (err) { console.warn('Personal dashboard unavailable', err); }
 }
 
