@@ -70,8 +70,8 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
     if (!active || disposed) return;
     const focused=document.activeElement;
     const panel=reader.querySelector('[data-reader-panel]');
-    if ((focused && (controls?.contains(focused) || nav?.contains(focused))) ||
-        (panel && !panel.hidden) || controls?.matches(':hover') || nav?.matches(':hover')) {
+    if ((focused?.matches?.(':focus-visible') && (controls?.contains(focused) || nav?.contains(focused))) ||
+        (panel && !panel.hidden)) {
       clearTimeout(hideTimer);
       hideTimer=setTimeout(hideControls,1300);
       return;
