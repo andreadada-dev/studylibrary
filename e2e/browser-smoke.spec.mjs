@@ -219,7 +219,7 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   expect(readerBackground).toBe('rgba(0, 0, 0, 0)');
   await expect(hero).toBeHidden();
   await expect(page.locator('.topic-rail')).toBeHidden();
-  if (page.viewportSize().width > 380) await expect(page.locator('.reader-focus-context')).toBeVisible();
+  if (page.viewportSize().width > 760) await expect(page.locator('.reader-focus-context')).toBeVisible();
   else await expect(page.locator('.reader-focus-context')).toBeHidden();
   await expect(page.locator('[data-reader-panel]')).toBeHidden();
   expect(await page.locator('.reader').evaluate(el=>getComputedStyle(el).zoom)).toBe('1');
