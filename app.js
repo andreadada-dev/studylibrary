@@ -648,7 +648,6 @@ async function renderCatalog(catalogSlug) {
     state.user &&
     catalog._db?.owner_id === state.user.id
   );
-  const ownsCatalog = Boolean(catalog._static || ownsCloudCatalog);
   const editorActions = ownsCloudCatalog
     ? '<a class="button accent" href="' + studioHref(catalog, null, null, null, 'library') + '">＋ Libreria</a>' +
       '<a class="button secondary" href="' + studioHref(catalog) + '">Modifica catalogo</a>'
@@ -1416,6 +1415,9 @@ async function renderStudio(options = {}) {
     }
     const result = validateAndPreview();
     if (!result.ok) return toast('Correggi prima gli errori segnalati');
+    if (editingCatalog && draft.slug !== editingCatalog.slug) {
+      return toast('Lo slug identifica i link del catalogo. Per ora lascialo invariato nelle modifiche.');
+    }
     if (!state.user || !state.supabase) return toast('Accedi con Google per salvare');
 
     const buttons = [...app.querySelectorAll('[data-save], [data-publish]')];
@@ -1444,6 +1446,10 @@ async function renderStudio(options = {}) {
         editingCatalog = updated;
         loadedVersion = Number(updated._db?.current_version || 1);
         state.activeCatalog = updated;
+        if (isNew) {
+          const editorRoute = '#/studio/catalog/' + encodeURIComponent(catalogRef(updated));
+          history.replaceState(null, '', location.pathname + location.search + editorRoute);
+        }
         const backLink = app.querySelector('.studio-back');
         if (backLink) {
           backLink.href = '#/catalog/' + encodeURIComponent(catalogRef(updated));
