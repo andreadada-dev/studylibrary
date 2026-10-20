@@ -1242,7 +1242,7 @@ async function renderStudio(options = {}) {
         '<div class="toolbar-actions studio-save-actions">' +
           '<button class="button" type="button" data-save>' + (isNew ? 'Crea e salva' : 'Salva modifiche') + '</button>' +
           '<button class="button accent" type="button" data-publish>Salva e pubblica</button>' +
-        '</div>' +
+        '</div><p class="studio-save-feedback" role="status">Le modifiche saranno salvate sul tuo account.</p>' +
         '<details class="studio-tools"><summary>Strumenti avanzati</summary>' +
           '<div class="studio-tool-content"><input class="version-message-input" data-version-message maxlength="240" placeholder="Nota versione (opzionale)" aria-label="Nota versione">' +
           '<button class="button secondary" type="button" data-import>Carica JSON nell’editor</button>' +
@@ -1374,7 +1374,7 @@ async function renderStudio(options = {}) {
               '<span><strong>−' + diff.removed + '</strong> rimossi</span>' +
             '</div>' +
             (diff.samples.length ? '<div class="diff-samples">' + diff.samples.slice(0, 8).map(item => '<code>' + escapeHtml(item) + '</code>').join('') + '</div>' : '') +
-            '<p class="demo-note">L’aggiornamento è solo caricato nell’editor: controllalo e poi usa Salva privato o Pubblica. Prima del salvataggio verrà ricontrollata la versione del catalogo.</p>' +
+            '<p class="demo-note">L’aggiornamento è solo caricato nell’editor: controllalo e poi usa Salva modifiche o Salva e pubblica. Prima del salvataggio verrà ricontrollata la versione del catalogo.</p>' +
           '</div>',
           [{ label: 'Continua nell’editor', className: 'button', action: closeModal }]
         );
@@ -1407,35 +1407,58 @@ async function renderStudio(options = {}) {
   app.querySelector('[data-publish]').addEventListener('click', () => saveDraft(true));
 
   async function saveDraft(publish) {
+    if (!rawEditor.hidden) {
+      try {
+        draft = JSON.parse(rawEditor.value);
+      } catch (err) {
+        return toast('Correggi il JSON prima di salvare: ' + err.message);
+      }
+    }
     const result = validateAndPreview();
-    if (!result.ok) return toast('Correggi prima gli errori nello schema');
-    if (!state.user || !state.supabase) return toast(isBackendConfigured() ? 'Accedi con Google per salvare' : 'Configura Supabase per salvare online');
-    try {
-      if (pendingUpdate) {
-        const mineBeforeSave = await fetchMyCatalogs();
-        const current = mineBeforeSave.find(item =>
-          item?._db?.id === pendingUpdate.catalogId ||
-          item.slug === draft.slug ||
-          item.id === draft.id
-        );
-        if (!current) throw new Error('Catalogo destinazione non trovato prima del salvataggio');
+    if (!result.ok) return toast('Correggi prima gli errori segnalati');
+    if (!state.user || !state.supabase) return toast('Accedi con Google per salvare');
 
-        const currentVersion = Number(current._db?.current_version || 1);
-        if (currentVersion !== Number(pendingUpdate.baseVersion)) {
-          throw new Error('Conflitto di versione: il catalogo è passato da v' + pendingUpdate.baseVersion + ' a v' + currentVersion + '. Ricarica il pacchetto prima di salvare.');
+    const buttons = [...app.querySelectorAll('[data-save], [data-publish]')];
+    buttons.forEach(button => { button.disabled = true; });
+    try {
+      // "Salva modifiche" must never unexpectedly make a public catalog private.
+      const shouldPublish = Boolean(publish || draft.visibility === 'public');
+      const versionMessage = versionMessageInput?.value.trim() ||
+        (publish ? 'Pubblicazione dall’editor' : 'Modifiche dall’editor');
+      const targetId = pendingUpdate?.catalogId || editingCatalog?._db?.id || null;
+      const baseVersion = pendingUpdate?.baseVersion || loadedVersion;
+      let resultSave;
+      if (targetId) {
+        resultSave = await writeCatalogVersioned(
+          targetId, Number(baseVersion), draft, versionMessage, shouldPublish
+        );
+      } else {
+        resultSave = await saveCatalog(draft, shouldPublish, versionMessage);
+      }
+      draft.visibility = shouldPublish ? 'public' : 'private';
+      await fetchPublicCatalogs();
+      const mine = await fetchMyCatalogs();
+      const updated = mine.find(item => item._db?.id === (resultSave?.catalogId || resultSave?.id)) ||
+        mine.find(item => item.slug === draft.slug) || null;
+      if (updated) {
+        editingCatalog = updated;
+        loadedVersion = Number(updated._db?.current_version || 1);
+        state.activeCatalog = updated;
+        const backLink = app.querySelector('.studio-back');
+        if (backLink) {
+          backLink.href = '#/catalog/' + encodeURIComponent(catalogRef(updated));
+          backLink.textContent = '← Vai al catalogo';
         }
       }
-
-      const versionMessage = versionMessageInput?.value.trim() || (publish ? 'Pubblicazione dall’editor' : 'Salvataggio editor');
-      await saveCatalog(draft, publish, versionMessage);
       pendingUpdate = null;
-      if (publish) await fetchPublicCatalogs();
-      const mine = await fetchMyCatalogs();
-      state.activeCatalog = mine.find(item => item.slug === draft.slug) || null;
       if (versionMessageInput) versionMessageInput.value = '';
-      toast(publish ? 'Catalogo pubblicato nella Home' : 'Catalogo salvato come privato');
+      const label = app.querySelector('.studio-save-feedback');
+      if (label) label.textContent = 'Modifiche salvate · v' + (loadedVersion || 1);
+      toast(shouldPublish ? 'Catalogo salvato e pubblicato' : 'Modifiche salvate');
     } catch (err) {
       toast(err.message);
+    } finally {
+      buttons.forEach(button => { button.disabled = false; });
     }
   }
 
