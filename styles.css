@@ -4506,3 +4506,129 @@ body.universe-mode .universe-legend-hint {
     display:inline;
   }
 }
+
+
+/* Mobile top navigation — two clean rows instead of squeezing everything together */
+@media (max-width: 720px) {
+  .topbar {
+    height: 98px;
+    grid-template-columns: minmax(0,1fr) auto;
+    grid-template-rows: 54px 44px;
+    column-gap: 12px;
+    row-gap: 0;
+    padding: 0 14px;
+    align-items: center;
+  }
+
+  .brand {
+    grid-column: 1;
+    grid-row: 1;
+    width: fit-content;
+    min-width: 0;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .brand > span:last-child {
+    display: inline;
+    font-size: 13px;
+    font-weight: 760;
+  }
+
+  .brand-mark {
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+  }
+
+  .account-area {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    gap: 4px;
+  }
+
+  .account-area .top-saved-actions {
+    gap: 1px;
+  }
+
+  .account-area .top-saved-action {
+    width: 34px;
+    height: 34px;
+  }
+
+  .account-area .top-saved-action svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .account-slot {
+    width: 36px;
+    justify-self: auto;
+  }
+
+  .account-button {
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+  }
+
+  .account-button .avatar {
+    width: 26px;
+    height: 26px;
+  }
+
+  .topnav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 4px;
+    align-items: center;
+    justify-content: stretch;
+    padding: 4px 0 7px;
+    border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  }
+
+  .topnav a {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 4px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 680;
+    line-height: 1;
+  }
+
+  .topnav a:hover,
+  .topnav a.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: none;
+  }
+
+  .page {
+    padding-top: 30px;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar {
+    padding-inline: 10px;
+  }
+
+  .brand > span:last-child {
+    display: none;
+  }
+
+  .topnav a {
+    font-size: 10px;
+    padding-inline: 2px;
+  }
+
+  .account-area {
+    gap: 2px;
+  }
+}
