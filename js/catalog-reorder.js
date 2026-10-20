@@ -79,9 +79,15 @@ export function mountPersonalCatalogReorder(grid, { onSave = () => {}, onAnnounc
     drag.ghost.style.left = (event.clientX - drag.offsetX) + 'px';
     drag.ghost.style.top = (event.clientY - drag.offsetY) + 'px';
 
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(tileSelector);
-    if (!target || target === drag.tile || target.parentElement !== grid) return;
+    // Hit-test the actual tiles, not the topmost DOM element. On touch screens
+    // a captured pointer or an overlay can obscure elementFromPoint().
     const ordered = tiles();
+    const target = ordered.find(tile => {
+      const rect = tile.getBoundingClientRect();
+      return event.clientX >= rect.left && event.clientX <= rect.right &&
+        event.clientY >= rect.top && event.clientY <= rect.bottom;
+    });
+    if (!target || target === drag.tile) return;
     const from = ordered.indexOf(drag.tile);
     const to = ordered.indexOf(target);
     moveTile(from, to);
