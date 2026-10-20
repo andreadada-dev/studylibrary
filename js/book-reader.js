@@ -1,0 +1,211 @@
+import { paginateBook, bookCover } from './book-pagination.js';
+
+const FLIP_SRC='https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js';
+let libraryPromise;
+
+export function loadStPageFlip() {
+  if (window.St?.PageFlip) return Promise.resolve(window.St.PageFlip);
+  if (libraryPromise) return libraryPromise;
+  libraryPromise=new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    script.src=FLIP_SRC;
+    script.async=true;
+    script.crossOrigin='anonymous';
+    let complete=false;
+    const finish=(error)=>{
+      if (complete) return;
+      complete=true;
+      clearTimeout(timeout);
+      if (error) {
+        script.remove();
+        libraryPromise=null;
+        reject(error);
+      } else resolve(window.St.PageFlip);
+    };
+    const timeout=setTimeout(()=>finish(new Error('Caricamento del libro 3D non riuscito: connessione troppo lenta.')),10000);
+    script.onload=()=>window.St?.PageFlip
+      ? finish()
+      : finish(new Error('Libreria StPageFlip non disponibile.'));
+    script.onerror=()=>finish(new Error('Impossibile caricare StPageFlip. Controlla la connessione.'));
+    document.head.appendChild(script);
+  });
+  return libraryPromise;
+}
+
+export function createStudyBook(reader, {onNotice = () => {}} = {}) {
+  const view=reader.querySelector('[data-book-view]');
+  const stage=view?.querySelector('[data-book-stage]');
+  const status=view?.querySelector('[data-book-status]');
+  const pageLabel=view?.querySelector('[data-book-count]');
+  const prev=view?.querySelector('[data-book-prev]');
+  const next=view?.querySelector('[data-book-next]');
+  if (!view || !stage) return null;
+
+  let instance=null, active=false, disposed=false, generation=0, currentPage=0;
+  let refreshTimer=0;
+  const getPageCount=()=>instance?.getPageCount?.() || 0;
+
+  function drawStatus(message) {
+    if (status) {
+      status.textContent=message || '';
+      status.hidden=!message;
+    }
+  }
+  function drawButtons() {
+    const total=getPageCount();
+    const index=instance?.getCurrentPageIndex?.() ?? currentPage;
+    currentPage=index;
+    if (pageLabel) pageLabel.textContent=(total ? index+1 : 0) + ' / ' + total;
+    if (prev) prev.disabled=!active || index <= 0;
+    if (next) next.disabled=!active || index >= total-1;
+  }
+
+  function measurePage() {
+    const widthAvailable=Math.min(reader.clientWidth,window.innerWidth-20);
+    const portrait=window.innerWidth < 760;
+    const pageWidth=portrait
+      ? Math.max(240,Math.min(430,widthAvailable-16))
+      : Math.max(300,Math.min(430,Math.floor((widthAvailable-46)/2)));
+    const heightAvailable=Math.max(380,window.innerHeight-175);
+    const pageHeight=Math.max(365,Math.min(650,Math.floor(pageWidth*1.37),heightAvailable));
+    return {width:pageWidth,height:pageHeight};
+  }
+
+  async function rebuild({preserve = true} = {}) {
+    if (!active || disposed) return;
+    const ticket=++generation;
+    if (preserve && instance) currentPage=instance.getCurrentPageIndex();
+    const saved=currentPage;
+    const settings=measurePage();
+    drawStatus('Sto impaginando la lezione…');
+    try {
+      const PageFlip=await loadStPageFlip();
+      if (!active || disposed || ticket!==generation) return;
+      // KaTeX/images in the source have already been rendered by the lesson reader.
+      await Promise.race([
+        document.fonts?.ready || Promise.resolve(),
+        new Promise(resolve=>setTimeout(resolve,1100))
+      ]);
+      if (!active || disposed || ticket!==generation) return;
+      instance?.destroy?.();
+      instance=null;
+      stage.replaceChildren();
+      const fragments=document.createDocumentFragment();
+      const title=reader.querySelector('.reader-header .topic-title')?.textContent?.trim() || 'Lezione';
+      const subtitle=reader.querySelector('.reader-kicker')?.textContent?.replace(/\s+/g,' ').trim() || '';
+      const first=bookCover({...settings,title,subtitle});
+      fragments.appendChild(first);
+      const pages=paginateBook(reader,fragments,{...settings,label:title});
+      fragments.appendChild(bookCover({...settings,title,back:true}));
+      if (!active || disposed || ticket!==generation) return;
+      stage.appendChild(fragments);
+      const reduced=window.matchMedia?.('(prefers-reduced-motion:reduce)').matches;
+      const flip=new PageFlip(stage,{
+        width:settings.width,height:settings.height,
+        size:'fixed',showCover:true,usePortrait:true,autoSize:false,
+        drawShadow:true,maxShadowOpacity:.54,
+        flippingTime:reduced?100:820,
+        mobileScrollSupport:true,swipeDistance:24,
+        clickEventForward:true,disableFlipByClick:true,
+        startPage:Math.min(Math.max(0,saved),pages.length+1)
+      });
+      flip.on('flip',event=>{
+        currentPage=event.data;
+        drawButtons();
+      });
+      flip.on('changeOrientation',()=>drawButtons());
+      flip.loadFromHTML(stage.querySelectorAll('.book-paper'));
+      instance=flip;
+      drawStatus('');
+      drawButtons();
+    } catch(error) {
+      console.error('StPageFlip failed:',error);
+      if (active && !disposed && ticket===generation) {
+        active=false;
+        view.hidden=true;
+        reader.classList.remove('reader-book-active');
+        document.body.classList.remove('reading-book-mode');
+        instance?.destroy?.();
+        instance=null;
+        stage.replaceChildren();
+        onNotice(error.message+' Rimane disponibile la lettura continua.');
+      }
+    }
+  }
+
+  const scheduleRefresh=()=>{
+    if (!active || disposed) return;
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(()=>void rebuild(),320);
+  };
+
+  function onKeyDown(event) {
+    if (!active || disposed || !document.body.classList.contains('reading-focus-mode')) return;
+    if (event.altKey || event.ctrlKey || event.metaKey ||
+        event.target.closest?.('input,textarea,select,[contenteditable="true"]')) return;
+    if (event.key==='ArrowLeft' || event.key==='ArrowRight') {
+      event.preventDefault();
+      if (event.key==='ArrowLeft') instance?.flipPrev?.();
+      else instance?.flipNext?.();
+    }
+  }
+
+  function onViewClick(event) {
+    const answer=event.target.closest?.('[data-reveal]');
+    if (!answer) return;
+    const box=answer.closest('.checkpoint');
+    if (!box) return;
+    event.preventDefault();
+    box.classList.toggle('open');
+    answer.textContent=box.classList.contains('open')?'Nascondi risposta':'Mostra risposta';
+  }
+
+  const observer=typeof ResizeObserver!=='undefined'
+    ? new ResizeObserver(scheduleRefresh) : null;
+
+  prev?.addEventListener('click',()=>instance?.flipPrev?.());
+  next?.addEventListener('click',()=>instance?.flipNext?.());
+  view.addEventListener('click',onViewClick);
+  document.addEventListener('keydown',onKeyDown);
+  window.addEventListener('resize',scheduleRefresh);
+
+  return {
+    get active(){return active;},
+    get pages(){return getPageCount();},
+    get index(){return currentPage;},
+    async enable() {
+      if (disposed || active) return;
+      active=true;
+      view.hidden=false;
+      reader.classList.add('reader-book-active');
+      document.body.classList.add('reading-book-mode');
+      observer?.observe(reader);
+      currentPage=0;
+      await rebuild({preserve:false});
+    },
+    disable() {
+      if (!active) return;
+      active=false;
+      generation++;
+      clearTimeout(refreshTimer);
+      observer?.disconnect();
+      instance?.destroy?.();
+      instance=null;
+      stage.replaceChildren();
+      reader.classList.remove('reader-book-active');
+      document.body.classList.remove('reading-book-mode');
+      view.hidden=true;
+      drawStatus('');
+    },
+    refresh: scheduleRefresh,
+    destroy() {
+      if (disposed) return;
+      this.disable();
+      disposed=true;
+      observer?.disconnect();
+      document.removeEventListener('keydown',onKeyDown);
+      window.removeEventListener('resize',scheduleRefresh);
+      view.removeEventListener('click',onViewClick);
+    }
+  };
+}
