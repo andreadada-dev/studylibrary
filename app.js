@@ -330,29 +330,6 @@ async function renderMyCatalogs() {
   dropZone?.addEventListener('drop', event => importPersonalFiles([...event.dataTransfer.files]));
 }
 
-function renderPersonalCatalogTree(catalog) {
-  const ref = catalogRef(catalog);
-  const stats = catalogStats(catalog);
-  return '<article class="personal-catalog">' +
-    '<header class="personal-catalog-head">' +
-      '<div><span class="eyebrow">' + escapeHtml(catalog.visibility === 'private' ? 'Privato' : 'Pubblico') + '</span><h3>' + escapeHtml(catalog.title) + '</h3><p>' + escapeHtml(catalog.description || '') + '</p></div>' +
-      '<div class="personal-catalog-actions"><a href="#/catalog/' + encodeURIComponent(ref) + '">Apri</a><a href="#/catalog/' + encodeURIComponent(ref) + '/universe">Universo</a><button type="button" data-edit-personal="' + escapeHtml(ref) + '">Modifica</button></div>' +
-    '</header>' +
-    '<div class="personal-catalog-stats"><span>' + stats.libraries + ' librerie</span><span>' + stats.lessons + ' lezioni</span><span>' + stats.topics + ' argomenti</span><span>' + stats.media + ' media</span><span>v' + (catalog._db?.current_version || 1) + '</span><span>API ' + (catalog._db?.api_public ? 'pubblica' : 'privata') + '</span></div>' +
-    '<div class="personal-library-tree">' +
-      (catalog.libraries || []).map(library =>
-        '<section class="personal-library">' +
-          '<a class="personal-library-title" href="#/catalog/' + encodeURIComponent(ref) + '/library/' + encodeURIComponent(library.slug) + '"><i></i><strong>' + escapeHtml(library.title) + '</strong><span>' + (library.lessons?.length || 0) + ' lezioni</span></a>' +
-          '<div class="personal-lessons">' +
-            (library.lessons || []).map((lesson, index) =>
-              '<a href="' + lessonHref(catalog, library.slug, lesson.slug) + '"><span>' + String(index + 1).padStart(2, '0') + '</span><strong>' + escapeHtml(lesson.title) + '</strong><em>' + (lesson.topics?.length || 0) + ' argomenti</em></a>'
-            ).join('') +
-          '</div>' +
-        '</section>'
-      ).join('') +
-    '</div>' +
-  '</article>';
-}
 
 async function importPersonalFiles(files) {
   if (!state.user || !state.supabase) return toast('Accedi con Google per importare');
