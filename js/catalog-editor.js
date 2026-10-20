@@ -1,5 +1,12 @@
 import { mediaAssetId, detectMediaType, detectVideoProvider, videoThumbnailUrl } from './media.js';
 
+const SECTION_LABELS = {
+  lead:'Introduzione', concept:'Spiegazione', text:'Testo', example:'Esempio',
+  callout:'Nota importante', formula:'Formula', image:'Immagine', video:'Video',
+  gallery:'Galleria', embed:'Risorsa esterna', flow:'Procedimento',
+  comparison:'Confronto', list:'Elenco', checkpoint:'Domanda di verifica'
+};
+
 export function resolveEditorSelection(value, requested = {}) {
   const base = { type: 'catalog', li: null, lj: null, ti: null };
   if (!requested?.library) return base;
@@ -595,7 +602,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       html += '<article class="editor-section-card direct-section-card" data-section-card="' + i + '">' +
         '<div class="direct-section-toolbar">' +
           '<span class="section-drag-handle" draggable="true" data-section-drag="' + i + '" aria-label="Trascina la sezione" title="Trascina per riordinare">⋮⋮</span>' +
-          '<span class="direct-section-kind">' + esc(section.type || 'section') + '</span>' +
+          '<span class="direct-section-kind">' + esc(SECTION_LABELS[section.type] || section.type || 'Sezione') + '</span>' +
           '<span class="section-move-actions">' +
             '<button type="button" data-section-move="' + i + '" data-move-direction="-1" aria-label="Sposta sezione su" title="Sposta su"' + (i===0?' disabled':'') + '>↑</button>' +
             '<button type="button" data-section-move="' + i + '" data-move-direction="1" aria-label="Sposta sezione giù" title="Sposta giù"' + (i===list.length-1?' disabled':'') + '>↓</button>' +
@@ -604,7 +611,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
             '<label><span>Tipo</span><select data-section-type="' + i + '">';
 
       ['lead','concept','text','example','callout','formula','image','video','gallery','embed','flow','comparison','list','checkpoint'].forEach(type => {
-        html += '<option value="' + type + '"' + (section.type === type ? ' selected' : '') + '>' + type + '</option>';
+        html += '<option value="' + type + '"' + (section.type === type ? ' selected' : '') + '>' + esc(SECTION_LABELS[type] || type) + '</option>';
       });
 
       html += '</select></label><button class="editor-mini-danger" type="button" data-delete-section="' + i + '">Elimina sezione</button></div></details></div>';
@@ -926,12 +933,12 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       moveSection(from, from + Number(button.dataset.moveDirection));
     }));
     container.querySelectorAll('[data-section-drag]').forEach(handle => handle.addEventListener('dragstart', event => {
-      event.dataTransfer?.setData('text/plain', handle.dataset.sectionDrag);
+      event.dataTransfer?.setData('application/x-studylibrary-section', handle.dataset.sectionDrag);
       if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
     }));
     container.querySelectorAll('[data-section-card]').forEach(card => {
       card.addEventListener('dragover', event => {
-        if (![...event.dataTransfer?.types || []].includes('text/plain')) return;
+        if (![...(event.dataTransfer?.types || [])].includes('application/x-studylibrary-section')) return;
         event.preventDefault();
         card.classList.add('dragging-over');
       });
@@ -939,7 +946,9 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       card.addEventListener('drop', event => {
         event.preventDefault();
         card.classList.remove('dragging-over');
-        const from = Number(event.dataTransfer?.getData('text/plain'));
+        const rawIndex = event.dataTransfer?.getData('application/x-studylibrary-section');
+        if (!rawIndex) return;
+        const from = Number(rawIndex);
         const to = Number(card.dataset.sectionCard);
         moveSection(from, to);
       });
