@@ -6,6 +6,7 @@ import { renderUniverseGraph } from './js/graph.js';
 import { mountCatalogEditor } from './js/catalog-editor.js';
 import { applyUpdatePackage } from './js/update-package.js';
 import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
+import { mountTopicProgress, trackStudyVisit } from './js/progress.js';
 import { editorDraftKey, readEditorDraft, storeEditorDraft, clearEditorDraft, createEditorHistory } from './js/editor-drafts.js';
 import { renderHomeSavedSection, renderSavedPage, mountSaveControls, refreshTopSavedActions } from './js/saved.js';
 
@@ -1041,7 +1042,6 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
 
   const minutes = lesson.estimatedMinutes || ordered.reduce((sum, item) => sum + (item.estimatedMinutes || 0), 0);
   const currentIndex = Math.max(0, ordered.findIndex(item => item.id === topic.id));
-  const progress = ordered.length ? Math.round(((currentIndex + 1) / ordered.length) * 100) : 0;
   const universe = lessonHref(catalog, library.slug, lesson.slug) + '/universe';
 
   app.innerHTML =
@@ -1052,7 +1052,7 @@ async function renderLesson(catalogSlug, librarySlug, lessonSlug, topicId = null
           '<span class="eyebrow">Lezione</span>' +
           '<h1>' + escapeHtml(lesson.title) + '</h1>' +
           '<p class="summary">' + escapeHtml(lesson.description || '') + '</p>' +
-          '<div class="progress-track" aria-label="Avanzamento nella lezione"><span style="--progress:' + progress + '%"></span></div>' +
+          '<div class="progress-track" aria-label="Argomenti completati" hidden><span style="--progress:0%"></span></div>' +
           (canEditCatalog(catalog) ? '<div class="lesson-editor-actions">' +
             '<a class="button secondary" href="' + studioHref(catalog, library, lesson, topic) + '">Modifica questo argomento</a>' +
             '<a class="button secondary" href="' + studioHref(catalog, library, lesson) + '">Modifica lezione</a>' +
