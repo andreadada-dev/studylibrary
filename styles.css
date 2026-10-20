@@ -5118,3 +5118,110 @@ body.universe-mode .universe-legend-hint {
     transition:none;
   }
 }
+
+
+/* Full-depth search: open the matching topic rather than only its containing folder. */
+.study-search-results {
+  margin-top:24px;
+  max-width:850px;
+  padding:15px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:16px;
+}
+.study-search-results[hidden] { display:none; }
+.study-search-list { display:grid; gap:3px; margin-top:12px; }
+.study-search-list a {
+  display:flex;
+  align-items:center;
+  gap:13px;
+  min-width:0;
+  padding:10px 8px;
+  border-radius:10px;
+}
+.study-search-list a:hover,
+.study-search-list a:focus-visible { background:var(--accent-soft); }
+.study-search-type {
+  display:inline-grid;
+  place-items:center;
+  min-width:72px;
+  min-height:27px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  font-size:10px;
+  color:var(--muted);
+  font-weight:730;
+}
+.study-search-list a > span:nth-child(2) {
+  display:grid;
+  gap:4px;
+  min-width:0;
+  flex:1;
+}
+.study-search-list strong {
+  font-size:13px;
+  font-weight:730;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.study-search-list small { font-size:11px; color:var(--muted); }
+.study-search-list em {
+  font-size:11px;
+  font-style:normal;
+  font-weight:720;
+  color:var(--accent);
+}
+
+/* Block-based visual editor: draggable desktop handles and accessible arrows for touch/keyboard. */
+.direct-section-toolbar { gap:8px; }
+.section-drag-handle {
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:30px;
+  flex:0 0 28px;
+  border-radius:8px;
+  cursor:grab;
+  color:var(--muted);
+  letter-spacing:-.14em;
+  font-size:18px;
+  user-select:none;
+}
+.section-drag-handle:hover { background:var(--accent-soft); color:var(--accent); }
+.section-drag-handle:active { cursor:grabbing; }
+.section-move-actions {
+  display:inline-flex;
+  gap:3px;
+  margin-left:auto;
+}
+.section-move-actions button {
+  display:grid;
+  place-items:center;
+  min-width:32px;
+  min-height:32px;
+  border:1px solid transparent;
+  border-radius:8px;
+  background:transparent;
+  color:var(--muted);
+  cursor:pointer;
+  font-size:15px;
+}
+.section-move-actions button:hover:not(:disabled),
+.section-move-actions button:focus-visible {
+  color:var(--accent);
+  background:var(--accent-soft);
+  border-color:var(--line);
+}
+.section-move-actions button:disabled { opacity:.25; cursor:default; }
+.direct-section-card.dragging-over {
+  outline:2px dashed var(--accent);
+  outline-offset:3px;
+  background:var(--accent-soft);
+}
+@media (max-width:720px) {
+  .section-drag-handle { display:none; }
+  .section-move-actions button { min-width:43px; min-height:43px; }
+  .study-search-type { min-width:60px; }
+  .study-search-list a { gap:9px; }
+}
