@@ -537,3 +537,43 @@ body.reading-focus-mode .page {
   .editor-block-options button,
   .catalog-tree-row { transition:none; }
 }
+
+
+/* Reorder personal catalog folders independently of their open/edit actions. */
+.personal-order-actions {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  margin:3px 0 0;
+}
+.personal-order-actions button,
+.personal-order-actions [data-personal-drag] {
+  display:grid;
+  place-items:center;
+  width:34px;
+  height:33px;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--paper);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:14px;
+}
+.personal-order-actions [data-personal-drag] { cursor:grab; }
+.personal-order-actions button:hover,
+.personal-order-actions button:focus-visible,
+.personal-order-actions [data-personal-drag]:hover {
+  background:var(--accent-soft);
+  color:var(--accent);
+  border-color:var(--accent);
+}
+.personal-folder-tile.dragging-over {
+  outline:2px dashed var(--accent);
+  outline-offset:4px;
+  border-radius:12px;
+}
+@media (max-width:720px) {
+  .personal-order-actions button { width:44px; height:44px; }
+  .personal-order-actions [data-personal-drag] { display:none; }
+}
