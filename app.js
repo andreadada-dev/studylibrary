@@ -1347,6 +1347,11 @@ async function renderStudio(options = {}) {
         if (!prepared) return;
 
         const { target, candidate } = prepared;
+        if (editingCatalog && target._db?.id !== editingCatalog._db?.id) {
+          throw new Error('Questo JSON aggiorna un altro catalogo. Importalo da “I miei cataloghi”.');
+        }
+        editingCatalog = target;
+        loadedVersion = target._db?.current_version || null;
         draft = candidate;
         state.activeCatalog = target;
         pendingUpdate = {
