@@ -1,0 +1,43 @@
+name: Visual and mobile smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'js/**'
+      - 'styles.css'
+      - 'styles-study.css'
+      - 'e2e/**'
+      - 'playwright.config.mjs'
+      - '.github/workflows/visual-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test runner
+        run: npm install --no-save @playwright/test@1.56.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test desktop and mobile breakpoints
+        run: npx playwright test
+      - name: Upload screenshots, traces and HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-${{ github.run_number }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
