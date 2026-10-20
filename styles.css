@@ -4483,26 +4483,32 @@ body.universe-mode .universe-legend-hint {
 }
 
 
-/* Library folders reuse the catalog folder language */
-.library-folder-grid {
+/* Library and lesson folders reuse the catalog folder language */
+.library-folder-grid,
+.lesson-folder-grid {
   margin-top: 4px;
 }
-.library-folder-card .catalog-folder-caption p span:first-child {
+.library-folder-card .catalog-folder-caption p span:first-child,
+.lesson-folder-card .catalog-folder-caption p span:first-child {
   display:inline;
 }
-.library-folder-card .catalog-folder-caption p span:nth-child(2)::before {
+.library-folder-card .catalog-folder-caption p span:nth-child(2)::before,
+.lesson-folder-card .catalog-folder-caption p span:nth-child(2)::before {
   content:"·";
   margin-right:7px;
   color:var(--line-strong);
 }
 @media (max-width:620px) {
-  .library-folder-grid {
+  .library-folder-grid,
+  .lesson-folder-grid {
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
-  .library-folder-card .catalog-folder-caption p span:first-child {
+  .library-folder-card .catalog-folder-caption p span:first-child,
+  .lesson-folder-card .catalog-folder-caption p span:first-child {
     display:inline;
   }
-  .library-folder-card .catalog-folder-caption p span:nth-child(2)::before {
+  .library-folder-card .catalog-folder-caption p span:nth-child(2)::before,
+  .lesson-folder-card .catalog-folder-caption p span:nth-child(2)::before {
     display:inline;
   }
 }
