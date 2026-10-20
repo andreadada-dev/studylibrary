@@ -4880,3 +4880,49 @@ body.universe-mode .universe-legend-hint {
   .studio-save-feedback { text-align:left; }
   .studio-tool-content { justify-content:flex-start; }
 }
+
+
+/* Short, nontechnical onboarding alongside the visual editor */
+.studio-quickstart {
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px 18px;
+  margin-bottom:18px;
+}
+.studio-quickstart > strong {
+  color:var(--ink);
+  font-size:13px;
+}
+.studio-quickstart ol {
+  margin:12px 0 0;
+  padding-left:21px;
+  display:grid;
+  gap:10px;
+}
+.studio-quickstart li {
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.55;
+}
+.studio-quickstart li::marker {
+  color:var(--accent);
+  font-weight:800;
+}
+.studio-quickstart b {
+  color:var(--ink);
+  font-weight:750;
+}
+.studio-guide-advanced {
+  margin-top:16px;
+  color:var(--muted);
+}
+.studio-guide-advanced summary {
+  cursor:pointer;
+  font-size:11px;
+  font-weight:750;
+  padding:8px 0;
+}
+.studio-guide-advanced[open] .schema-list {
+  margin-top:10px;
+}
