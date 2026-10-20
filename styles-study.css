@@ -297,73 +297,240 @@
 }
 
 
-/* Optional focus reader and accessible text scaling. */
+/* Reader: minimal controls, typography settings, immersive focus layout. */
+.reader { --reader-text-size: 18px; }
 .reader-view-controls {
+  position:relative;
+  z-index:15;
   display:flex;
-  justify-content:flex-end;
   align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-  padding:8px 0 20px;
-  margin-bottom:16px;
+  justify-content:flex-end;
+  min-height:48px;
+  margin:0 0 28px;
+  padding:0 0 12px;
   border-bottom:1px solid var(--line);
 }
-.reader-view-controls button {
-  min-height:40px;
-  padding:8px 12px;
-  border:1px solid var(--line);
-  border-radius:10px;
-  background:var(--paper);
+.reader-toolbar-actions { display:flex; align-items:center; gap:6px; }
+.reader-focus-context { display:none; }
+.reader-view-controls .reader-control {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  height:36px;
+  min-height:36px;
+  padding:0 12px;
+  border:1px solid transparent;
+  border-radius:999px;
+  background:transparent;
   color:var(--muted);
-  cursor:pointer;
   font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background .16s ease,color .16s ease,border-color .16s ease;
+}
+.reader-view-controls .reader-control svg { flex:0 0 auto; }
+.reader-view-controls .reader-control:hover,
+.reader-view-controls .reader-control:focus-visible {
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+.reader-view-controls .reader-control:focus-visible,
+.reader-size-stepper button:focus-visible,
+.reader-size-reset:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+.reader-view-controls .reader-type-toggle {
+  width:38px;
+  padding:0;
+  border:1px solid var(--line);
+  background:var(--paper);
+  color:var(--ink);
+  font-size:14px;
   font-weight:750;
+  letter-spacing:-.025em;
 }
-.reader-view-controls button:hover,
-.reader-view-controls button:focus-visible {
-  color:var(--accent);
+.reader-view-controls .reader-type-toggle[aria-expanded="true"] {
   background:var(--accent-soft);
   border-color:var(--accent);
-}
-.reader-view-controls [data-reader-focus][aria-pressed="true"] {
   color:var(--accent);
-  border-color:var(--accent);
-  background:var(--accent-soft);
 }
-.reader-zoom-controls { display:inline-flex; gap:4px; }
+.reader-text-settings { position:relative; }
+.reader-type-panel {
+  position:absolute;
+  top:calc(100% + 10px);
+  right:0;
+  width:218px;
+  padding:16px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:0 18px 52px rgba(20,21,42,.15);
+  z-index:40;
+}
+.reader-type-panel[hidden] { display:none; }
+.reader-type-heading {
+  display:block;
+  margin-bottom:12px;
+  color:var(--ink);
+  font-size:12px;
+  font-weight:730;
+}
+.reader-size-stepper {
+  display:grid;
+  grid-template-columns:38px 1fr 38px;
+  align-items:center;
+  gap:5px;
+  padding:4px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  text-align:center;
+}
+.reader-size-stepper button {
+  width:38px;
+  height:38px;
+  border:0;
+  border-radius:8px;
+  background:var(--bg);
+  color:var(--ink);
+  font-size:20px;
+  cursor:pointer;
+}
+.reader-size-stepper button:hover:not(:disabled) { background:var(--accent-soft); color:var(--accent); }
+.reader-size-stepper button:disabled { opacity:.25; cursor:default; }
+.reader-size-stepper [data-reader-size-label] { font-size:12px; font-weight:700; color:var(--muted); }
+.reader-size-reset {
+  margin:11px 0 0;
+  padding:5px 0 0;
+  border:0;
+  background:transparent;
+  color:var(--accent);
+  font-size:11px;
+  font-weight:700;
+  cursor:pointer;
+}
+.reader .lesson-section p,
+.reader .lesson-section li {
+  font-size:var(--reader-text-size);
+}
+.reader .lesson-lead p { font-size:calc(var(--reader-text-size) + 2px); }
+.reader .topic-summary { font-size:calc(var(--reader-text-size) + 2px); }
+
+/* Focus: an actual standalone reading canvas, not just hidden navigation. */
+body.reading-focus-mode {
+  background:#f1f0ec;
+}
 body.reading-focus-mode .topbar,
 body.reading-focus-mode .site-footer,
 body.reading-focus-mode .course-hero,
-body.reading-focus-mode .topic-rail {
+body.reading-focus-mode .topic-rail,
+body.reading-focus-mode .reader-kicker,
+body.reading-focus-mode .topic-progress-actions,
+body.reading-focus-mode .reader #discussion-root,
+body.reading-focus-mode .reader .topic-connections,
+body.reading-focus-mode .reader .topic-sources {
   display:none !important;
+}
+body.reading-focus-mode #app {
+  min-height:100vh;
+  background:#f1f0ec;
+}
+body.reading-focus-mode #app .page {
+  width:min(100% - 32px, 960px);
+  max-width:960px;
+  padding:20px 0 100px;
 }
 body.reading-focus-mode .course-layout {
   display:block;
-  width:min(100%,860px);
-  max-width:860px;
-  margin:0 auto;
-}
-body.reading-focus-mode .course-layout .reader {
   width:100%;
+  max-width:initial;
+  margin:0;
+  padding:0;
+}
+body.reading-focus-mode .course-layout > .reader {
+  width:100%;
+  max-width:820px;
   min-width:0;
-  max-width:none;
+  margin:0 auto;
+  padding:0 clamp(26px,7vw,85px) 72px;
+  background:#fff;
+  border:1px solid rgba(31,31,37,.045);
+  border-radius:20px;
+  box-shadow:0 22px 70px rgba(35,35,43,.055);
 }
 body.reading-focus-mode .reader-view-controls {
   position:sticky;
-  z-index:12;
+  z-index:30;
   top:0;
-  background:var(--bg);
+  min-height:66px;
+  margin:0 0 55px;
   padding:12px 0;
+  border-bottom:1px solid #eae8e2;
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(14px);
+  justify-content:space-between;
 }
-body.reading-focus-mode .page {
-  padding-top:26px;
+body.reading-focus-mode .reader-focus-context {
+  display:block;
+  color:#97968e;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.12em;
 }
+body.reading-focus-mode .reader-view-controls [data-reader-focus] {
+  color:var(--accent);
+  background:var(--accent-soft);
+}
+body.reading-focus-mode .reader-header { margin-bottom:58px; }
+body.reading-focus-mode .reader h2.topic-title {
+  margin:8px 0 20px;
+  font-size:clamp(32px,4.2vw,54px);
+  line-height:1.14;
+  letter-spacing:-.048em;
+}
+body.reading-focus-mode .reader .topic-summary {
+  color:#686760;
+  line-height:1.8;
+}
+body.reading-focus-mode .reader .learning-goals { margin-top:34px; }
+body.reading-focus-mode .reader .lesson-section { margin-bottom:55px; }
+body.reading-focus-mode .reader .lesson-section p,
+body.reading-focus-mode .reader .lesson-section li {
+  color:#2a2a2a;
+  line-height:1.9;
+  letter-spacing:.003em;
+}
+body.reading-focus-mode .reader .lesson-section h3 { margin:0 0 20px; font-size:24px; }
+body.reading-focus-mode .reader .lesson-section h4 { margin:0 0 16px; }
+body.reading-focus-mode .reader .callout { border-radius:12px; }
+body.reading-focus-mode .reader .lesson-nav { margin-top:70px; border-top:1px solid #eceae7; padding-top:25px; }
 @media (max-width:720px) {
-  .reader-view-controls { justify-content:space-between; gap:7px; }
-  .reader-view-controls button { min-height:44px; }
-  body.reading-focus-mode .page { padding-top:12px; }
+  .reader-view-controls { margin-bottom:20px; }
+  .reader-view-controls .reader-control { min-height:42px; height:42px; }
+  .reader-view-controls .reader-type-toggle { width:42px; }
+  .reader-type-panel { right:0; }
+  body.reading-focus-mode #app .page { width:100%; padding:0 0 55px; }
+  body.reading-focus-mode .course-layout > .reader {
+    max-width:100%;
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+    padding:0 24px 65px;
+  }
+  body.reading-focus-mode .reader-view-controls { margin-bottom:34px; }
+  body.reading-focus-mode .reader-focus-context { font-size:9px; letter-spacing:.07em; }
+  body.reading-focus-mode .reader h2.topic-title { font-size:clamp(32px,8vw,44px); }
 }
-
+@media (max-width:380px) {
+  body.reading-focus-mode .course-layout > .reader { padding-inline:18px; }
+  body.reading-focus-mode .reader-focus-context { display:none; }
+  body.reading-focus-mode .reader-view-controls { justify-content:flex-end; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .reader-view-controls .reader-control { transition:none; }
+}
 
 /* Visual-editor section palette, folder ordering and live reader preview. */
 .catalog-tree-row {
