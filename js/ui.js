@@ -265,6 +265,27 @@ export function renderSection(section, context = null) {
   }
 }
 
+export function renderStudyMath(root) {
+  if (!root) return;
+  if (window.katex) {
+    root.querySelectorAll('.formula .math').forEach(node=>{
+      if (node.querySelector('.katex')) return;
+      try { window.katex.render(node.textContent,node,{throwOnError:false,displayMode:true}); }
+      catch(error) { console.warn('Formula non renderizzabile',error); }
+    });
+  }
+  if (window.renderMathInElement) {
+    const dollar=String.fromCharCode(36);
+    window.renderMathInElement(root,{
+      delimiters:[
+        {left:dollar+dollar,right:dollar+dollar,display:true},
+        {left:dollar,right:dollar,display:false}
+      ],
+      throwOnError:false
+    });
+  }
+}
+
 export function wireReaderInteractions() {
   const reader = document.querySelector('.reader');
   if (reader) {
@@ -308,15 +329,7 @@ export function wireReaderInteractions() {
     }, { once: true });
   });
 
-  if (window.renderMathInElement) {
-    window.renderMathInElement(document.querySelector('.reader') || document.body, {
-      delimiters: [
-        {left: '$$', right: '$$', display: true},
-        {left: '$', right: '$', display: false}
-      ],
-      throwOnError: false
-    });
-  }
+  renderStudyMath(document.querySelector('.reader') || document.body);
 }
 
 export async function renderDiscussion(targetKind, targetKey, rootId = 'discussion-root') {
