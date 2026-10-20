@@ -197,9 +197,15 @@ function canEditCatalog(catalog) {
 
 function personalCatalogTile(catalog) {
   const href = studioHref(catalog);
-  return '<article class="personal-folder-tile">' + catalogCard(catalog) +
+  return '<article class="personal-folder-tile" data-personal-catalog="' + escapeHtml(catalog._db?.id || catalogRef(catalog)) + '">' +
+    catalogCard(catalog) +
     '<a class="personal-folder-edit" href="' + href + '" aria-label="Modifica ' +
-      escapeHtml(catalog.title) + '">Modifica catalogo →</a></article>';
+      escapeHtml(catalog.title) + '">Modifica catalogo →</a>' +
+    '<div class="personal-order-actions" aria-label="Ordine dei cataloghi">' +
+      '<span draggable="true" data-personal-drag title="Trascina per riordinare" aria-label="Trascina ' + escapeHtml(catalog.title) + '">⋮⋮</span>' +
+      '<button type="button" data-personal-move="-1" aria-label="Sposta ' + escapeHtml(catalog.title) + ' a sinistra">←</button>' +
+      '<button type="button" data-personal-move="1" aria-label="Sposta ' + escapeHtml(catalog.title) + ' a destra">→</button>' +
+    '</div></article>';
 }
 
 function setActiveNav(routeName, universeMode = false) {
@@ -318,6 +324,24 @@ async function renderMyCatalogs() {
   }
 
   const canManage = Boolean(state.user && state.supabase);
+  const orderStorageKey = 'studylibrary:catalog-order:' + (state.user?.id || 'anon');
+  if (canManage) {
+    let order = [];
+    try { order = JSON.parse(localStorage.getItem(orderStorageKey) || '[]'); } catch {}
+    try {
+      const result = await state.supabase.from('study_catalog_order')
+        .select('catalog_id,position').eq('user_id',state.user.id).order('position',{ascending:true});
+      if (!result.error && result.data?.length) order = result.data.map(row=>row.catalog_id);
+    } catch (err) { console.warn('Personal order fallback to local device',err); }
+    if (Array.isArray(order) && order.length) {
+      const positions = new Map(order.map((id,index)=>[id,index]));
+      const stableIndex = new Map(catalogs.map((item,index)=>[item._db?.id,index]));
+      catalogs.sort((a,b)=>
+        (positions.get(a._db?.id) ?? Number.MAX_SAFE_INTEGER) -
+        (positions.get(b._db?.id) ?? Number.MAX_SAFE_INTEGER) ||
+        (stableIndex.get(a._db?.id) ?? 0) - (stableIndex.get(b._db?.id) ?? 0));
+    }
+  }
   app.innerHTML =
     '<div class="page">' +
       '<section class="collection-hero personal-hero">' +
@@ -351,6 +375,58 @@ async function renderMyCatalogs() {
     '</div>';
 
   if (!canManage) return;
+  const catalogGrid = app.querySelector('.personal-folder-grid');
+  const allTiles = () => [...(catalogGrid?.querySelectorAll('[data-personal-catalog]') || [])];
+  const persistCatalogOrder = async () => {
+    const ids = allTiles().map(tile=>tile.dataset.personalCatalog);
+    try { localStorage.setItem(orderStorageKey,JSON.stringify(ids)); } catch {}
+    try {
+      const rows=ids.map((id,position)=>({user_id:state.user.id,catalog_id:id,position}));
+      const {error}=await state.supabase.from('study_catalog_order')
+        .upsert(rows,{onConflict:'user_id,catalog_id'});
+      if (error) throw error;
+    } catch(error) {
+      console.warn('Order synced only on this device until migration is deployed',error);
+    }
+  };
+  const movePersonalCatalog = (from,to) => {
+    const tiles = allTiles();
+    if (from<0 || to<0 || from>=tiles.length || to>=tiles.length || from===to) return;
+    const target=tiles[to];
+    const moving=tiles[from];
+    if (from<to) target.after(moving);
+    else target.before(moving);
+    void persistCatalogOrder();
+  };
+  catalogGrid?.querySelectorAll('[data-personal-move]').forEach(button=>
+    button.addEventListener('click',()=>{
+      const tile=button.closest('[data-personal-catalog]');
+      movePersonalCatalog(allTiles().indexOf(tile),
+        allTiles().indexOf(tile)+Number(button.dataset.personalMove));
+    }));
+  catalogGrid?.querySelectorAll('[data-personal-drag]').forEach(handle=>
+    handle.addEventListener('dragstart',event=>{
+      event.dataTransfer?.setData('application/x-studylibrary-catalog',
+        handle.closest('[data-personal-catalog]')?.dataset.personalCatalog || '');
+      if(event.dataTransfer) event.dataTransfer.effectAllowed='move';
+    }));
+  catalogGrid?.querySelectorAll('[data-personal-catalog]').forEach(tile=>{
+    tile.addEventListener('dragover',event=>{
+      if (![...(event.dataTransfer?.types || [])].includes('application/x-studylibrary-catalog')) return;
+      event.preventDefault();
+      tile.classList.add('dragging-over');
+    });
+    tile.addEventListener('dragleave',()=>tile.classList.remove('dragging-over'));
+    tile.addEventListener('drop',event=>{
+      const id=event.dataTransfer?.getData('application/x-studylibrary-catalog');
+      tile.classList.remove('dragging-over');
+      if(!id)return;
+      event.preventDefault();event.stopPropagation();
+      movePersonalCatalog(allTiles().findIndex(item=>item.dataset.personalCatalog===id),
+        allTiles().indexOf(tile));
+    });
+  });
+
   const dropZone = app.querySelector('[data-json-drop]');
   const fileInput = app.querySelector('[data-json-file]');
   app.querySelector('[data-json-browse]')?.addEventListener('click', () => fileInput?.click());
