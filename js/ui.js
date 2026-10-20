@@ -505,9 +505,26 @@ export function catalogCard(catalog) {
 export function libraryCard(catalog, library) {
   const lessonCount = library.lessons?.length || 0;
   const topicCount = (library.lessons || []).reduce((sum, lesson) => sum + (lesson.topics?.length || 0), 0);
-  return '<a class="library-row" href="#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '/library/' + encodeURIComponent(library.slug) + '">' +
-    '<div><span class="eyebrow">Libreria</span><h3>' + escapeHtml(library.title) + '</h3><p>' + escapeHtml(library.description || '') + '</p></div>' +
-    '<div class="library-row-meta"><strong>' + lessonCount + '</strong><span>lezioni</span><strong>' + topicCount + '</strong><span>argomenti</span><span class="library-row-arrow">→</span></div>' +
+  const previews = (library.lessons || []).slice(0, 5).map((lesson, index) => ({
+    title: lesson.title || ('Lezione ' + (index + 1)),
+    library: library.title || '',
+    image: lessonPreviewImage(catalog, lesson)
+  }));
+  const accent = safeColor(library.accent || catalog.accent);
+  const href = '#/catalog/' + encodeURIComponent(catalogRef(catalog)) + '/library/' + encodeURIComponent(library.slug);
+
+  return '<a class="catalog-folder-card library-folder-card" href="' + href + '" style="--folder-accent:' + accent + '" aria-label="Apri la libreria ' + escapeHtml(library.title) + '">' +
+    '<div class="catalog-folder-visual" aria-hidden="true">' +
+      '<div class="catalog-folder-back"></div>' +
+      '<div class="catalog-folder-preview-stack">' +
+        previews.map(catalogPreviewCard).join('') +
+      '</div>' +
+      '<div class="catalog-folder-front"></div>' +
+    '</div>' +
+    '<div class="catalog-folder-caption">' +
+      '<h3>' + escapeHtml(library.title) + '</h3>' +
+      '<p><span>' + lessonCount + ' lezioni</span><span>' + topicCount + ' argomenti</span></p>' +
+    '</div>' +
   '</a>';
 }
 
