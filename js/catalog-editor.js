@@ -993,7 +993,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       const button = container.querySelector('[data-upload-trigger="' + attach + '"]');
       if (button) button.disabled = true;
       try {
-        const result = await options.onUpload(file);
+        const result = await options.onUpload(file, attach);
         if (result.kind === 'image') {
           catalog.media ||= [];
           const id = mediaAssetId('image',result.url);
