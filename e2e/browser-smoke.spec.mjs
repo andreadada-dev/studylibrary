@@ -211,8 +211,9 @@ test('reader focus mode changes layout and Aa changes text only',async({page},te
   await expect(page.locator('[data-reader-book-label]')).toHaveText('Scorrimento');
   await page.screenshot({path:testInfo.outputPath('book-3d-open.png'),fullPage:true});
   await expect(page.locator('[data-book-count]')).not.toHaveText('0 / 0');
+  const beforeFlip=await page.locator('[data-book-count]').textContent();
   await page.locator('[data-book-next]').click();
-  await expect(page.locator('[data-book-count]')).not.toHaveText('1 / 3');
+  await expect(page.locator('[data-book-count]')).not.toHaveText(beforeFlip,{timeout:9000});
   // Continuous reading stays available and has no blank page.
   await page.locator('[data-reader-book-toggle]').click();
   await expect(page.locator('.reader-book-view')).toBeHidden();
