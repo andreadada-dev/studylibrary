@@ -156,7 +156,7 @@ export async function saveCatalog(catalog, publish = false, versionMessage = '')
 // Atomic, owner-authorized compare-and-swap for AI update packages.
 // The small client package is merged locally, then the validated catalog snapshot is
 // committed by the existing server-side RPC only when baseVersion still matches.
-export async function writeCatalogVersioned(catalogId, baseVersion, catalog, message = '') {
+export async function writeCatalogVersioned(catalogId, baseVersion, catalog, message = '', publish = null) {
   if (!state.supabase || !state.user) throw new Error('Accedi per aggiornare il catalogo');
   if (!catalogId || !Number.isInteger(baseVersion) || baseVersion < 1) {
     throw new Error('Catalogo e versione di partenza sono obbligatori');
@@ -167,7 +167,7 @@ export async function writeCatalogVersioned(catalogId, baseVersion, catalog, mes
     p_base_version: baseVersion,
     p_message: String(message || 'Aggiornamento incrementale').slice(0, 240),
     p_catalog: cleanCatalog,
-    p_publish: null,
+    p_publish: publish,
     p_api_public: null
   });
   if (error) {
