@@ -33,14 +33,16 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
   render();
 
+  function getSelection() {
+    const library = catalog.libraries?.[selection.li];
+    const lesson = library?.lessons?.[selection.lj];
+    const topic = lesson?.topics?.[selection.ti];
+    return { library: library?.slug || null, lesson: lesson?.slug || null, topic: topic?.id || null };
+  }
+
   return {
     getCatalog: () => structuredClone(catalog),
-    getSelection() {
-      const library = catalog.libraries?.[selection.li];
-      const lesson = library?.lessons?.[selection.lj];
-      const topic = lesson?.topics?.[selection.ti];
-      return { library: library?.slug || null, lesson: lesson?.slug || null, topic: topic?.id || null };
-    },
+    getSelection,
     setCatalog(next) {
       catalog = structuredClone(next);
       selection = { type: 'catalog', li: null, lj: null, ti: null };
