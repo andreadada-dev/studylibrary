@@ -1,4 +1,5 @@
 import { mediaAssetId, detectMediaType, detectVideoProvider, videoThumbnailUrl } from './media.js';
+import { STUDY_BLOCK_TYPES, studyBlockTemplate } from './editor-blocks.js';
 
 const SECTION_LABELS = {
   lead:'Introduzione', concept:'Spiegazione', text:'Testo', example:'Esempio',
@@ -74,6 +75,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
           '<div class="catalog-tree-scroll">' + renderTree() + '</div>' +
         '</aside>' +
         '<section class="catalog-editor-panel">' + renderPanel() + '</section>' +
+        '<input type="file" data-upload-file accept=".jpg,.jpeg,.png,.webp,.gif,.avif,.pdf,image/jpeg,image/png,image/webp,image/gif,image/avif,application/pdf" hidden>' +
       '</div>';
     bind();
     requestAnimationFrame(initEditors);
@@ -94,11 +96,29 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
   }
 
   function treeButton(type, li, lj, ti, label, dot, active, level) {
-    return '<button class="catalog-tree-item level-' + level + (active ? ' active' : '') + '" type="button" data-select="' + type + '"' +
+    const parent = type === 'library' ? catalog.libraries
+      : type === 'lesson' ? (catalog.libraries[li]?.lessons || []) : null;
+    const idx = type === 'library' ? li : lj;
+    const controls = parent ?
+      '<span class="tree-order-actions">' +
+        '<span draggable="true" tabindex="0" role="button" data-tree-drag="' + type + '" data-li="' + li + '"' +
+          (type === 'lesson' ? ' data-lj="' + lj + '"' : '') +
+          ' aria-label="Trascina ' + esc(label) + '" title="Trascina per riordinare">⋮⋮</span>' +
+        '<button type="button" data-tree-move="' + type + '" data-li="' + li + '"' +
+          (type === 'lesson' ? ' data-lj="' + lj + '"' : '') +
+          ' data-direction="-1" aria-label="Sposta ' + esc(label) + ' su"' + (idx === 0?' disabled':'') + '>↑</button>' +
+        '<button type="button" data-tree-move="' + type + '" data-li="' + li + '"' +
+          (type === 'lesson' ? ' data-lj="' + lj + '"' : '') +
+          ' data-direction="1" aria-label="Sposta ' + esc(label) + ' giù"' + (idx===parent.length-1?' disabled':'') + '>↓</button>' +
+      '</span>' : '';
+    return '<div class="catalog-tree-row" data-tree-row="' + type + '" data-li="' + li + '"' +
+      (type==='lesson' ? ' data-lj="' + lj + '"' : '') + '>' +
+      '<button class="catalog-tree-item level-' + level + (active ? ' active' : '') + '" type="button" data-select="' + type + '"' +
       (li === null ? '' : ' data-li="' + li + '"') +
       (lj === null ? '' : ' data-lj="' + lj + '"') +
       (ti === null ? '' : ' data-ti="' + ti + '"') +
-      '><span class="tree-dot ' + dot + '"></span><span>' + esc(label) + '</span></button>';
+      '><span class="tree-dot ' + dot + '"></span><span>' + esc(label) + '</span></button>' +
+      controls + '</div>';
   }
 
   function renderPanel() {
@@ -110,7 +130,8 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     if (selection.type === 'catalog') add = '<button class="button secondary" type="button" data-add-library>＋ Libreria</button>';
     if (selection.type === 'library') add = '<button class="button secondary" type="button" data-add-lesson>＋ Lezione</button>';
     if (selection.type === 'lesson') add = '<button class="button secondary" type="button" data-add-topic>＋ Argomento</button>';
-    if (selection.type === 'topic') add = '<button class="button secondary" type="button" data-add-section>＋ Sezione</button>';
+    if (selection.type === 'topic') add = '<button class="button secondary" type="button" data-add-section aria-expanded="false">＋ Blocco</button>' +
+      (options.onUpload ? '<button class="button secondary" type="button" data-upload-trigger="topic">Carica immagine / PDF</button>' : '');
     const del = selection.type === 'catalog' ? '' : '<button class="button danger ghost" type="button" data-delete-selected>Elimina</button>';
 
     return '<header class="catalog-editor-panel-head direct-editor-head">' +
@@ -121,6 +142,11 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         '</div>' +
         '<div class="toolbar-actions">' + add + del + '</div>' +
       '</header>' +
+      (selection.type === 'topic' ? '<div class="editor-block-palette" data-block-palette hidden>' +
+        '<strong>Che cosa vuoi aggiungere?</strong><div class="editor-block-options">' +
+        STUDY_BLOCK_TYPES.map(block => '<button type="button" data-add-block="' + block.type + '">' +
+          '<b>' + esc(block.label) + '</b><small>' + esc(block.description) + '</small></button>').join('') +
+        '</div></div>' : '') +
       '<div class="direct-editor-body">' + fields(item) + '</div>';
   }
 
@@ -283,7 +309,9 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       '<div class="compact-collection-head media-collection-head">' +
         '<div class="media-collection-copy"><span class="eyebrow">Media</span><h3>Libreria media</h3><p>Aggiungi immagini e video con una procedura guidata. Nessun elemento vuoto viene creato.</p></div>' +
         '<div class="media-collection-controls">' +
-          '<div class="media-library-actions"><button class="button secondary compact-add-button" type="button" data-add-media="image">＋ Immagine</button><button class="button secondary compact-add-button" type="button" data-add-media="video">＋ Video</button></div>' +
+          '<div class="media-library-actions"><button class="button secondary compact-add-button" type="button" data-add-media="image">＋ Immagine da URL</button><button class="button secondary compact-add-button" type="button" data-add-media="video">＋ Video</button>' +
+            (options.onUpload ? '<button class="button accent compact-add-button" type="button" data-upload-trigger="catalog">Carica dal dispositivo</button>' : '') +
+          '</div><p class="demo-note">I file caricati hanno un URL pubblico: non caricare materiali riservati.</p>' +
           '<div class="media-inline-wizard-slot" data-media-wizard-slot aria-live="polite"></div>' +
         '</div>' +
       '</div>' +
@@ -688,6 +716,50 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       else openDisclosures.delete(key);
     }));
 
+    function moveTreeItem(type, li, lj, directionOrTarget, isDrop = false) {
+      const list = type==='library' ? catalog.libraries
+        : type==='lesson' ? catalog.libraries?.[li]?.lessons : null;
+      const from = type==='library' ? li : lj;
+      const to = isDrop ? directionOrTarget : from + directionOrTarget;
+      if (!list || !Number.isInteger(from) || !Number.isInteger(to) ||
+          from < 0 || from >= list.length || to < 0 || to >= list.length || from===to) return;
+      const old = {library:catalog.libraries?.[selection.li]?.slug,
+        lesson:catalog.libraries?.[selection.li]?.lessons?.[selection.lj]?.slug,
+        topic:catalog.libraries?.[selection.li]?.lessons?.[selection.lj]?.topics?.[selection.ti]?.id};
+      const [item]=list.splice(from,1);
+      list.splice(to,0,item);
+      selection=resolveEditorSelection(catalog,old);
+      emit();render();
+    }
+    container.querySelectorAll('[data-tree-move]').forEach(button=>button.addEventListener('click',event=>{
+      moveTreeItem(button.dataset.treeMove,Number(button.dataset.li),Number(button.dataset.lj),
+        Number(button.dataset.direction));
+    }));
+    container.querySelectorAll('[data-tree-drag]').forEach(handle=>handle.addEventListener('dragstart',event=>{
+      event.dataTransfer?.setData('application/x-studylibrary-tree',
+        JSON.stringify({type:handle.dataset.treeDrag,li:Number(handle.dataset.li),
+          lj:handle.dataset.lj === undefined?null:Number(handle.dataset.lj)}));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed='move';
+    }));
+    container.querySelectorAll('[data-tree-row]').forEach(row=>{
+      row.addEventListener('dragover',event=>{
+        if (![...(event.dataTransfer?.types || [])].includes('application/x-studylibrary-tree')) return;
+        event.preventDefault();row.classList.add('dragging-over');
+      });
+      row.addEventListener('dragleave',()=>row.classList.remove('dragging-over'));
+      row.addEventListener('drop',event=>{
+        row.classList.remove('dragging-over');
+        let drag;
+        try {drag=JSON.parse(event.dataTransfer?.getData('application/x-studylibrary-tree') || 'null');}catch{return;}
+        if (!drag || drag.type!==row.dataset.treeRow) return;
+        const li=Number(row.dataset.li);
+        if (drag.type==='lesson' && drag.li!==li) return; // no cross-library moves
+        event.preventDefault();
+        moveTreeItem(drag.type,drag.li,drag.lj,
+          drag.type==='library'?li:Number(row.dataset.lj),true);
+      });
+    });
+
     container.querySelectorAll('[data-select]').forEach(button => button.addEventListener('click', () => {
       selection = {
         type: button.dataset.select,
@@ -696,6 +768,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
         ti: num(button.dataset.ti)
       };
       render();
+      options.onSelect?.(getSelection());
     }));
 
     container.querySelectorAll('[data-inline-field]').forEach(editable => {
@@ -888,10 +961,69 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       emit(); render();
     });
 
-    container.querySelector('[data-add-section]')?.addEventListener('click', () => {
-      const topic = selected(); topic.sections ||= [];
-      topic.sections.push({ type: 'concept', title: 'Nuova sezione', body: 'Scrivi qui il contenuto in **Markdown**.' });
-      emit(); render();
+    container.querySelector('[data-add-section]')?.addEventListener('click', event => {
+      const palette = container.querySelector('[data-block-palette]');
+      if (!palette) return;
+      palette.hidden = !palette.hidden;
+      event.currentTarget.setAttribute('aria-expanded', String(!palette.hidden));
+    });
+
+    container.querySelectorAll('[data-add-block]').forEach(button => button.addEventListener('click', () => {
+      const topic = selected();
+      if (!topic) return;
+      topic.sections ||= [];
+      topic.sections.push(studyBlockTemplate(button.dataset.addBlock, crypto.randomUUID()));
+      emit();
+      render();
+    }));
+
+    container.querySelectorAll('[data-upload-trigger]').forEach(button => button.addEventListener('click', () => {
+      const input = container.querySelector('[data-upload-file]');
+      if (!input) return;
+      input.dataset.attach = button.dataset.uploadTrigger;
+      input.click();
+    }));
+    container.querySelector('[data-upload-file]')?.addEventListener('change', async event => {
+      const input = event.currentTarget;
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!options.onUpload) return;
+      const attach = input.dataset.attach;
+      const selectedBefore = selected();
+      const button = container.querySelector('[data-upload-trigger="' + attach + '"]');
+      if (button) button.disabled = true;
+      try {
+        const result = await options.onUpload(file);
+        if (result.kind === 'image') {
+          catalog.media ||= [];
+          const id = mediaAssetId('image',result.url);
+          const title = (file.name || 'Immagine').replace(/\.[^.]+$/,'');
+          if (!catalog.media.some(asset=>asset.id===id)) {
+            catalog.media.push({id,type:'image',url:result.url,title,alt:title,caption:''});
+          }
+          if (attach === 'topic' && selectedBefore?.sections) {
+            selectedBefore.sections.push(studyBlockTemplate('image',crypto.randomUUID()));
+            Object.assign(selectedBefore.sections.at(-1),{title,mediaRef:id,alt:title});
+          }
+        } else if (result.kind === 'pdf') {
+          if (attach !== 'topic' || !selectedBefore?.sections) {
+            options.onNotice?.('PDF caricato. Per inserirlo in una lezione, apri un argomento e usa Carica immagine / PDF.');
+          } else {
+            const section = studyBlockTemplate('embed',crypto.randomUUID());
+            section.title = file.name || 'Documento PDF';
+            section.url = result.url;
+            selectedBefore.sections.push(section);
+          }
+        }
+        emit();
+        render();
+        options.onNotice?.('File caricato. Ricorda di salvare il catalogo.');
+      } catch(error) {
+        options.onNotice?.(error.message || 'Caricamento non riuscito');
+      } finally {
+        input.value='';
+        if (button?.isConnected) button.disabled=false;
+      }
     });
 
     container.querySelector('[data-delete-selected]')?.addEventListener('click', () => {
