@@ -577,3 +577,23 @@ body.reading-focus-mode .page {
   .personal-order-actions button { width:44px; height:44px; }
   .personal-order-actions [data-personal-drag] { display:none; }
 }
+
+
+/* Mobile navigation target size validated by Playwright. */
+@media (max-width:720px) {
+  .topbar {
+    height:108px;
+    grid-template-rows:54px 54px;
+  }
+  .topbar .topnav {
+    padding:0 0 4px;
+    align-self:stretch;
+  }
+  .topbar .topnav a {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:44px;
+    line-height:1.15;
+  }
+}
