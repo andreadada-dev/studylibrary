@@ -10,7 +10,7 @@ test('agent protocol is self-describing and version-aware', async () => {
   const agent = await readJson('protocol/agent.json');
 
   assert.equal(agent.protocol, 'studylibrary');
-  assert.equal(agent.protocolVersion, '1.1');
+  assert.equal(agent.protocolVersion, '2.0');
   assert.equal(agent.endpoints.bootstrap, '/api/v1/agent');
   assert.equal(agent.endpoints.catalogAgent, '/api/v1/catalogs/{catalog}/agent');
   assert.equal(agent.endpoints.audit, '/api/v1/catalogs/{catalog}/audit');
@@ -36,14 +36,15 @@ test('machine schemas referenced by the agent exist and parse', async () => {
 
 test('update package schema matches supported importer operations', async () => {
   const schema = await readJson('protocol/schemas/update-package.json');
-  const operations = schema.properties.operations.items.properties.op.enum;
 
-  assert.deepEqual(operations, [
-    'upsertLesson',
-    'removeLesson',
-    'upsertTopic',
-    'removeTopic',
-    'addConnection',
-    'removeConnection'
-  ]);
+  const agent = await readJson('protocol/agent.json');
+  assert.equal(schema.properties.schemaVersion.enum.includes(1), true);
+  assert.equal(schema.properties.schemaVersion.enum.includes(2), true);
+  assert.equal(agent.updateStrategy.recommendedSchemaVersion, 2);
+  const ops = schema.properties.operations.items.oneOf.map(spec => spec.properties.op.const);
+  assert.deepEqual(ops, agent.updateStrategy.supportedOperations);
+  for (const required of ['patchTopic', 'addSection', 'updateSection', 'removeSection', 'addMedia', 'addSource', 'moveTopic']) {
+    assert.ok(ops.includes(required));
+    assert.ok(agent.updateStrategy.operationContracts[required]);
+  }
 });
