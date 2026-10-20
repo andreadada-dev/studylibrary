@@ -56,7 +56,39 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
   if (!view || !stage) return null;
 
   let instance=null, active=false, disposed=false, generation=0, currentPage=0;
-  let refreshTimer=0;
+  let refreshTimer=0, hideTimer=0;
+  const controls = reader.querySelector('.reader-view-controls');
+  const nav = view.querySelector('.reader-book-nav');
+
+  function showControls() {
+    if (!active || disposed) return;
+    reader.classList.remove('book-controls-hidden');
+    clearTimeout(hideTimer);
+    hideTimer=setTimeout(hideControls,2900);
+  }
+  function hideControls() {
+    if (!active || disposed) return;
+    const focused=document.activeElement;
+    const panel=reader.querySelector('[data-reader-panel]');
+    if ((focused && (controls?.contains(focused) || nav?.contains(focused))) ||
+        (panel && !panel.hidden) || controls?.matches(':hover') || nav?.matches(':hover')) {
+      clearTimeout(hideTimer);
+      hideTimer=setTimeout(hideControls,1300);
+      return;
+    }
+    reader.classList.add('book-controls-hidden');
+  }
+  function onPointerMove(event) {
+    if (!active || event.pointerType==='touch') return;
+    showControls();
+  }
+  function onPointerDown() { showControls(); }
+  function onFocusIn() { showControls(); }
+  function onFocusOut() { if (active) showControls(); }
+  function onVisibilityChange() {
+    if (document.visibilityState === 'visible' && active) showControls();
+  }
+
   const getPageCount=()=>instance?.getPageCount?.() || 0;
 
   function drawStatus(message) {
@@ -75,16 +107,19 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
   }
 
   function measurePage() {
-    const rectStyle=getComputedStyle(reader);
-    const padding=(parseFloat(rectStyle.paddingLeft)||0)+(parseFloat(rectStyle.paddingRight)||0);
-    const widthAvailable=Math.min(reader.clientWidth-padding,window.innerWidth-20);
-    const portrait=window.innerWidth < 760;
-    const pageWidth=portrait
-      ? Math.max(240,Math.min(430,widthAvailable-16))
-      : Math.max(300,Math.min(430,Math.floor((widthAvailable-46)/2)));
-    const heightAvailable=Math.max(380,window.innerHeight-175);
-    const pageHeight=Math.max(365,Math.min(650,Math.floor(pageWidth*1.37),heightAvailable));
-    return {width:pageWidth,height:pageHeight};
+    const screenWidth = window.visualViewport?.width || window.innerWidth;
+    const screenHeight = window.visualViewport?.height || window.innerHeight;
+    // Navigation and settings float ABOVE the book; they take no page space.
+    const narrow = screenWidth < 760;
+    const widthAvailable = Math.max(230,screenWidth-(narrow?14:42));
+    const heightAvailable = Math.max(330,screenHeight-(narrow?24:48));
+    const pageWidth = narrow
+      ? Math.floor(widthAvailable)
+      : Math.floor(Math.min((widthAvailable-12)/2,heightAvailable/1.34));
+    const pageHeight = narrow
+      ? Math.floor(Math.min(heightAvailable,Math.max(380,pageWidth*1.64)))
+      : Math.floor(Math.min(heightAvailable,pageWidth*1.34));
+    return {width:Math.max(225,pageWidth),height:Math.max(300,pageHeight)};
   }
 
   async function rebuild({preserve = true} = {}) {
@@ -129,9 +164,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       // disposable inner root so the persistent stage can survive repagination.
       const flipRoot=document.createElement('div');
       flipRoot.className='book-flip-mount';
-      const widthForBook=reader.clientWidth -
-        (parseFloat(getComputedStyle(reader).paddingLeft)||0) -
-        (parseFloat(getComputedStyle(reader).paddingRight)||0);
+      const widthForBook=window.visualViewport?.width || window.innerWidth;
       const hasRoomForSpread=widthForBook >= settings.width*2 + 2;
       flipRoot.style.width=(hasRoomForSpread ? settings.width*2 : settings.width)+'px';
       flipRoot.style.height=settings.height+'px';
@@ -183,6 +216,7 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
     if (event.altKey || event.ctrlKey || event.metaKey ||
         event.target.closest?.('input,textarea,select,[contenteditable="true"]')) return;
     if (event.key==='ArrowLeft' || event.key==='ArrowRight') {
+      showControls();
       event.preventDefault();
       if (event.key==='ArrowLeft') instance?.flipPrev?.();
       else instance?.flipNext?.();
@@ -209,8 +243,13 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
         }
       }) : null;
 
-  prev?.addEventListener('click',()=>instance?.flipPrev?.());
-  next?.addEventListener('click',()=>instance?.flipNext?.());
+  prev?.addEventListener('click',()=>{ instance?.flipPrev?.(); showControls(); });
+  next?.addEventListener('click',()=>{ instance?.flipNext?.(); showControls(); });
+  document.addEventListener('pointermove',onPointerMove,{passive:true});
+  reader.addEventListener('pointerdown',onPointerDown,{passive:true});
+  reader.addEventListener('focusin',onFocusIn);
+  reader.addEventListener('focusout',onFocusOut);
+  document.addEventListener('visibilitychange',onVisibilityChange);
   view.addEventListener('click',onViewClick);
   document.addEventListener('keydown',onKeyDown);
   window.addEventListener('resize',scheduleRefresh);
@@ -228,13 +267,17 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       observedWidth=Math.round(reader.getBoundingClientRect().width);
       observer?.observe(reader);
       currentPage=0;
+      showControls();
       await rebuild({preserve:false});
+      showControls();
     },
     disable() {
       if (!active) return;
       active=false;
       generation++;
       clearTimeout(refreshTimer);
+      clearTimeout(hideTimer);
+      reader.classList.remove('book-controls-hidden');
       observer?.disconnect();
       instance?.destroy?.();
       instance=null;
@@ -253,6 +296,12 @@ export function createStudyBook(reader, {onNotice = () => {}} = {}) {
       document.removeEventListener('keydown',onKeyDown);
       window.removeEventListener('resize',scheduleRefresh);
       view.removeEventListener('click',onViewClick);
+      document.removeEventListener('pointermove',onPointerMove);
+      reader.removeEventListener('pointerdown',onPointerDown);
+      reader.removeEventListener('focusin',onFocusIn);
+      reader.removeEventListener('focusout',onFocusOut);
+      document.removeEventListener('visibilitychange',onVisibilityChange);
+      clearTimeout(hideTimer);
     }
   };
 }
