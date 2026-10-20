@@ -4926,3 +4926,195 @@ body.universe-mode .universe-legend-hint {
 .studio-guide-advanced[open] .schema-list {
   margin-top:10px;
 }
+
+
+/* Study dashboard: resume recent work before community discovery. */
+.home-personal-dashboard {
+  border-top:0;
+  margin-top:6px;
+  padding-top:0;
+  margin-bottom:44px;
+}
+.home-personal-grid {
+  margin-bottom:32px;
+}
+.home-personal-catalog {
+  width:160px;
+  min-width:0;
+}
+.home-personal-catalog .catalog-folder-card {
+  width:100%;
+}
+.personal-progress-detail {
+  display:block;
+  margin-top:4px;
+  padding-left:8px;
+  font-size:10px;
+  line-height:1.45;
+  color:var(--muted);
+}
+.recent-study-list {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));
+  gap:11px;
+}
+.recent-study-item {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:17px;
+  min-width:0;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:16px;
+  transition:border-color .2s, transform .2s;
+}
+.recent-study-item:hover,
+.recent-study-item:focus-visible {
+  border-color:var(--accent);
+  transform:translateY(-2px);
+}
+.recent-study-icon {
+  width:34px;
+  height:34px;
+  flex:0 0 34px;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  color:var(--accent);
+  background:var(--accent-soft);
+}
+.recent-study-item > span:nth-child(2) {
+  display:grid;
+  gap:6px;
+  min-width:0;
+  flex:1;
+}
+.recent-study-item strong {
+  font-size:13px;
+  font-weight:730;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.recent-study-item small {
+  color:var(--muted);
+  font-size:11px;
+}
+.recent-study-item em {
+  font-size:11px;
+  font-weight:750;
+  font-style:normal;
+  white-space:nowrap;
+  color:var(--accent);
+}
+
+/* Completion is an explicit user action, not the topic's position in the lesson. */
+.topic-progress-actions {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:11px;
+  margin-top:18px;
+}
+.topic-progress-actions [data-complete-topic] {
+  min-height:43px;
+  white-space:normal;
+}
+.topic-progress-actions [data-complete-topic].completed {
+  border-color:color-mix(in srgb, #168b6a 52%, var(--line));
+  color:#147b60;
+  background:color-mix(in srgb, #18a67a 10%, var(--paper));
+}
+.topic-progress-status {
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* Editor history and saved/unsaved feedback. */
+.studio-mode-bar {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:9px;
+}
+.studio-history-actions {
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.studio-history-actions .button {
+  min-height:36px;
+  font-size:11px;
+  padding:7px 11px;
+}
+.studio-history-actions .button:disabled {
+  opacity:.42;
+  cursor:default;
+}
+.studio-save-feedback {
+  font-weight:650;
+  max-width:340px;
+}
+.saved-search-controls {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin:-6px 0 22px;
+}
+.saved-search-controls input,
+.saved-search-controls select {
+  min-height:43px;
+  padding:9px 13px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:var(--paper);
+  color:var(--ink);
+  font:inherit;
+  font-size:12px;
+}
+.saved-search-controls input {
+  min-width:180px;
+  flex:1;
+}
+.saved-search-controls select { flex:0 1 176px; }
+.saved-search-controls input:focus-visible,
+.saved-search-controls select:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+
+/* Larger touch hit areas without increasing the apparent icon size. */
+@media (max-width:720px) {
+  .topbar .account-area { gap:0; }
+  .topbar .account-area .top-saved-action {
+    width:44px;
+    height:44px;
+  }
+  .topbar .account-slot {
+    width:44px;
+  }
+  .topbar .account-button {
+    width:44px;
+    height:44px;
+  }
+  .studio-mode-bar {
+    align-items:stretch;
+  }
+  .studio-history-actions {
+    width:100%;
+    justify-content:flex-start;
+  }
+  .home-personal-catalog { width:100%; }
+  .home-personal-dashboard { margin-top:0; }
+  .personal-progress-detail { padding-left:4px; }
+  .topic-progress-actions [data-complete-topic] { width:100%; }
+  .saved-search-controls select { flex:1 1 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recent-study-item,
+  .personal-create-visual::before {
+    transition:none;
+  }
+}
