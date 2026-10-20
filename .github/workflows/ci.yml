@@ -36,6 +36,9 @@ jobs:
             test -f /usr/share/nginx/html/protocol/schemas/catalog.json &&
             test -f /usr/share/nginx/html/protocol/schemas/lesson.json &&
             test -f /usr/share/nginx/html/protocol/schemas/topic.json &&
-            test -f /usr/share/nginx/html/protocol/schemas/update-package.json
+            test -f /usr/share/nginx/html/protocol/schemas/update-package.json &&
+            test -s /usr/share/nginx/html/styles-study.css &&
+            grep -q "reader-view-controls" /usr/share/nginx/html/styles-study.css &&
+            grep -q "/styles-study.css" /usr/share/nginx/html/index.html
           '
 
