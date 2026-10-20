@@ -1,7 +1,7 @@
 import { test,expect } from '@playwright/test';
 test.beforeEach(async({page})=>{
   // The visual smoke test exercises the app shell, not the availability of a CDN.
-  await page.route(/cdn\\.jsdelivr\\.net\\/npm\\/@supabase\\/supabase-js@2\\/\\+esm/,route=>
+  await page.route(url=>url.hostname==='cdn.jsdelivr.net' && url.pathname.includes('supabase-js@2'),route=>
     route.fulfill({
       status:200,
       contentType:'application/javascript',
