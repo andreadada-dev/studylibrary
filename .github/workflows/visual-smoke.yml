@@ -14,6 +14,10 @@ on:
       - '.github/workflows/visual-smoke.yml'
   workflow_dispatch:
 
+concurrency:
+  group: visual-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
