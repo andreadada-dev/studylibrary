@@ -1,6 +1,5 @@
 import { state } from './state.js';
 import { allCatalogs, findLibrary, findLesson, findTopic, lessonHref } from './content.js';
-import { escapeHtml, toast } from './ui.js';
 
 export function lessonCompletion(records, catalogId, library, lesson) {
   const ids = new Set((lesson?.topics || []).map(topic => topic.id));
@@ -141,7 +140,7 @@ export async function mountTopicProgress(context) {
         if(error) throw error;
         state.topicProgress=[...(state.topicProgress||[]),data];
       }
-    } catch (err) { toast('Impossibile aggiornare il progresso: '+err.message); }
+    } catch (err) { status.textContent = 'Errore di salvataggio: ' + err.message; console.warn('Progress update failed', err); }
     finally { busy=false; if(box.isConnected) draw(); }
   });
 }
