@@ -153,6 +153,33 @@ export async function saveCatalog(catalog, publish = false, versionMessage = '')
   return data;
 }
 
+// Atomic, owner-authorized compare-and-swap for AI update packages.
+// The small client package is merged locally, then the validated catalog snapshot is
+// committed by the existing server-side RPC only when baseVersion still matches.
+export async function writeCatalogVersioned(catalogId, baseVersion, catalog, message = '') {
+  if (!state.supabase || !state.user) throw new Error('Accedi per aggiornare il catalogo');
+  if (!catalogId || !Number.isInteger(baseVersion) || baseVersion < 1) {
+    throw new Error('Catalogo e versione di partenza sono obbligatori');
+  }
+  const cleanCatalog = stripRuntimeFields(prepareCatalogMedia(catalog));
+  const { data, error } = await state.supabase.rpc('studylibrary_api_write', {
+    p_catalog_id: catalogId,
+    p_base_version: baseVersion,
+    p_message: String(message || 'Aggiornamento incrementale').slice(0, 240),
+    p_catalog: cleanCatalog,
+    p_publish: null,
+    p_api_public: null
+  });
+  if (error) {
+    const detail = String(error.message || '');
+    if (detail.includes('version_conflict')) {
+      throw new Error('Conflitto di versione: il catalogo è cambiato. Ricarica il catalogo e rigenera il pacchetto dalla versione corrente.');
+    }
+    throw error;
+  }
+  return data;
+}
+
 export async function fetchCatalogVersions(catalogId) {
   if (!state.supabase || !state.user) throw new Error('Accedi per vedere la cronologia');
   const { data, error } = await state.supabase
