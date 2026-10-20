@@ -350,12 +350,41 @@ export async function renderSavedPage(root) {
       (resumes.length ? '<div class="resume-grid">' + resumes.join('') + '</div>' : '<div class="saved-empty">Nessun punto di ripresa ancora.</div>') + '</section>' +
       '<section class="saved-library"><div class="section-head"><div><h2>Preferiti</h2><p>Cataloghi, librerie, lezioni e argomenti.</p></div><span class="tag">' + favorites.length + '</span></div>' +
       '<div class="saved-filter" role="group" aria-label="Filtra preferiti"><button class="active" data-saved-filter="all">Tutti</button><button data-saved-filter="catalog">Cataloghi</button><button data-saved-filter="library">Librerie</button><button data-saved-filter="lesson">Lezioni</button><button data-saved-filter="topic">Argomenti</button></div>' +
-      (favorites.length ? '<div class="saved-grid" data-saved-grid>' + (state.favorites || []).map(item => '<div data-saved-type="' + item.entity_type + '">' + favoriteCard(item) + '</div>').join('') + '</div>' : '<div class="saved-empty">Non hai ancora aggiunto preferiti.</div>') +
+      '<div class="saved-search-controls"><input type="search" data-saved-search placeholder="Cerca tra i preferiti…" aria-label="Cerca nei preferiti">' +
+      '<select data-saved-sort aria-label="Ordina i preferiti"><option value="newest">Più recenti</option><option value="oldest">Meno recenti</option><option value="title">Titolo A–Z</option></select></div>' +
+      (favorites.length ? '<div class="saved-grid" data-saved-grid></div><div class="saved-empty" data-saved-no-results hidden>Nessun preferito corrisponde alla ricerca.</div>' : '<div class="saved-empty">Non hai ancora aggiunto preferiti.</div>') +
       '</section></div>';
+
+    let activeFilter = 'all';
+    const search = root.querySelector('[data-saved-search]');
+    const sort = root.querySelector('[data-saved-sort]');
+    const grid = root.querySelector('[data-saved-grid]');
+    const noResults = root.querySelector('[data-saved-no-results]');
+    function updateFavoriteResults() {
+      if (!grid) return;
+      const q = (search?.value || '').trim().toLocaleLowerCase('it');
+      const matches = (state.favorites || [])
+        .map(item => ({ item, resolved: resolveSaved(item) }))
+        .filter(({ item, resolved }) => resolved &&
+          (activeFilter === 'all' || item.entity_type === activeFilter) &&
+          (!q || [resolved.title, resolved.subtitle, resolved.type].some(value =>
+            String(value || '').toLocaleLowerCase('it').includes(q))));
+      matches.sort((a, b) => {
+        if (sort?.value === 'title') return a.resolved.title.localeCompare(b.resolved.title, 'it');
+        const difference = new Date(b.item.created_at || 0).getTime() - new Date(a.item.created_at || 0).getTime();
+        return sort?.value === 'oldest' ? -difference : difference;
+      });
+      grid.innerHTML = matches.map(({ item }) => favoriteCard(item)).join('');
+      if (noResults) noResults.hidden = matches.length > 0;
+    }
     root.querySelectorAll('[data-saved-filter]').forEach(btn => btn.addEventListener('click', () => {
+      activeFilter = btn.dataset.savedFilter;
       root.querySelectorAll('[data-saved-filter]').forEach(x => x.classList.toggle('active', x === btn));
-      root.querySelectorAll('[data-saved-type]').forEach(card => { card.hidden = btn.dataset.savedFilter !== 'all' && card.dataset.savedType !== btn.dataset.savedFilter; });
+      updateFavoriteResults();
     }));
+    search?.addEventListener('input', updateFavoriteResults);
+    sort?.addEventListener('change', updateFavoriteResults);
+    updateFavoriteResults();
   } catch (err) {
     root.innerHTML = '<div class="page empty-state"><h2>Impossibile caricare i salvati</h2><p>' + escapeHtml(err.message) + '</p></div>';
   }
