@@ -290,7 +290,7 @@ export function renderStudyMath(root) {
   }
 }
 
-export function wireReaderInteractions() {
+export function wireReaderInteractions(context = null) {
   const reader = document.querySelector('.reader');
   if (reader) {
     let textSize = 18;
@@ -304,7 +304,7 @@ export function wireReaderInteractions() {
     const sizeLabel = reader.querySelector('[data-reader-size-label]');
     const bookToggle = reader.querySelector('[data-reader-book-toggle]');
     const bookLabel = reader.querySelector('[data-reader-book-label]');
-    const book = createStudyBook(reader, {onNotice: toast});
+    const book = createStudyBook(reader, {onNotice: toast, context, renderTopic: bookTopicSource});
     let disposed = false;
     let enteredBrowserFullscreen = false;
     function requestBookFullscreen() {
@@ -775,6 +775,28 @@ export function lessonReaderRail(context, activeTopicId) {
       }).join('') +
     '</section>'
   ).join('');
+}
+
+export function bookTopicSource(topic, context) {
+  // Reuse the exact study-section renderer so formulas, media, examples and
+  // checkpoints are part of the complete volume rather than a new book each.
+  const source=document.createElement('article');
+  source.className='reader book-topic-source';
+  const number=topicNumber(context.lesson,topic.id);
+  source.innerHTML =
+    '<header class="book-topic-overview">' +
+      '<span class="book-topic-overline">ARGOMENTO ' + String(number || '').padStart(2,'0') + '</span>' +
+      '<h2 class="book-topic-title">' + escapeHtml(topic.title) + '</h2>' +
+      (topic.summary ? '<div class="book-topic-summary">' + paragraphs(topic.summary) + '</div>' : '') +
+    '</header>' +
+    ((topic.learningGoals || []).length ? '<section class="book-learning-goals"><h3>Obiettivi</h3><ul>' +
+      topic.learningGoals.map(goal=>'<li>'+escapeHtml(goal)+'</li>').join('') + '</ul></section>' : '') +
+    (topic.why ? '<aside class="callout"><h4>Perché ti serve</h4>' + paragraphs(topic.why) + '</aside>' : '') +
+    (topic.sections || []).map(section => renderSection(section,{...context,topic})).join('') +
+    renderTopicSources(context,topic) +
+    renderLessonConnections(context,topic);
+  renderStudyMath(source);
+  return source;
 }
 
 export function lessonTopicArticle(context, topic) {
