@@ -1532,7 +1532,7 @@ body.reading-focus-mode .reader.reader-book-active .reader-book-lesson-nav a {
   text-shadow:0 1px 3px rgba(255,255,255,.9);
   transition:color .18s ease;
 }
-body.reading-focus-mode .reader.reader-book-active .reader-book-lesson-nav a:last-of-type {
+body.reading-focus-mode .reader.reader-book-active .reader-book-lesson-nav a[data-book-lesson="next"] {
   align-items:flex-end;
   text-align:right;
 }
