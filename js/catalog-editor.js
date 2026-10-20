@@ -668,6 +668,21 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
           '</div>' +
           inlineSectionText(i, 'caption', section.caption || '', 'direct-section-body', 'Didascalia…') +
           compactSectionMeta(i, section, 'video');
+      } else if (section.type === 'list') {
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo elenco', true) +
+          textarea('Voci dell’elenco', 'section:' + i + ':items', (section.items || []).join('\n'), 'Una voce per riga');
+      } else if (section.type === 'flow') {
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo procedimento', true) +
+          textarea('Passaggi', 'section:' + i + ':nodes', (section.nodes || []).map(node => typeof node === 'string' ? node : node.label).join('\n'), 'Un passaggio per riga') +
+          inlineSectionText(i, 'body', section.body || '', 'direct-section-body', 'Spiegazione dei passaggi…');
+      } else if (section.type === 'comparison') {
+        html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo confronto', true) +
+          '<div class="editor-comparison-inputs">' +
+            text('Titolo primo', 'section:' + i + ':left.title', section.left?.title || '') +
+            textarea('Spiegazione primo', 'section:' + i + ':left.body', section.left?.body || '') +
+            text('Titolo secondo', 'section:' + i + ':right.title', section.right?.title || '') +
+            textarea('Spiegazione secondo', 'section:' + i + ':right.body', section.right?.body || '') +
+          '</div>';
       } else if (section.type === 'gallery') {
         html += inlineSectionText(i, 'title', section.title || '', 'direct-section-title', 'Titolo galleria', true) +
           '<details class="inline-meta-details"><summary>Media della galleria</summary>' +
@@ -1130,8 +1145,12 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       const parts = key.split(':');
       const section = item.sections?.[Number(parts[1])];
       if (section) {
-        if (parts[2] === 'items') {
-          section.items = value.split(/\n+/).map(v => v.trim()).filter(Boolean);
+        if (parts[2] === 'items' || parts[2] === 'nodes') {
+          section[parts[2]] = value.split(/\n+/).map(v => v.trim()).filter(Boolean);
+        } else if (parts[2].startsWith('left.') || parts[2].startsWith('right.')) {
+          const [side,field] = parts[2].split('.');
+          section[side] ||= {};
+          section[side][field] = value;
         } else {
           section[parts[2]] = value;
           if ((section.type === 'image' || section.type === 'video') && parts[2] === 'url' && value) {
