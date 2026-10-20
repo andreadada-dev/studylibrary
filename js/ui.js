@@ -263,6 +263,33 @@ export function renderSection(section, context = null) {
 }
 
 export function wireReaderInteractions() {
+  const reader = document.querySelector('.reader');
+  if (reader) {
+    let zoom=1;
+    try { zoom = Number(sessionStorage.getItem('studylibrary:reader-zoom')) || 1; } catch {}
+    zoom = Math.min(1.3, Math.max(.9, zoom));
+    const applyZoom = () => { reader.style.zoom = String(zoom); };
+    applyZoom();
+    const focus = reader.querySelector('[data-reader-focus]');
+    const drawFocus = () => {
+      const active = document.body.classList.contains('reading-focus-mode');
+      if (focus) {
+        focus.setAttribute('aria-pressed', String(active));
+        focus.textContent = active ? 'Esci dalla modalità lettura' : 'Modalità lettura';
+      }
+    };
+    focus?.addEventListener('click', () => {
+      document.body.classList.toggle('reading-focus-mode');
+      drawFocus();
+    });
+    reader.querySelectorAll('[data-reader-zoom]').forEach(button => button.addEventListener('click', () => {
+      zoom = Math.min(1.3, Math.max(.9, Math.round((zoom + Number(button.dataset.readerZoom) * .1) * 10)/10));
+      applyZoom();
+      try { sessionStorage.setItem('studylibrary:reader-zoom', String(zoom)); } catch {}
+    }));
+    drawFocus();
+  }
+
   document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
     const box = btn.closest('.checkpoint');
     box.classList.toggle('open');
@@ -617,6 +644,13 @@ export function lessonTopicArticle(context, topic) {
   const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
 
   return '<article class="reader">' +
+    '<div class="reader-view-controls" role="group" aria-label="Opzioni di lettura">' +
+      '<button type="button" data-reader-focus aria-pressed="false">Modalità lettura</button>' +
+      '<span class="reader-zoom-controls">' +
+        '<button type="button" data-reader-zoom="-1" aria-label="Riduci dimensione testo">A−</button>' +
+        '<button type="button" data-reader-zoom="1" aria-label="Aumenta dimensione testo">A+</button>' +
+      '</span>' +
+    '</div>' +
     '<header class="reader-header">' +
       '<div class="reader-kicker">' +
         '<a href="#/catalog/' + encodeURIComponent(catalogRef(context.catalog)) + '">' + escapeHtml(context.catalog.title) + '</a>' +
