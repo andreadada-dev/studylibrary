@@ -289,28 +289,72 @@ export function renderStudyMath(root) {
 export function wireReaderInteractions() {
   const reader = document.querySelector('.reader');
   if (reader) {
-    let zoom=1;
-    try { zoom = Number(sessionStorage.getItem('studylibrary:reader-zoom')) || 1; } catch {}
-    zoom = Math.min(1.3, Math.max(.9, zoom));
-    const applyZoom = () => { reader.style.zoom = String(zoom); };
-    applyZoom();
+    let textSize = 18;
+    try { textSize = Number(localStorage.getItem('studylibrary:reader-font-size')) || 18; } catch {}
+    textSize = Math.max(16, Math.min(24, textSize));
+
+    const panel = reader.querySelector('[data-reader-panel]');
+    const settings = reader.querySelector('[data-reader-settings]');
     const focus = reader.querySelector('[data-reader-focus]');
-    const drawFocus = () => {
+    const focusLabel = reader.querySelector('[data-reader-focus-label]');
+    const sizeLabel = reader.querySelector('[data-reader-size-label]');
+
+    function drawSize() {
+      reader.style.setProperty('--reader-text-size', textSize + 'px');
+      if (sizeLabel) sizeLabel.textContent = textSize + ' px';
+      reader.querySelectorAll('[data-reader-zoom]').forEach(button => {
+        button.disabled = Number(button.dataset.readerZoom) < 0 ? textSize <= 16 : textSize >= 24;
+      });
+    }
+    function drawFocus() {
       const active = document.body.classList.contains('reading-focus-mode');
-      if (focus) {
-        focus.setAttribute('aria-pressed', String(active));
-        focus.textContent = active ? 'Esci dalla modalità lettura' : 'Modalità lettura';
-      }
-    };
+      focus?.setAttribute('aria-pressed', String(active));
+      focus?.setAttribute('aria-label', active ? 'Esci dalla modalità lettura' : 'Attiva modalità lettura');
+      if (focusLabel) focusLabel.textContent = active ? 'Esci' : 'Concentrati';
+    }
+    function closeSettings() {
+      if (!panel || !settings) return;
+      panel.hidden = true;
+      settings.setAttribute('aria-expanded', 'false');
+    }
+
     focus?.addEventListener('click', () => {
       document.body.classList.toggle('reading-focus-mode');
+      closeSettings();
       drawFocus();
+      if (document.body.classList.contains('reading-focus-mode')) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    });
+    settings?.addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+      settings.setAttribute('aria-expanded', String(!panel.hidden));
     });
     reader.querySelectorAll('[data-reader-zoom]').forEach(button => button.addEventListener('click', () => {
-      zoom = Math.min(1.3, Math.max(.9, Math.round((zoom + Number(button.dataset.readerZoom) * .1) * 10)/10));
-      applyZoom();
-      try { sessionStorage.setItem('studylibrary:reader-zoom', String(zoom)); } catch {}
+      const step = Number(button.dataset.readerZoom);
+      textSize = Math.max(16, Math.min(24, textSize + step * 2));
+      drawSize();
+      try { localStorage.setItem('studylibrary:reader-font-size', String(textSize)); } catch {}
     }));
+    reader.querySelector('[data-reader-reset]')?.addEventListener('click', () => {
+      textSize = 18;
+      drawSize();
+      try { localStorage.removeItem('studylibrary:reader-font-size'); } catch {}
+    });
+    reader.addEventListener('click', event => {
+      if (!event.target.closest?.('.reader-text-settings')) closeSettings();
+    });
+    reader.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        if (!panel?.hidden) { closeSettings(); settings?.focus(); }
+        else if (document.body.classList.contains('reading-focus-mode')) {
+          document.body.classList.remove('reading-focus-mode');
+          drawFocus();
+          focus?.focus();
+        }
+      }
+    });
+    drawSize();
     drawFocus();
   }
 
@@ -660,12 +704,28 @@ export function lessonTopicArticle(context, topic) {
   const base = lessonHref(context.catalog, context.library.slug, lesson.slug);
 
   return '<article class="reader">' +
-    '<div class="reader-view-controls" role="group" aria-label="Opzioni di lettura">' +
-      '<button type="button" data-reader-focus aria-pressed="false">Modalità lettura</button>' +
-      '<span class="reader-zoom-controls">' +
-        '<button type="button" data-reader-zoom="-1" aria-label="Riduci dimensione testo">A−</button>' +
-        '<button type="button" data-reader-zoom="1" aria-label="Aumenta dimensione testo">A+</button>' +
-      '</span>' +
+    '<div class="reader-view-controls" role="toolbar" aria-label="Controlli di lettura">' +
+      '<span class="reader-focus-context" aria-hidden="true">LETTURA SENZA DISTRAZIONI</span>' +
+      '<div class="reader-toolbar-actions">' +
+        '<button type="button" class="reader-control reader-focus-toggle" data-reader-focus aria-pressed="false" aria-label="Attiva modalità lettura">' +
+          '<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M12 20.5c-2-1.5-4.5-2.4-8.3-2.4V4.6c3.7-.1 6.3.7 8.3 2.3 2-1.6 4.6-2.4 8.3-2.3v13.5c-3.8 0-6.3.9-8.3 2.4Z"/><path d="M12 7v13.4"/>' +
+          '</svg>' +
+          '<span data-reader-focus-label>Concentrati</span>' +
+        '</button>' +
+        '<div class="reader-text-settings">' +
+          '<button type="button" class="reader-control reader-type-toggle" data-reader-settings aria-expanded="false" aria-controls="reader-type-panel" aria-label="Impostazioni del testo">Aa</button>' +
+          '<div class="reader-type-panel" id="reader-type-panel" data-reader-panel hidden>' +
+            '<span class="reader-type-heading">Dimensione testo</span>' +
+            '<div class="reader-size-stepper">' +
+              '<button type="button" data-reader-zoom="-1" aria-label="Riduci dimensione testo">−</button>' +
+              '<span data-reader-size-label aria-live="polite">Normale</span>' +
+              '<button type="button" data-reader-zoom="1" aria-label="Aumenta dimensione testo">+</button>' +
+            '</div>' +
+            '<button type="button" class="reader-size-reset" data-reader-reset>Ripristina</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
     '<header class="reader-header">' +
       '<div class="reader-kicker">' +
