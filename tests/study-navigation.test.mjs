@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getLessonNeighbors } from '../js/study-navigation.js';
+import { getLessonNeighbors, getReadingNeighbors } from '../js/study-navigation.js';
 
 const topic = (id) => ({id,title:id});
 const lesson = (slug,title,id) => ({
@@ -46,4 +46,25 @@ test('cloud catalog UUID and reserved text are escaped in links',()=>{
 test('unknown lessons do not create broken links',()=>{
   const n=getLessonNeighbors(catalog,catalog.libraries[0],{slug:'unknown'});
   assert.deepEqual(n,{previous:null,next:null});
+});
+
+test('reading sequence continues to the next topic then the next lesson',()=>{
+  const lib=catalog.libraries[0], current=lib.lessons[0];
+  current.topics=[topic('intro'),topic('extra')];
+  current.modules=[{topicIds:['intro','extra']}];
+  const first=getReadingNeighbors(catalog,lib,current,current.topics[0]);
+  assert.equal(first.next.kind,'argomento');
+  assert.match(first.next.href,/\/lesson\/l1\/topic\/extra$/);
+  const last=getReadingNeighbors(catalog,lib,current,current.topics[1]);
+  assert.equal(last.next.kind,'lezione');
+  assert.equal(last.next.href,'#/catalog/computer-vision/library/fondamenti/lesson/l2/topic/rgb');
+  assert.equal(first.previous,null);
+});
+
+test('final topic can move backward across a library boundary',()=>{
+  const lib=catalog.libraries[1],last=lib.lessons[0];
+  const result=getReadingNeighbors(catalog,lib,last,last.topics[0]);
+  assert.equal(result.next,null);
+  assert.equal(result.previous.kind,'lezione');
+  assert.match(result.previous.href,/\/lesson\/l2\/topic\/rgb$/);
 });
