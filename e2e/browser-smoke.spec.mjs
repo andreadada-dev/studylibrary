@@ -80,6 +80,7 @@ test('six-dot handle drags catalog tiles without opening them',async({page})=>{
   });
   const grip=page.locator('#drag-fixture [data-personal-catalog="alpha"] [data-personal-drag]');
   const target=page.locator('#drag-fixture [data-personal-catalog="beta"]');
+  await grip.scrollIntoViewIfNeeded();
   const start=await grip.boundingBox();
   const end=await target.boundingBox();
   await page.mouse.move(start.x+start.width/2,start.y+start.height/2);
@@ -109,6 +110,7 @@ test('touch pointer can reorder using the same grip',async({page})=>{
       '<article style="width:110px;height:100px" data-personal-catalog="'+id+'">' +
       '<button type="button" style="touch-action:none;width:44px;height:44px" data-personal-drag>'+id+'</button></article>').join('');
     document.body.appendChild(grid);
+    grid.scrollIntoView({block:'center'});
     const {mountPersonalCatalogReorder}=await import('/js/catalog-reorder.js');
     window.touchSaved=0;
     window.stopTouchReorder=mountPersonalCatalogReorder(grid,{onSave:()=>{window.touchSaved++;}});
