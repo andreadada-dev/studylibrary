@@ -100,7 +100,24 @@ async function route() {
   if (parts[0] === 'mine' && parts[1] === 'universe') return renderUniverse({ mineOnly: true });
   if (parts[0] === 'mine') return renderMyCatalogs();
   if (parts[0] === 'saved') return renderSavedPage(app);
-  if (parts[0] === 'studio') return renderStudio();
+  if (parts[0] === 'studio') {
+    if (parts[1] === 'new' && parts.length === 2) return renderStudio({ mode: 'new' });
+    if (parts[1] === 'catalog' && parts[2]) {
+      return renderStudio({
+        mode: 'edit',
+        catalogRef: parts[2],
+        library: parts[3] === 'library' ? parts[4] : null,
+        lesson: parts[5] === 'lesson' ? parts[6] : null,
+        topic: parts[7] === 'topic' ? parts[8] : null,
+        action: parts[3] === 'add-library' ? 'library' :
+          parts[5] === 'add-lesson' ? 'lesson' :
+          parts[7] === 'add-topic' ? 'topic' : null
+      });
+    }
+    // Old generic Editor links must not silently edit an unrelated catalog.
+    location.hash = '#/mine';
+    return;
+  }
   if (parts[0] === 'privacy') return renderLegalPage('privacy');
   if (parts[0] === 'terms') return renderLegalPage('terms');
 
@@ -141,12 +158,33 @@ async function route() {
   return renderNotFound();
 }
 
+function studioHref(catalog, library = null, lesson = null, topic = null, action = null) {
+  let href = '#/studio/catalog/' + encodeURIComponent(catalogRef(catalog));
+  if (action === 'library') return href + '/add-library';
+  if (library) href += '/library/' + encodeURIComponent(library.slug);
+  if (action === 'lesson') return href + '/add-lesson';
+  if (lesson) href += '/lesson/' + encodeURIComponent(lesson.slug);
+  if (action === 'topic') return href + '/add-topic';
+  if (topic) href += '/topic/' + encodeURIComponent(topic.id);
+  return href;
+}
+
+function canEditCatalog(catalog) {
+  return Boolean(state.user && catalog?._db?.owner_id === state.user.id);
+}
+
+function personalCatalogTile(catalog) {
+  const href = studioHref(catalog);
+  return '<article class="personal-folder-tile">' + catalogCard(catalog) +
+    '<a class="personal-folder-edit" href="' + href + '" aria-label="Modifica ' +
+      escapeHtml(catalog.title) + '">Modifica catalogo →</a></article>';
+}
+
 function setActiveNav(routeName, universeMode = false) {
   const map = {
     home: '#/',
     mine: '#/mine',
     universe: '#/universe',
-    studio: '#/studio',
     saved: '#/saved',
     catalog: '#/'
   };
