@@ -54,3 +54,73 @@ test('mobile navigation touch targets and visible links',async({page,isMobile})=
     }
   }
 });
+
+
+test('six-dot handle drags catalog tiles without opening them',async({page})=>{
+  await page.goto('/#/',{waitUntil:'domcontentloaded'});
+  await expect(page.locator('.hero')).toBeVisible({timeout:25000});
+  await page.evaluate(async()=>{
+    const grid=document.createElement('div');
+    grid.id='drag-fixture';
+    grid.style.cssText='display:grid;grid-template-columns:repeat(3,160px);gap:24px;margin:40px 12px;position:relative';
+    grid.innerHTML=['alpha','beta','gamma'].map(id=>
+      '<article class="personal-folder-tile" data-personal-catalog="'+id+'">' +
+        '<div style="height:90px;background:#6655dd;border-radius:12px"></div>' +
+        '<a href="#/catalog/'+id+'" class="personal-folder-edit">'+id+'</a>' +
+        '<button class="personal-drag-handle" type="button" data-personal-drag aria-label="Sposta '+id+'">' +
+          '<svg viewBox="0 0 16 20" width="16" height="20"><circle cx="5" cy="5" r="1.6"/><circle cx="11" cy="5" r="1.6"/></svg>' +
+        '</button></article>').join('');
+    document.body.appendChild(grid);
+    const module=await import('/js/catalog-reorder.js');
+    window.dragSaves=0;
+    window.stopTestReorder=module.mountPersonalCatalogReorder(grid,{
+      onSave:()=>{window.dragSaves++;},
+      onAnnounce:message=>{window.dragAnnouncement=message;}
+    });
+  });
+  const grip=page.locator('#drag-fixture [data-personal-catalog="alpha"] [data-personal-drag]');
+  const target=page.locator('#drag-fixture [data-personal-catalog="beta"]');
+  const start=await grip.boundingBox();
+  const end=await target.boundingBox();
+  await page.mouse.move(start.x+start.width/2,start.y+start.height/2);
+  await page.mouse.down();
+  await page.mouse.move(end.x+end.width/2,end.y+end.height/2,{steps:12});
+  await page.mouse.up();
+  await expect.poll(()=>page.locator('#drag-fixture [data-personal-catalog]').evaluateAll(nodes=>
+    nodes.map(el=>el.dataset.personalCatalog))).toEqual(['beta','alpha','gamma']);
+  expect(await page.evaluate(()=>window.dragSaves)).toBe(1);
+  expect(page.url()).toContain('#/');
+  // The same grip is keyboard accessible, without reinstating arrow buttons.
+  await grip.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(()=>page.locator('#drag-fixture [data-personal-catalog]').evaluateAll(nodes=>
+    nodes.map(el=>el.dataset.personalCatalog))).toEqual(['alpha','beta','gamma']);
+  expect(await page.evaluate(()=>window.dragSaves)).toBe(2);
+  await page.evaluate(()=>window.stopTestReorder());
+});
+
+test('touch pointer can reorder using the same grip',async({page})=>{
+  await page.goto('/#/',{waitUntil:'domcontentloaded'});
+  await page.evaluate(async()=>{
+    const grid=document.createElement('div');
+    grid.id='touch-drag-fixture';
+    grid.style.cssText='display:flex;gap:20px;position:relative;margin:40px';
+    grid.innerHTML=['one','two'].map(id=>
+      '<article style="width:110px;height:100px" data-personal-catalog="'+id+'">' +
+      '<button type="button" style="touch-action:none;width:44px;height:44px" data-personal-drag>'+id+'</button></article>').join('');
+    document.body.appendChild(grid);
+    const {mountPersonalCatalogReorder}=await import('/js/catalog-reorder.js');
+    window.touchSaved=0;
+    window.stopTouchReorder=mountPersonalCatalogReorder(grid,{onSave:()=>{window.touchSaved++;}});
+    const handle=grid.querySelector('[data-personal-drag]');
+    const target=grid.querySelector('[data-personal-catalog="two"]');
+    const start=handle.getBoundingClientRect(),end=target.getBoundingClientRect();
+    const props={bubbles:true,cancelable:true,pointerId:123,pointerType:'touch',isPrimary:true,button:0};
+    handle.dispatchEvent(new PointerEvent('pointerdown',{...props,clientX:start.left+22,clientY:start.top+22}));
+    document.dispatchEvent(new PointerEvent('pointermove',{...props,clientX:end.left+40,clientY:end.top+40}));
+    document.dispatchEvent(new PointerEvent('pointerup',{...props,clientX:end.left+40,clientY:end.top+40}));
+  });
+  await expect.poll(()=>page.locator('#touch-drag-fixture [data-personal-catalog]').evaluateAll(nodes=>
+    nodes.map(el=>el.dataset.personalCatalog))).toEqual(['two','one']);
+  expect(await page.evaluate(()=>window.touchSaved)).toBe(1);
+});
