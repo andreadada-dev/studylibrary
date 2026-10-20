@@ -804,6 +804,7 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
       const index = Number(button.dataset.deleteMedia);
       const asset = catalog.media?.[index];
       if (!asset) return;
+      if (!window.confirm('Eliminare definitivamente questo media dal catalogo? I riferimenti nelle sezioni verranno rimossi.')) return;
       const ref = asset.id;
       catalog.media.splice(index, 1);
       for (const library of catalog.libraries || []) {
@@ -882,6 +883,9 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
     });
 
     container.querySelector('[data-delete-selected]')?.addEventListener('click', () => {
+      const subject = ({ library:'la libreria', lesson:'la lezione', topic:'l’argomento' })[selection.type] || 'questo elemento';
+      const name = selected()?.title || '';
+      if (!window.confirm('Eliminare ' + subject + ' “' + name + '”? La modifica non sarà definitiva finché non salvi e puoi usare Annulla.')) return;
       if (selection.type === 'library') {
         catalog.libraries.splice(selection.li, 1);
         selection = { type: 'catalog', li: null, lj: null, ti: null };
@@ -904,7 +908,11 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
     container.querySelectorAll('[data-delete-section]').forEach(button => button.addEventListener('click', () => {
       const topic = selected();
-      topic.sections.splice(Number(button.dataset.deleteSection), 1);
+      const index = Number(button.dataset.deleteSection);
+      const section = topic?.sections?.[index];
+      if (!section) return;
+      if (!window.confirm('Eliminare questa sezione (' + (section.title || section.type) + ')? Puoi usare Annulla prima del salvataggio.')) return;
+      topic.sections.splice(index, 1);
       emit(); render();
     }));
   }
