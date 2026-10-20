@@ -1,4 +1,17 @@
 import { test,expect } from '@playwright/test';
+test.beforeEach(async({page})=>{
+  // The visual smoke test exercises the app shell, not the availability of a CDN.
+  await page.route(/cdn\\.jsdelivr\\.net\\/npm\\/@supabase\\/supabase-js@2\\/\\+esm/,route=>
+    route.fulfill({
+      status:200,
+      contentType:'application/javascript',
+      headers:{'access-control-allow-origin':'*'},
+      body:'export const createClient = () => { throw new Error("Not configured in visual smoke"); };'
+    })
+  );
+  await page.addInitScript(()=>{ window.STUDYLIBRARY_CONFIG={}; });
+});
+
 
 test('navigation and public catalog grid stay within viewport',async({page},testInfo)=>{
   await page.goto('/#/',{waitUntil:'domcontentloaded'});
