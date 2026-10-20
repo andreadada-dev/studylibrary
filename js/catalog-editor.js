@@ -834,20 +834,30 @@ export function mountCatalogEditor(container, initialCatalog, options = {}) {
 
     container.querySelectorAll('[data-add-library]').forEach(button => button.addEventListener('click', () => {
       catalog.libraries ||= [];
-      catalog.libraries.push(newLibrary(catalog.libraries.length + 1));
+      let next = 1;
+      while (catalog.libraries.some(item => item.slug === 'libreria-' + next || item.id === 'library-' + next)) next += 1;
+      catalog.libraries.push(newLibrary(next));
       selection = { type: 'library', li: catalog.libraries.length - 1, lj: null, ti: null };
       emit(); render();
     }));
 
     container.querySelector('[data-add-lesson]')?.addEventListener('click', () => {
-      const lib = selected(); lib.lessons ||= []; lib.lessons.push(newLesson(lib.lessons.length + 1));
+      const lib = selected();
+      lib.lessons ||= [];
+      let next = 1;
+      while (lib.lessons.some(item => item.slug === 'lezione-' + next || item.id === 'lesson-' + next)) next += 1;
+      lib.lessons.push(newLesson(next));
       selection = { type: 'lesson', li: selection.li, lj: lib.lessons.length - 1, ti: null };
       emit(); render();
     });
 
     container.querySelector('[data-add-topic]')?.addEventListener('click', () => {
-      const lesson = selected(); lesson.topics ||= [];
-      const topic = newTopic(lesson.topics.length + 1);
+      const lesson = selected();
+      lesson.topics ||= [];
+      let next = 1;
+      while (lesson.topics.some(item => item.id === 'argomento-' + next)) next += 1;
+      const topic = newTopic(next);
+      if (lesson.sources?.[0]?.id) topic.sources[0].ref = lesson.sources[0].id;
       lesson.topics.push(topic);
       lesson.modules ||= [];
       if (!lesson.modules.length) lesson.modules.push({ id: 'contenuti', title: 'Contenuti', topicIds: [] });
