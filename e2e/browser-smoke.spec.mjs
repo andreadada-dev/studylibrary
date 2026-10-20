@@ -277,3 +277,48 @@ test('long lesson text is paginated with intact words and a usable book',async({
   expect(result.lastQuestion).toBe(true);
   expect(result.formatted).toBe(true);
 });
+
+test('book goes from lesson to lesson without leaving focus mode',async({page})=>{
+  await page.goto('/#/',{waitUntil:'domcontentloaded'});
+  await expect(page.locator('.hero')).toBeVisible({timeout:25000});
+  await page.evaluate(async()=>{
+    const {state}=await import('/js/state.js');
+    const makeLesson=(slug,title,id)=>({
+      id:slug,slug,title,description:'Corso demo',
+      modules:[{id:'main',topicIds:[id]}],
+      topics:[{id,title:'Argomento di '+title,summary:'Questa è una spiegazione di prova.',
+        sections:[{id:'concept',type:'concept',title:'Concetto',body:'Testo per il libro tridimensionale.'}]}]
+    });
+    const catalog={
+      schemaVersion:1,id:'book-sequence',slug:'book-sequence',title:'Corso test',
+      description:'Sequenza di lezioni',_static:true,
+      libraries:[{id:'lib',slug:'fondamenti',title:'Fondamenti',lessons:[
+        makeLesson('l1','Lezione 01','inizio'),
+        makeLesson('l2','Lezione 02','secondo')
+      ]}]
+    };
+    state.staticCatalogs.push(catalog);
+    location.hash='#/catalog/book-sequence/library/fondamenti/lesson/l1/topic/inizio';
+  });
+  await expect(page.locator('.reader-header .topic-title')).toContainText('Lezione 01');
+  await page.locator('[data-reader-focus]').click();
+  await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
+  await expect(page.locator('[data-book-lesson="next"]')).toContainText('Lezione 02');
+  await expect(page.locator('[data-book-lesson="previous"]')).toHaveCount(0);
+  const presentation=await page.locator('.reader-book-nav').evaluate(el=>({
+    background:getComputedStyle(el).backgroundColor,
+    fontSize:parseFloat(getComputedStyle(el.querySelector('button')).fontSize)
+  }));
+  expect(presentation.background).toBe('rgba(0, 0, 0, 0)');
+  expect(presentation.fontSize).toBeGreaterThanOrEqual(14);
+  await page.locator('[data-book-lesson="next"]').click();
+  await expect(page).toHaveURL(/\/lesson\/l2\/topic\/secondo$/);
+  await expect(page.locator('.reader-header .topic-title')).toContainText('Lezione 02');
+  await expect(page.locator('body')).toHaveClass(/reading-focus-mode/);
+  await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
+  await expect(page.locator('[data-book-lesson="previous"]')).toContainText('Lezione 01');
+  await expect(page.locator('[data-book-lesson="next"]')).toHaveCount(0);
+  await page.locator('[data-book-lesson="previous"]').click();
+  await expect(page).toHaveURL(/\/lesson\/l1\/topic\/inizio$/);
+  await expect(page.locator('.reader-book-stage .stf__parent')).toBeVisible({timeout:18000});
+});
