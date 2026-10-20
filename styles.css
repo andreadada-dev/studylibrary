@@ -4481,3 +4481,28 @@ body.universe-mode .universe-legend-hint {
     transition:none;
   }
 }
+
+
+/* Library folders reuse the catalog folder language */
+.library-folder-grid {
+  margin-top: 4px;
+}
+.library-folder-card .catalog-folder-caption p span:first-child {
+  display:inline;
+}
+.library-folder-card .catalog-folder-caption p span:nth-child(2)::before {
+  content:"·";
+  margin-right:7px;
+  color:var(--line-strong);
+}
+@media (max-width:620px) {
+  .library-folder-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .library-folder-card .catalog-folder-caption p span:first-child {
+    display:inline;
+  }
+  .library-folder-card .catalog-folder-caption p span:nth-child(2)::before {
+    display:inline;
+  }
+}
